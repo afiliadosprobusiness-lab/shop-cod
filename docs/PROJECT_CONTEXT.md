@@ -23,6 +23,7 @@
 
 - `/` -> landing SaaS
 - `/login` -> login con Firebase
+- `/register` -> registro con Firebase
 - `/superadmin` -> panel protegido de superadmin
 - `/store/demo` -> landing demo de producto
 - `/checkout` -> checkout demo
@@ -45,7 +46,8 @@
 
 ## Flujos Operativos
 
-- Inicio de sesion: `/login` con email/password o Google; si el correo es `afiliadosprobusiness@gmail.com`, redirige al panel `/superadmin`
+- Landing: `/` ahora vende ShopCOD como sistema integral (builders, checkout COD, operacion, analiticas) y muestra planes `Starter`, `Pro` ($9.9/mes) y `Scale` ($50/mes)
+- Auth: `/login` sirve para iniciar sesion y `/register` para crear cuentas; Google sigue disponible en ambos, y si el correo es `afiliadosprobusiness@gmail.com`, redirige al panel `/superadmin`
 - Rutas privadas: redirigen a `/login` si no hay sesion
 - Shell del panel: `DashboardLayout` monta sidebar izquierda, topbar superior y contenido dinamico con `Outlet`
 - Home del panel: `/dashboard` muestra dos tarjetas principales (`Crear tienda online` y `Crear funnel`) con CTA `Comenzar`

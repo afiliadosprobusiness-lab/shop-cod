@@ -15,15 +15,27 @@ There is still no custom backend API implemented in this codebase.
 
 - Renders the ShopCOD SaaS landing page.
 - Component: `SaaSLandingPage`.
+- Includes:
+  - a product-led hero centered on ShopCOD tools (builders, checkout COD, analytics, operations)
+  - public pricing tiers for `Starter`, `Pro`, and `Scale`
 
 ### `GET /login`
 
 - Renders the authentication screen.
 - Component: `LoginPage`.
 - Supports:
-  - Email/password sign-in
+  - Email/password sign-in for existing accounts
   - Google popup sign-in
   - root redirect to `/superadmin` when the authenticated email is `afiliadosprobusiness@gmail.com`
+
+### `GET /register`
+
+- Renders the registration screen.
+- Component: `LoginPage`.
+- Supports:
+  - Email/password account creation
+  - Google popup sign-in
+  - cross-link back to `/login`
 
 ### `GET /superadmin`
 
@@ -679,3 +691,5 @@ The following are breaking changes and must be versioned or coordinated before i
 - 2026-03-04 | El panel agrega tracking real de visitas/conversion y sincronizacion remota opcional con Firestore para datos operativos | non-breaking | Mantiene fallback local mientras habilita KPIs y datos compartidos entre dispositivos
 - 2026-03-04 | `GET /settings` evoluciona a un hub multi-seccion con miembros, pagos, seguridad y webhooks, y se alinean las rutas reales del dashboard operativo | non-breaking | Actualiza el contrato al comportamiento ya implementado sin romper rutas ni persistencia local
 - 2026-03-04 | Se agrega `GET /superadmin` con acceso root por email y gestion local de clientes protegidos | non-breaking | Amplia el panel con un flujo de superadmin sin romper el dashboard existente
+- 2026-03-04 | Se agrega `GET /register` y el login deja de autocrear cuentas silenciosamente | non-breaking | Se separan registro e inicio de sesion sin romper rutas existentes
+- 2026-03-04 | Se actualiza la landing publica de ShopCOD y cambian los precios publicos de `Pro` y `Scale` | non-breaking | Ajusta el mensaje comercial y los planes sin alterar rutas ni contratos internos

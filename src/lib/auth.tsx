@@ -33,6 +33,7 @@ interface AuthContextValue {
   isAuthenticated: boolean;
   isReady: boolean;
   login: (payload: LoginPayload) => Promise<AuthUser>;
+  register: (payload: LoginPayload) => Promise<AuthUser>;
   loginWithGoogle: () => Promise<AuthUser>;
   logout: () => Promise<void>;
 }
@@ -87,21 +88,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       throw new Error("Debes completar correo y contrasena.");
     }
 
-    try {
-      await signInWithEmailAndPassword(firebaseAuth, trimmedEmail, trimmedPassword);
-    } catch (error) {
-      const authError = error as { code?: string };
+    await signInWithEmailAndPassword(firebaseAuth, trimmedEmail, trimmedPassword);
 
-      if (
-        authError.code === "auth/invalid-credential" ||
-        authError.code === "auth/user-not-found" ||
-        authError.code === "auth/wrong-password"
-      ) {
-        await createUserWithEmailAndPassword(firebaseAuth, trimmedEmail, trimmedPassword);
-      } else {
-        throw error;
-      }
+    const nextUser = mapFirebaseUser();
+
+    if (!nextUser) {
+      throw new Error("No se pudo validar tu sesion.");
     }
+
+    setUser(nextUser);
+    return nextUser;
+  };
+
+  const register = async ({ email, password }: LoginPayload) => {
+    const trimmedEmail = email.trim();
+    const trimmedPassword = password.trim();
+
+    if (!trimmedEmail || !trimmedPassword) {
+      throw new Error("Debes completar correo y contrasena.");
+    }
+
+    await createUserWithEmailAndPassword(firebaseAuth, trimmedEmail, trimmedPassword);
 
     const nextUser = mapFirebaseUser();
 
@@ -141,6 +148,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isAuthenticated: Boolean(user),
         isReady,
         login,
+        register,
         loginWithGoogle,
         logout,
       }}

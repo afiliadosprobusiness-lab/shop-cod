@@ -44,6 +44,7 @@ const App = () => (
           <Routes>
             <Route path="/" element={<SaaSLandingPage />} />
             <Route path="/login" element={<LoginPage />} />
+            <Route path="/register" element={<LoginPage />} />
             <Route
               path="/superadmin"
               element={

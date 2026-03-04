@@ -52,8 +52,12 @@ ShopCOD is a frontend SPA for COD-focused funnel selling. It uses Firebase Authe
 - `/`
   - SaaS landing page
   - Component: `SaaSLandingPage`
+  - Includes a product-led marketing flow for ShopCOD tools plus public pricing tiers (`Starter`, `Pro`, `Scale`)
 - `/login`
   - Login screen backed by Firebase Auth
+  - Component: `LoginPage`
+- `/register`
+  - Registration screen backed by Firebase Auth
   - Component: `LoginPage`
 - `/superadmin`
   - Protected superadmin control panel
@@ -117,11 +121,23 @@ ShopCOD is a frontend SPA for COD-focused funnel selling. It uses Firebase Authe
 
 ### Auth Flow
 
-1. User clicks `Iniciar sesion`.
-2. App opens `/login`.
-3. User signs in with email/password or Google through Firebase Auth.
-4. If the email is `afiliadosprobusiness@gmail.com`, the app redirects to `/superadmin`.
-5. All other authenticated users continue into the regular dashboard routes.
+1. User clicks `Iniciar sesion` or `Crear cuenta`.
+2. App opens `/login` or `/register`.
+3. Existing users sign in from `/login`; new users create an account from `/register`.
+4. Google sign-in remains available in both screens.
+5. If the email is `afiliadosprobusiness@gmail.com`, the app redirects to `/superadmin`.
+6. All other authenticated users continue into the regular dashboard routes.
+
+### Landing Flow
+
+1. User opens `/`.
+2. The landing presents ShopCOD as a unified COD operating system.
+3. The hero highlights real platform tools such as Page Builder, Funnel Builder, store management, checkout COD, analytics, and operations.
+4. The pricing section exposes:
+  - `Starter`: free, 1 active store, 100 orders/month, COD checkout, basic editor
+  - `Pro`: $9.9/month, 2 active stores, unlimited orders, full editor, advanced analytics
+  - `Scale`: $50/month, unlimited stores, everything in Pro, multi-user, priority support
+5. Primary CTAs route to `/register`, while returning users can go to `/login`.
 
 ### Dashboard Shell Flow
 

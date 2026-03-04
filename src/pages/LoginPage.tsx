@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { ArrowLeft, LockKeyhole, Mail, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,11 +23,12 @@ function GoogleBadge() {
 export default function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { isAuthenticated, isReady, login, loginWithGoogle, user } = useAuth();
+  const { isAuthenticated, isReady, login, register, loginWithGoogle, user } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isGoogleSubmitting, setIsGoogleSubmitting] = useState(false);
+  const isRegisterMode = location.pathname === "/register";
 
   const nextPath = useMemo(() => {
     const state = location.state as LoginLocationState | null;
@@ -42,7 +43,7 @@ export default function LoginPage() {
     }
   }, [isAuthenticated, isReady, navigate, user?.email]);
 
-  const handleEmailLogin = (event: React.FormEvent<HTMLFormElement>) => {
+  const handleEmailAuth = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
     if (!email.trim() || !password.trim()) {
@@ -54,21 +55,40 @@ export default function LoginPage() {
 
     window.setTimeout(async () => {
       try {
-        const authUser = await login({ email, password });
+        const authUser = isRegisterMode
+          ? await register({ email, password })
+          : await login({ email, password });
         const destination = isSuperAdminEmail(authUser.email)
           ? "/superadmin"
           : nextPath === "/superadmin"
             ? "/dashboard"
             : nextPath;
-        toast.success("Sesion iniciada correctamente.");
+        toast.success(
+          isRegisterMode ? "Cuenta creada correctamente." : "Sesion iniciada correctamente.",
+        );
         navigate(destination, { replace: true });
       } catch (error) {
         const authError = error as { code?: string; message?: string };
 
         if (authError.code === "auth/operation-not-allowed") {
           toast.error("Habilita Email/Password en Firebase Authentication > Sign-in method.");
+        } else if (authError.code === "auth/email-already-in-use") {
+          toast.error("Ese correo ya existe. Inicia sesion con tu cuenta.");
+        } else if (
+          authError.code === "auth/invalid-credential" ||
+          authError.code === "auth/user-not-found" ||
+          authError.code === "auth/wrong-password"
+        ) {
+          toast.error("Correo o contrasena incorrectos.");
+        } else if (authError.code === "auth/weak-password") {
+          toast.error("La contrasena debe tener al menos 6 caracteres.");
         } else {
-          toast.error(authError.message || "No se pudo iniciar sesion.");
+          toast.error(
+            authError.message ||
+              (isRegisterMode
+                ? "No se pudo crear la cuenta."
+                : "No se pudo iniciar sesion."),
+          );
         }
       } finally {
         setIsSubmitting(false);
@@ -129,7 +149,9 @@ export default function LoginPage() {
 
               <div className="space-y-4">
                 <h1 className="max-w-xl text-4xl font-bold leading-tight sm:text-5xl">
-                  Inicia sesion y vuelve a vender con{" "}
+                  {isRegisterMode ? "Crea tu cuenta en " : "Inicia sesion en "}
+                  <span className="text-foreground">ShopCOD</span> y{" "}
+                  {isRegisterMode ? "comienza a vender con " : "vuelve a vender con "}
                   <span className="text-gradient-gold">checkout COD</span>.
                 </h1>
                 <p className="max-w-lg text-base text-muted-foreground sm:text-lg">
@@ -165,11 +187,15 @@ export default function LoginPage() {
             <div className="w-full rounded-3xl border border-border bg-background p-6 sm:p-8">
               <div className="space-y-2">
                 <p className="text-sm font-semibold uppercase tracking-[0.24em] text-muted-foreground">
-                  Login
+                  {isRegisterMode ? "Register" : "Login"}
                 </p>
-                <h2 className="text-2xl font-bold">Accede a tu cuenta</h2>
+                <h2 className="text-2xl font-bold">
+                  {isRegisterMode ? "Crea tu cuenta" : "Accede a tu cuenta"}
+                </h2>
                 <p className="text-sm text-muted-foreground">
-                  Usa tu correo y tu acceso para entrar a ShopCOD.
+                  {isRegisterMode
+                    ? "Usa tu correo para crear tu acceso a ShopCOD."
+                    : "Usa tu correo y tu acceso para entrar a ShopCOD."}
                 </p>
               </div>
 
@@ -193,7 +219,7 @@ export default function LoginPage() {
                 <div className="h-px flex-1 bg-border" />
               </div>
 
-              <form className="space-y-5" onSubmit={handleEmailLogin}>
+              <form className="space-y-5" onSubmit={handleEmailAuth}>
                 <div className="space-y-2">
                   <Label htmlFor="email">Correo electronico</Label>
                   <div className="relative">
@@ -233,9 +259,25 @@ export default function LoginPage() {
                   className="w-full"
                   disabled={isSubmitting || isGoogleSubmitting}
                 >
-                  {isSubmitting ? "Ingresando..." : "Iniciar sesion"}
+                  {isSubmitting
+                    ? isRegisterMode
+                      ? "Creando cuenta..."
+                      : "Ingresando..."
+                    : isRegisterMode
+                      ? "Crear cuenta"
+                      : "Iniciar sesion"}
                 </Button>
               </form>
+
+              <p className="mt-6 text-center text-sm text-muted-foreground">
+                {isRegisterMode ? "Ya tienes cuenta?" : "No tienes cuenta?"}{" "}
+                <Link
+                  to={isRegisterMode ? "/login" : "/register"}
+                  className="font-medium text-primary transition-colors hover:text-primary/80"
+                >
+                  {isRegisterMode ? "Haz login aca" : "Creala aca"}
+                </Link>
+              </p>
             </div>
           </section>
         </div>
