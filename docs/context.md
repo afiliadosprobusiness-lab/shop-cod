@@ -101,8 +101,14 @@ ShopCOD is a frontend SPA for COD-focused funnel selling. It uses Firebase Authe
 
 1. User edits blocks in `/editor/:storeId`.
 2. User also edits the store commercial profile in the guided setup panel.
-3. `Aplicar al funnel` syncs the profile into hero, CTA, FAQ, benefits, and checkout copy.
-4. `Guardar` stores blocks and profile in browser storage.
+3. The editor now behaves as a visual funnel workspace with:
+  - drag-and-drop ordering
+  - block library grouped by funnel stage
+  - funnel map navigation
+  - contextual insertion suggestions
+  - heuristic conversion score and quick-win guidance
+4. `Aplicar al funnel` syncs the profile into hero, CTA, FAQ, benefits, and checkout copy.
+5. `Guardar` stores blocks and profile in browser storage.
 
 ### Preview Flow
 
@@ -141,7 +147,7 @@ ShopCOD is a frontend SPA for COD-focused funnel selling. It uses Firebase Authe
 ### Page Layer
 
 - `src/pages/DashboardPage.tsx` manages store creation and local catalog UX.
-- `src/pages/EditorPage.tsx` manages the guided builder and block composition.
+- `src/pages/EditorPage.tsx` manages the guided builder, visual funnel workspace, drag-and-drop composition, and conversion guidance UI.
 - `src/pages/PreviewPage.tsx` renders the saved commercial profile into the storefront preview.
 
 ### UI Layer

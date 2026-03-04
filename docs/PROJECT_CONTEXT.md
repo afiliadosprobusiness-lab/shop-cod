@@ -37,6 +37,7 @@
 - Inicio de sesion: `/login` con email/password o Google
 - Rutas privadas: redirigen a `/login` si no hay sesion
 - Crear tienda: dashboard abre modal, crea draft local con funnel completo (hero, problema, beneficios, reviews, FAQ, checkout y CTA) y navega a `/editor/:storeId`
+- Editor: workspace visual con drag and drop, biblioteca de bloques, mapa del funnel, score heuristico y panel de optimizacion
 - Guardar: editor guarda bloques + perfil comercial en `localStorage`
 - Aplicar al funnel: sincroniza el perfil comercial con el contenido del funnel
 - Preview: usa el perfil guardado para poblar hero, CTA y checkout

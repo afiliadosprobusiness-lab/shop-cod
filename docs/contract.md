@@ -67,6 +67,7 @@ There is still no custom backend API implemented in this codebase.
   - loads local draft state when available
   - edits both funnel blocks and base commercial profile
   - new drafts open with a full starter funnel (hero, problem, benefits, reviews, FAQ, checkout, and CTA)
+  - exposes a drag-and-drop funnel workspace with block library, funnel map, quick insertion, and conversion guidance
 
 ### `GET /preview/:storeId`
 
@@ -191,3 +192,4 @@ The following are breaking changes and must be versioned or coordinated before i
 - 2026-03-04 | Se agregan login con Firebase, rutas protegidas, persistencia local del editor y hosting en Vercel | non-breaking | Amplia el contrato publico sin romper rutas previas activas
 - 2026-03-04 | Se agrega creador guiado, catalogo local de tiendas y preview alimentado por perfil comercial | non-breaking | Mejora el flujo de creacion sin cambiar las rutas publicas
 - 2026-03-04 | Los nuevos borradores se inicializan con un funnel completo y el dashboard usa un creador guiado mas robusto | non-breaking | Refuerza el flujo de creacion sin alterar rutas ni shapes compartidos
+- 2026-03-04 | El editor evoluciona a un workspace visual tipo funnel builder con score heuristico y controles de optimizacion | non-breaking | Mejora la UX del editor sin cambiar rutas ni contratos de datos
