@@ -4,7 +4,7 @@
 
 - Proyecto: ShopCOD
 - Tipo: frontend SPA
-- Estado funcional: frontend navegable con auth en Firebase, shell SaaS protegido y flujos visuales legacy para editor/preview
+- Estado funcional: frontend navegable con auth en Firebase, shell SaaS protegido, superadmin con registro compartido Firestore (fallback local) y flujos visuales legacy para editor/preview
 
 ## Stack
 
@@ -17,6 +17,7 @@
 - dnd-kit
 - TanStack Query
 - Firebase Auth
+- Firebase Firestore (registro compartido de clientes superadmin)
 - Vitest
 
 ## Rutas Activas
@@ -47,7 +48,7 @@
 ## Flujos Operativos
 
 - Landing: `/` ahora vende ShopCOD como sistema integral (builders, checkout COD, operacion, analiticas) y muestra planes `Starter`, `Pro` ($9.9/mes) y `Scale` ($50/mes)
-- Auth: `/login` sirve para iniciar sesion y `/register` para crear cuentas; Google sigue disponible en ambos, y si el correo es `afiliadosprobusiness@gmail.com`, redirige al panel `/superadmin`
+- Auth: `/login` sirve para iniciar sesion y `/register` para crear cuentas; Google sigue disponible en ambos, y si el correo es `afiliadosprobusiness@gmail.com`, redirige al panel `/superadmin`; las sesiones no-root registran/actualizan automaticamente su workspace en el registro de clientes del superadmin
 - Planes: el workspace ahora bloquea acciones segun el plan activo y muestra un modal de upgrade para subir localmente a `Pro` o `Scale` cuando corresponde
 - Rutas privadas: redirigen a `/login` si no hay sesion
 - Shell del panel: `DashboardLayout` monta sidebar izquierda, topbar superior y contenido dinamico con `Outlet`
@@ -70,7 +71,7 @@
 
 ## Integraciones
 
-- Firebase solo para autenticacion
+- Firebase para autenticacion y sincronizacion compartida del registro de clientes superadmin
 - Proyecto Firebase: `shopcod-auth-20260304`
 - Vercel para hosting SPA
 - Proyecto Vercel vinculado: `shop-cod`
@@ -96,7 +97,8 @@
 - `src/pages/dashboard/OffersPage.tsx` renderiza la gestion de bundles y descuentos.
 - `src/pages/dashboard/AppsPage.tsx` renderiza el estado de proximas integraciones.
 - `src/pages/dashboard/SettingsPage.tsx` renderiza el hub completo de configuracion del workspace con formularios, listas y modales operativos por seccion.
-- `src/pages/SuperAdminPage.tsx` renderiza el panel root para activar, desactivar, cambiar de plan con un clic y eliminar clientes reales visibles, manteniendo protegida la cuenta superadmin.
+- `src/pages/SuperAdminPage.tsx` renderiza el panel root para activar, desactivar, cambiar de plan con un clic y eliminar clientes reales visibles, hidratando desde Firestore cuando esta disponible y manteniendo protegida la cuenta superadmin.
+- `src/lib/auth.tsx` registra automaticamente workspaces no-root en el registro compartido del superadmin al autenticar usuarios.
 - El modulo real de productos vive en `src/pages/dashboard/ProductsPage.tsx`.
 - El alta de productos vive en `src/pages/dashboard/ProductCreatePage.tsx`.
 - El modelo y almacenamiento local de productos viven en `src/lib/products.ts`.
@@ -106,7 +108,7 @@
 - El panel interno por tienda vive en `src/pages/dashboard/StoreDashboardPage.tsx`.
 - El modelo, templates, selector de pagos, almacenamiento local y analytics derivados de tiendas viven en `src/lib/stores.ts`.
 - Los pedidos, contactos, ofertas, configuracion global y el snapshot de analytics en tiempo real viven en `src/lib/platform-data.ts`.
-- `src/lib/superadmin.ts` mantiene el registro local de clientes gestionados por el root, filtra cuentas demo legacy, solo expone cuentas persistidas reales visibles y evita borrar o degradar la cuenta superadmin.
+- `src/lib/superadmin.ts` mantiene el registro local de clientes gestionados por el root, filtra cuentas demo legacy, registra workspaces autenticados, hidrata/sincroniza con Firestore cuando esta disponible y evita borrar o degradar la cuenta superadmin.
 - `src/lib/plans.ts` centraliza limites y desbloqueos por plan para `Starter`, `Pro` y `Scale`.
 - `src/lib/live-sync.ts` emite eventos locales para refrescar modulos en tiempo real cuando cambia la data persistida.
 - `src/components/analytics/PlatformTelemetry.tsx` registra visitas reales, inicios de checkout y hace bootstrap de sincronizacion remota.

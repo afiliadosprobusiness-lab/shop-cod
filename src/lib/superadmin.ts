@@ -1,5 +1,6 @@
+import { firebaseApp, firebaseAuth, hasFirebaseConfig } from "@/lib/firebase";
 import { emitShopcodDataUpdated } from "@/lib/live-sync";
-import { loadOrders, loadPlatformSettings } from "@/lib/platform-data";
+import { loadPlatformSettings, savePlatformSettings } from "@/lib/platform-data";
 import {
   applyPlanToSettings,
   getPlanDefinition,
@@ -28,12 +29,18 @@ export interface SuperAdminClient {
   isProtected: boolean;
 }
 
+interface SuperAdminSessionUser {
+  email: string;
+  name: string;
+}
+
 const SUPERADMIN_STORAGE_KEY = "shopcod-superadmin-clients-v1";
-const SETTINGS_STORAGE_KEY = "shopcod-settings-v1";
+const LOCAL_CLIENT_ID_STORAGE_KEY = "shopcod-superadmin-local-client-id-v1";
+const ORDERS_STORAGE_KEY = "shopcod-orders-v1";
 const STORES_STORAGE_KEY = "shopcod-stores-v1";
 const FUNNELS_STORAGE_KEY = "shopcod-funnels-v1";
 const ROOT_CLIENT_ID = "superadmin-root";
-const CURRENT_WORKSPACE_ID = "workspace-current";
+const CLOUD_COLLECTION = "shopcod-superadmin-clients";
 const LEGACY_DEMO_EMAILS = new Set([
   "mariana@codgrowthlab.com",
   "jorge@widgethouse.io",
@@ -42,6 +49,9 @@ const LEGACY_DEMO_WORKSPACES = new Set([
   "COD Growth Lab",
   "Latam Widget House",
 ]);
+const isTestEnvironment = import.meta.env.MODE === "test";
+
+let cloudBootstrapPromise: Promise<SuperAdminClient[]> | null = null;
 
 function canUseStorage() {
   return typeof window !== "undefined" && typeof window.localStorage !== "undefined";
@@ -69,12 +79,13 @@ function writeStorage(key: string, value: unknown) {
   emitShopcodDataUpdated();
 }
 
-function hasPersistedKey(key: string) {
+function removeStorageKey(key: string) {
   if (!canUseStorage()) {
-    return false;
+    return;
   }
 
-  return window.localStorage.getItem(key) !== null;
+  window.localStorage.removeItem(key);
+  emitShopcodDataUpdated();
 }
 
 function readPersistedCollectionCount(key: string) {
@@ -82,13 +93,33 @@ function readPersistedCollectionCount(key: string) {
   return Array.isArray(stored) ? stored.length : 0;
 }
 
-function hasPersistedWorkspaceData() {
-  return (
-    hasPersistedKey(SETTINGS_STORAGE_KEY) ||
-    hasPersistedKey(STORES_STORAGE_KEY) ||
-    hasPersistedKey(FUNNELS_STORAGE_KEY) ||
-    loadOrders().length > 0
+function readPersistedOrders() {
+  const stored = readStorage<Array<{ total?: unknown }>>(ORDERS_STORAGE_KEY);
+
+  if (!Array.isArray(stored)) {
+    return [] as Array<{ total?: unknown }>;
+  }
+
+  return stored;
+}
+
+function getPersistedRevenue() {
+  return Number(
+    readPersistedOrders()
+      .reduce((sum, order) => {
+        const total = typeof order?.total === "number" && Number.isFinite(order.total) ? order.total : 0;
+        return sum + total;
+      }, 0)
+      .toFixed(2),
   );
+}
+
+function getWorkspaceClientId(email: string) {
+  const normalizedEmail = email.trim().toLowerCase();
+  const currentUid = firebaseAuth.currentUser?.uid?.trim() || "";
+  const fallbackToken = normalizedEmail.replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+
+  return `workspace-${currentUid || fallbackToken || "client"}`;
 }
 
 function isClientStatus(value: unknown): value is SuperAdminClientStatus {
@@ -116,41 +147,31 @@ function createRootClient() {
   } satisfies SuperAdminClient;
 }
 
-function createCurrentWorkspaceClient() {
+function createWorkspaceClient(sessionUser: SuperAdminSessionUser) {
   const now = new Date().toISOString();
   const settings = loadPlatformSettings();
-  const orders = loadOrders();
-  const revenue = Number(orders.reduce((sum, order) => sum + order.total, 0).toFixed(2));
   const resolvedPlan = getPlanDefinition(resolvePlanId(settings.billing.planName));
 
   return {
-    id: CURRENT_WORKSPACE_ID,
+    id: getWorkspaceClientId(sessionUser.email),
     workspaceName: settings.accountName,
     companyName: settings.companyName || settings.accountName,
-    ownerName: settings.legalName || settings.accountName,
-    ownerEmail: settings.ownerEmail,
+    ownerName: settings.legalName || sessionUser.name || settings.accountName,
+    ownerEmail: sessionUser.email,
     planName: resolvedPlan.name,
     status: "active",
     storesCount: readPersistedCollectionCount(STORES_STORAGE_KEY),
     funnelsCount: readPersistedCollectionCount(FUNNELS_STORAGE_KEY),
-    ordersCount: orders.length,
-    revenue,
+    ordersCount: readPersistedCollectionCount(ORDERS_STORAGE_KEY),
+    revenue: getPersistedRevenue(),
     createdAt: now,
     updatedAt: now,
     isProtected: false,
   } satisfies SuperAdminClient;
 }
 
-function createInitialClients() {
-  return [
-    createRootClient(),
-    ...(hasPersistedWorkspaceData() ? [createCurrentWorkspaceClient()] : []),
-  ] satisfies SuperAdminClient[];
-}
-
 function isLegacyDemoClient(client: SuperAdminClient) {
   return (
-    client.id !== CURRENT_WORKSPACE_ID &&
     !client.isProtected &&
     (LEGACY_DEMO_EMAILS.has(client.ownerEmail.trim().toLowerCase()) ||
       LEGACY_DEMO_WORKSPACES.has(client.workspaceName))
@@ -181,18 +202,14 @@ function normalizeClient(candidate: unknown): SuperAdminClient | null {
     client.id === ROOT_CLIENT_ID ||
     client.ownerEmail.trim().toLowerCase() === SUPERADMIN_EMAIL;
 
-  const resolvedPlanName = isProtected
-    ? "Root"
-    : getPlanDefinition(resolvePlanId(client.planName)).name;
-
   return {
     id: client.id,
     workspaceName: client.workspaceName,
     companyName: client.companyName,
     ownerName: client.ownerName,
     ownerEmail: client.ownerEmail,
-    planName: resolvedPlanName,
-    status: client.status,
+    planName: isProtected ? "Root" : getPlanDefinition(resolvePlanId(client.planName)).name,
+    status: isProtected ? "active" : client.status,
     storesCount:
       typeof client.storesCount === "number" && Number.isFinite(client.storesCount)
         ? Math.max(0, Math.trunc(client.storesCount))
@@ -217,6 +234,16 @@ function normalizeClient(candidate: unknown): SuperAdminClient | null {
   };
 }
 
+function sortClients(clients: SuperAdminClient[]) {
+  return [...clients].sort((left, right) => {
+    if (left.isProtected === right.isProtected) {
+      return left.workspaceName.localeCompare(right.workspaceName);
+    }
+
+    return left.isProtected ? -1 : 1;
+  });
+}
+
 function normalizeClients(candidate: unknown) {
   const normalized = Array.isArray(candidate)
     ? candidate
@@ -232,54 +259,98 @@ function normalizeClients(candidate: unknown) {
   } else {
     normalized[rootIndex] = {
       ...normalized[rootIndex],
-      workspaceName: "ShopCOD Root",
-      companyName: "Afiliados Pro Business",
-      ownerName: "Superadmin",
-      ownerEmail: SUPERADMIN_EMAIL,
-      planName: "Root",
-      status: "active",
-      isProtected: true,
+      ...createRootClient(),
     };
   }
 
-  const workspaceIndex = normalized.findIndex(
-    (client) => client.id === CURRENT_WORKSPACE_ID,
-  );
-
-  if (hasPersistedWorkspaceData()) {
-    const workspace = createCurrentWorkspaceClient();
-
-    if (workspaceIndex >= 0) {
-      normalized[workspaceIndex] = {
-        ...normalized[workspaceIndex],
-        workspaceName: workspace.workspaceName,
-        companyName: workspace.companyName,
-        ownerName: workspace.ownerName,
-        ownerEmail: workspace.ownerEmail,
-        planName: workspace.planName,
-        storesCount: workspace.storesCount,
-        funnelsCount: workspace.funnelsCount,
-        ordersCount: workspace.ordersCount,
-        revenue: workspace.revenue,
-        updatedAt: new Date().toISOString(),
-      };
-    }
-  } else if (workspaceIndex >= 0) {
-    normalized.splice(workspaceIndex, 1);
-  }
-
-  return normalized.sort((left, right) => {
-    if (left.isProtected === right.isProtected) {
-      return left.workspaceName.localeCompare(right.workspaceName);
-    }
-
-    return left.isProtected ? -1 : 1;
-  });
+  return sortClients(normalized);
 }
 
 function persistClients(clients: SuperAdminClient[]) {
-  writeStorage(SUPERADMIN_STORAGE_KEY, clients);
-  return clients;
+  const normalized = normalizeClients(clients);
+  writeStorage(SUPERADMIN_STORAGE_KEY, normalized);
+  return normalized;
+}
+
+function mergeClientsByRecency(localClients: SuperAdminClient[], remoteClients: SuperAdminClient[]) {
+  const merged = new Map<string, SuperAdminClient>();
+
+  for (const client of [...localClients, ...remoteClients]) {
+    const current = merged.get(client.id);
+
+    if (!current || client.updatedAt >= current.updatedAt) {
+      merged.set(client.id, client);
+    }
+  }
+
+  return normalizeClients([...merged.values()]);
+}
+
+async function getCloudCollectionTools() {
+  if (!hasFirebaseConfig() || isTestEnvironment) {
+    return null;
+  }
+
+  try {
+    const { collection, deleteDoc, doc, getDocs, getFirestore, setDoc } = await import(
+      "firebase/firestore"
+    );
+    const firestore = getFirestore(firebaseApp);
+    const clientsCollection = collection(firestore, CLOUD_COLLECTION);
+
+    return {
+      clientsCollection,
+      deleteDoc,
+      doc,
+      getDocs,
+      setDoc,
+    };
+  } catch {
+    return null;
+  }
+}
+
+async function pushClientToCloud(client: SuperAdminClient) {
+  if (client.isProtected) {
+    return;
+  }
+
+  const tools = await getCloudCollectionTools();
+
+  if (!tools) {
+    return;
+  }
+
+  try {
+    const clientRef = tools.doc(tools.clientsCollection, client.id);
+    await tools.setDoc(clientRef, client, { merge: true });
+  } catch {
+    // Keep local storage as fallback when Firestore is unavailable or denied.
+  }
+}
+
+async function removeClientFromCloud(clientId: string) {
+  const tools = await getCloudCollectionTools();
+
+  if (!tools) {
+    return;
+  }
+
+  try {
+    const clientRef = tools.doc(tools.clientsCollection, clientId);
+    await tools.deleteDoc(clientRef);
+  } catch {
+    // Keep local storage as fallback when Firestore is unavailable or denied.
+  }
+}
+
+function shouldSyncLocalWorkspace(clientId: string) {
+  const storedLocalClientId = readStorage<string>(LOCAL_CLIENT_ID_STORAGE_KEY);
+  return storedLocalClientId === clientId;
+}
+
+function markLocalWorkspaceClient(clientId: string) {
+  writeStorage(LOCAL_CLIENT_ID_STORAGE_KEY, clientId);
 }
 
 export function isSuperAdminEmail(email: string | null | undefined) {
@@ -290,12 +361,76 @@ export function loadSuperAdminClients() {
   const stored = readStorage<unknown>(SUPERADMIN_STORAGE_KEY);
 
   if (!stored) {
-    const initialClients = createInitialClients();
-    persistClients(initialClients);
+    const initialClients = persistClients([createRootClient()]);
     return initialClients;
   }
 
   return normalizeClients(stored);
+}
+
+export async function bootstrapSuperAdminClientsFromCloud() {
+  if (cloudBootstrapPromise) {
+    return cloudBootstrapPromise;
+  }
+
+  cloudBootstrapPromise = (async () => {
+    const tools = await getCloudCollectionTools();
+
+    if (!tools) {
+      return loadSuperAdminClients();
+    }
+
+    try {
+      const snapshot = await tools.getDocs(tools.clientsCollection);
+      const remoteClients = snapshot.docs
+        .map((document) => normalizeClient(document.data()))
+        .filter((client): client is SuperAdminClient => Boolean(client));
+      const merged = mergeClientsByRecency(loadSuperAdminClients(), remoteClients);
+      return persistClients(merged);
+    } catch {
+      return loadSuperAdminClients();
+    }
+  })().finally(() => {
+    cloudBootstrapPromise = null;
+  });
+
+  return cloudBootstrapPromise;
+}
+
+export async function registerAuthenticatedWorkspaceClient(
+  sessionUser: SuperAdminSessionUser | null | undefined,
+) {
+  if (!sessionUser || !sessionUser.email || isSuperAdminEmail(sessionUser.email)) {
+    return loadSuperAdminClients();
+  }
+
+  const clientId = getWorkspaceClientId(sessionUser.email);
+  const hydratedClients = await bootstrapSuperAdminClientsFromCloud();
+  const existingClient = hydratedClients.find((client) => client.id === clientId && !client.isProtected);
+  const currentSettings = loadPlatformSettings();
+
+  if (existingClient && resolvePlanId(existingClient.planName) !== resolvePlanId(currentSettings.billing.planName)) {
+    applyPlanToSettings(currentSettings, resolvePlanId(existingClient.planName));
+  }
+
+  const settings = loadPlatformSettings();
+
+  if (settings.ownerEmail !== sessionUser.email) {
+    savePlatformSettings({
+      ...settings,
+      ownerEmail: sessionUser.email,
+      supportEmail: settings.supportEmail || sessionUser.email,
+    });
+  }
+
+  const client = createWorkspaceClient(sessionUser);
+  markLocalWorkspaceClient(client.id);
+  const nextClients = persistClients([
+    ...loadSuperAdminClients().filter((currentClient) => currentClient.id !== client.id),
+    client,
+  ]);
+  void pushClientToCloud(client);
+  return nextClients;
 }
 
 export function toggleSuperAdminClientStatus(clientId: string) {
@@ -304,11 +439,14 @@ export function toggleSuperAdminClientStatus(clientId: string) {
       return client;
     }
 
-    return {
+    const nextClient = {
       ...client,
       status: client.status === "active" ? "inactive" : "active",
       updatedAt: new Date().toISOString(),
     };
+
+    void pushClientToCloud(nextClient);
+    return nextClient;
   });
 
   return persistClients(nextClients);
@@ -322,6 +460,11 @@ export function deleteSuperAdminClient(clientId: string) {
     return currentClients;
   }
 
+  if (shouldSyncLocalWorkspace(clientId)) {
+    removeStorageKey(LOCAL_CLIENT_ID_STORAGE_KEY);
+  }
+
+  void removeClientFromCloud(clientId);
   return persistClients(currentClients.filter((client) => client.id !== clientId));
 }
 
@@ -333,21 +476,25 @@ export function updateSuperAdminClientPlan(clientId: string, nextPlanId: ShopPla
     return currentClients;
   }
 
-  if (clientId === CURRENT_WORKSPACE_ID) {
+  if (shouldSyncLocalWorkspace(clientId)) {
     applyPlanToSettings(loadPlatformSettings(), nextPlanId);
   }
 
   const nextPlan = getPlanDefinition(nextPlanId);
-  const nextClients = currentClients.map((client) =>
-    client.id === clientId
-      ? {
-          ...client,
-          planName: nextPlan.name,
-          updatedAt: new Date().toISOString(),
-        }
-      : client,
-  );
+  const nextClients = currentClients.map((client) => {
+    if (client.id !== clientId) {
+      return client;
+    }
 
-  persistClients(nextClients);
-  return loadSuperAdminClients();
+    const nextClient = {
+      ...client,
+      planName: nextPlan.name,
+      updatedAt: new Date().toISOString(),
+    };
+
+    void pushClientToCloud(nextClient);
+    return nextClient;
+  });
+
+  return persistClients(nextClients);
 }

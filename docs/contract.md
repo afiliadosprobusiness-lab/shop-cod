@@ -4,7 +4,7 @@
 
 This repository is a frontend SPA built with Vite, React, TypeScript, Tailwind CSS, shadcn-ui, and React Router.
 
-Firebase is used only for authentication.
+Firebase is used for authentication and the shared superadmin client registry.
 Vercel is the target hosting platform for the frontend build and routing.
 
 There is still no custom backend API implemented in this codebase.
@@ -51,6 +51,7 @@ There is still no custom backend API implemented in this codebase.
   - delete client action for non-protected clients
   - a protected root client row that cannot be deleted or deactivated
   - no demo client fallback; only real locally persisted clients plus the protected root account may be rendered
+  - Firestore-backed shared client hydration when Firebase configuration and rules allow it
 
 ### `GET /store/demo`
 
@@ -549,7 +550,7 @@ Rules:
 - `Funnel.slug` must remain unique within the browser-side catalog.
 - `/funnels` uses browser local persistence only and must initialize a compatible `/editor/:storeId` draft when creating a new funnel.
 - `/orders`, `/analytics`, `/contacts`, `/offers`, and `/settings` use browser local persistence only.
-- `/superadmin` uses browser local persistence only for the managed client registry.
+- `/superadmin` uses browser local persistence as immediate fallback and may mirror / hydrate the managed client registry from Firestore.
 - `/superadmin` must not invent demo clients; it may only render the protected root account and real locally persisted client records.
 - Submitting the COD checkout must create a persisted `PlatformOrder` and upsert a linked `PlatformContact`.
 - Public-facing route visits and checkout starts must be tracked as `PlatformEvent` records and feed analytics KPIs.
@@ -558,6 +559,7 @@ Rules:
 - The superadmin root client must remain protected and cannot be deleted or deactivated from the UI.
 - The superadmin root client must remain protected and cannot be downgraded or switched to a non-root plan from the UI.
 - Platform operational data may mirror to Firestore when Firebase configuration is available, but the UI must continue working with local persistence as the immediate fallback.
+- The superadmin client registry may mirror to Firestore when Firebase configuration is available, but the UI must continue working with local persistence as the immediate fallback.
 
 ### Store Catalog Model
 
@@ -720,3 +722,4 @@ The following are breaking changes and must be versioned or coordinated before i
 - 2026-03-04 | Se actualiza la landing publica de ShopCOD y cambian los precios publicos de `Pro` y `Scale` | non-breaking | Ajusta el mensaje comercial y los planes sin alterar rutas ni contratos internos
 - 2026-03-04 | Se agrega gating local por plan con modal de upgrade para tiendas, analiticas y multi-usuario | non-breaking | Introduce restricciones de producto sin romper rutas ni persistencia base
 - 2026-03-04 | `GET /superadmin` deja de sembrar cuentas demo y agrega cambio de plan en un clic para cuentas reales visibles | non-breaking | Endurece el panel root sin cambiar rutas ni modelos compartidos
+- 2026-03-04 | El registro de clientes del superadmin pasa a hidratarse y sincronizarse con Firestore cuando esta disponible | non-breaking | Mantiene fallback local mientras permite visibilidad compartida entre sesiones y dispositivos

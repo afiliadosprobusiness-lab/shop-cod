@@ -15,7 +15,7 @@ ShopCOD is a frontend SPA for COD-focused funnel selling. It uses Firebase Authe
 - Framer Motion
 - dnd-kit
 - TanStack Query
-- Firebase Web SDK (Auth only)
+- Firebase Web SDK (Auth + Firestore sync for superadmin registry)
 - Vitest + Testing Library
 
 ## Integraciones Activas
@@ -25,7 +25,8 @@ ShopCOD is a frontend SPA for COD-focused funnel selling. It uses Firebase Authe
 - Firebase project for auth: `shopcod-auth-20260304`
 - Web app: `shopcod-web`
 - Usage scope:
-  - Firebase Authentication only
+  - Firebase Authentication
+  - Firestore synchronization for shared superadmin client registry
 - Current auth methods wired in the frontend:
   - Email/password
   - Google popup
@@ -132,9 +133,11 @@ ShopCOD is a frontend SPA for COD-focused funnel selling. It uses Firebase Authe
 
 1. Root opens `/superadmin`.
 2. The panel always keeps the protected root account visible.
-3. The client list only renders real locally persisted accounts; legacy demo seed rows are filtered out and no new demo rows are generated.
-4. Each non-root account can be activated, deactivated, deleted, or switched between `Starter`, `Pro`, and `Scale` in one click.
-5. When the visible account is the current local workspace, changing its plan also syncs `PlatformSettings.billing`.
+3. The client list only renders real accounts; legacy demo seed rows are filtered out and no new demo rows are generated.
+4. Non-root sessions auto-register and refresh their workspace client record after authentication.
+5. The panel hydrates from Firestore when available, while preserving immediate local fallback.
+6. Each non-root account can be activated, deactivated, deleted, or switched between `Starter`, `Pro`, and `Scale` in one click.
+7. When the visible account maps to the local workspace client id, changing its plan also syncs `PlatformSettings.billing`.
 
 ### Landing Flow
 
@@ -312,10 +315,10 @@ ShopCOD is a frontend SPA for COD-focused funnel selling. It uses Firebase Authe
 ### Auth Layer
 
 - `src/lib/firebase.ts` initializes Firebase app and auth.
-- `src/lib/auth.tsx` exposes auth context and Firebase-backed session methods.
+- `src/lib/auth.tsx` exposes auth context, Firebase-backed session methods, and workspace registration into the superadmin registry for non-root users.
 - `src/components/auth/ProtectedRoute.tsx` gates private routes.
 - `src/components/auth/SuperAdminRoute.tsx` gates the root-only superadmin route.
-- `src/lib/superadmin.ts` defines the frontend-only superadmin client registry, filters legacy demo rows, enforces the protected root account rule, and syncs one-click plan changes.
+- `src/lib/superadmin.ts` defines the frontend-only superadmin client registry, filters legacy demo rows, registers authenticated workspaces, hydrates/synchronizes with Firestore when available, enforces the protected root account rule, and syncs one-click plan changes.
 - `src/lib/plans.ts` defines plan tiers, feature gates, and local upgrade helpers for Starter / Pro / Scale.
 
 ### Dashboard Shell Layer
@@ -411,6 +414,8 @@ ShopCOD is a frontend SPA for COD-focused funnel selling. It uses Firebase Authe
   - contacts captured from COD submissions
   - bundle and discount offers
   - workspace settings
+  - superadmin local client registry fallback
+- The superadmin client registry may also hydrate/sync from Firestore when Firebase configuration and rules allow it.
 - When Firebase config is available, platform operational data is also mirrored to Firestore and merged back into local state on app bootstrap.
 - A browser-side store catalog is also stored in `localStorage` for dashboard and editor-adjacent flows.
 - A browser-side product catalog is also stored in `localStorage` with seeded fallback data for the products module.
@@ -434,7 +439,8 @@ Required:
 - Browser storage powers the creator; drafts are local to the current browser/session context.
 - Google popup on deployed domains still depends on the Firebase authorized domain configuration.
 - The build currently produces a large JS chunk and may benefit from later code-splitting.
-- Dashboard and superadmin operations are still browser-local and do not yet map to a shared backend source of truth.
+- Most dashboard operations are still browser-local and do not yet map to a shared backend source of truth.
+- Superadmin shared visibility depends on Firestore availability/rules; when denied, the panel falls back to local data.
 - There is still no backend API for stores, orders, or publishing.
 
 ## Convenciones Para Cambios Futuros

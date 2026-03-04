@@ -18,6 +18,7 @@ import { useAuth } from "@/lib/auth";
 import { subscribeToShopcodData } from "@/lib/live-sync";
 import { getPlanDefinition, resolvePlanId, type ShopPlanId } from "@/lib/plans";
 import {
+  bootstrapSuperAdminClientsFromCloud,
   deleteSuperAdminClient,
   loadSuperAdminClients,
   toggleSuperAdminClientStatus,
@@ -67,6 +68,22 @@ export default function SuperAdminPage() {
     return subscribeToShopcodData(() => {
       setClients(loadSuperAdminClients());
     });
+  }, []);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    void bootstrapSuperAdminClientsFromCloud().then((nextClients) => {
+      if (!isMounted) {
+        return;
+      }
+
+      setClients(nextClients);
+    });
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   const filteredClients = useMemo(() => {

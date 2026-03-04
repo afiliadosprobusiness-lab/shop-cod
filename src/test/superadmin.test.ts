@@ -3,6 +3,7 @@ import {
   deleteSuperAdminClient,
   isSuperAdminEmail,
   loadSuperAdminClients,
+  registerAuthenticatedWorkspaceClient,
   toggleSuperAdminClientStatus,
   updateSuperAdminClientPlan,
 } from "@/lib/superadmin";
@@ -61,13 +62,18 @@ describe("superadmin data", () => {
     expect(clients[0]?.isProtected).toBe(true);
   });
 
-  it("toggles, changes plan, and deletes regular clients", () => {
+  it("registers authenticated workspaces, keeps plan changes, and allows root actions", async () => {
     window.localStorage.setItem("shopcod-settings-v1", JSON.stringify(loadPlatformSettings()));
 
-    const clients = loadSuperAdminClients();
+    const clients = await registerAuthenticatedWorkspaceClient({
+      email: "owner@acme.com",
+      name: "Acme Owner",
+    });
     const regularClient = clients.find((client) => !client.isProtected);
 
     expect(regularClient).toBeTruthy();
+    expect(regularClient?.ownerEmail).toBe("owner@acme.com");
+    expect(regularClient?.planName).toBe("Starter");
 
     const toggled = toggleSuperAdminClientStatus(regularClient!.id);
     const updatedClient = toggled.find((client) => client.id === regularClient!.id);
@@ -79,6 +85,14 @@ describe("superadmin data", () => {
 
     expect(repricedClient?.planName).toBe("Scale");
     expect(loadPlatformSettings().billing.planName).toBe("Scale");
+
+    const rehydrated = await registerAuthenticatedWorkspaceClient({
+      email: "owner@acme.com",
+      name: "Acme Owner",
+    });
+    const syncedClient = rehydrated.find((client) => client.id === regularClient!.id);
+
+    expect(syncedClient?.planName).toBe("Scale");
 
     const afterDelete = deleteSuperAdminClient(regularClient!.id);
 

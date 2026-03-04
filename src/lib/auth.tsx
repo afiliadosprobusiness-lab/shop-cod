@@ -16,6 +16,7 @@ import {
   signOut,
 } from "firebase/auth";
 import { firebaseAuth } from "@/lib/firebase";
+import { registerAuthenticatedWorkspaceClient } from "@/lib/superadmin";
 
 export interface AuthUser {
   email: string;
@@ -79,6 +80,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       unsubscribe();
     };
   }, []);
+
+  useEffect(() => {
+    if (!user) {
+      return;
+    }
+
+    void registerAuthenticatedWorkspaceClient({
+      email: user.email,
+      name: user.name,
+    });
+  }, [user]);
 
   const login = async ({ email, password }: LoginPayload) => {
     const trimmedEmail = email.trim();
