@@ -5,17 +5,28 @@ import Sidebar from "@/components/dashboard/Sidebar";
 import Topbar from "@/components/dashboard/Topbar";
 import { getDashboardNavItem } from "@/components/dashboard/navigation";
 import { useAuth } from "@/lib/auth";
+import { subscribeToShopcodData } from "@/lib/live-sync";
+import { loadPlatformSettings } from "@/lib/platform-data";
 
 export default function DashboardLayout() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
-  const [workspace, setWorkspace] = useState("Workspace principal");
+  const [workspace, setWorkspace] = useState(() => loadPlatformSettings().accountName);
 
   useEffect(() => {
     setIsMobileSidebarOpen(false);
   }, [location.pathname]);
+
+  useEffect(
+    () =>
+      subscribeToShopcodData(() => {
+        const currentWorkspace = loadPlatformSettings().accountName;
+        setWorkspace(currentWorkspace);
+      }),
+    [],
+  );
 
   const activeSection = getDashboardNavItem(location.pathname);
 
@@ -40,6 +51,7 @@ export default function DashboardLayout() {
           <Topbar
             sectionLabel={activeSection.label}
             workspace={workspace}
+            workspaceOptions={[workspace]}
             onWorkspaceChange={setWorkspace}
             onOpenSidebar={() => setIsMobileSidebarOpen(true)}
             user={user}

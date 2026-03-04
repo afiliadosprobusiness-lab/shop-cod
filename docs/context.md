@@ -27,6 +27,7 @@ ShopCOD is a frontend SPA for COD-focused funnel selling. It uses Firebase Authe
 - Usage scope:
   - Firebase Authentication
   - Firestore synchronization for shared superadmin client registry
+- Firestore rules are versioned in-repo via `firestore.rules` and deployed through `firebase.json`.
 - Current auth methods wired in the frontend:
   - Email/password
   - Google popup
@@ -166,7 +167,7 @@ ShopCOD is a frontend SPA for COD-focused funnel selling. It uses Firebase Authe
 2. `ProtectedRoute` validates the Firebase session.
 3. `DashboardLayout` renders the shared shell:
   - left sidebar
-  - topbar with global search, workspace selector, notifications, and avatar
+  - topbar with global search, workspace selector (bound to current `accountName`), notifications, and avatar
   - contextual plan-upgrade promo card in sidebar for `Starter` and `Pro`
   - central dynamic content area via `Outlet`
 4. Sidebar links switch between `/dashboard`, `/products`, `/funnels`, `/stores`, `/orders`, `/analytics`, `/contacts`, `/offers`, `/apps`, and `/settings`.

@@ -74,6 +74,7 @@ All routes below are protected by Firebase auth state and render inside the shar
 
 - left sidebar navigation
 - topbar with global search, workspace selector, notifications, and avatar
+- workspace selector values sourced from current platform settings (`accountName`) instead of static hardcoded labels
 - contextual upgrade promotion block in sidebar for `Starter` and `Pro` plans
 - a central dynamic content area via React Router `Outlet`
 
@@ -677,6 +678,13 @@ These are public client configuration values, not server secrets.
 - Vercel project: `shop-cod`
 - SPA routing depends on `vercel.json` rewrites to `/index.html`.
 
+## Firestore Rules Contract
+
+- Firestore rules are managed from `firestore.rules` in repo root.
+- Firebase CLI reads the rules path from `firebase.json`.
+- Deployment command:
+  - `firebase.cmd deploy --only firestore:rules --project shopcod-auth-20260304`
+
 ## Change Guard
 
 The following are breaking changes and must be versioned or coordinated before implementation:
@@ -728,3 +736,5 @@ The following are breaking changes and must be versioned or coordinated before i
 - 2026-03-04 | Se fuerza el registro inmediato de workspaces autenticados y el panel superadmin agrega refresco periodico/focus para captar cuentas nuevas | non-breaking | Mejora visibilidad de cuentas sin cambiar rutas ni modelos base
 - 2026-03-04 | `GET /settings` alinea el sufijo de subdominio con `.shop-cod.vercel.app` | non-breaking | Ajusta la referencia visual al entorno de produccion en Vercel
 - 2026-03-04 | El sidebar del dashboard agrega mensajes promocionales de upgrade para `Starter` y `Pro` con CTA de upgrade en un clic | non-breaking | Mejora conversion a planes superiores sin romper rutas ni contratos de datos
+- 2026-03-04 | El selector de workspace del topbar deja de usar labels fijos y refleja el workspace real (`accountName`) | non-breaking | Elimina opciones confusas legacy sin cambiar rutas ni flujos protegidos
+- 2026-03-04 | Se versionan y despliegan reglas de Firestore desde el repo (`firestore.rules` + `firebase.json`) | non-breaking | Formaliza el contrato operativo para sync compartida de superadmin

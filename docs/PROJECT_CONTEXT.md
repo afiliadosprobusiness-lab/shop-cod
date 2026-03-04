@@ -56,6 +56,7 @@
 - Home del panel: `/dashboard` muestra dos tarjetas principales (`Crear tienda online` y `Crear funnel`) con CTA `Comenzar`
 - Navegacion entre modulos: el sidebar enlaza `Inicio`, `Productos`, `Funnels`, `Tiendas`, `Pedidos`, `Analiticas`, `Contactos`, `Ofertas`, `Aplicaciones` y `Configuracion`
 - Topbar: mantiene buscador global, selector de workspace, notificaciones y avatar del usuario en todos los modulos
+- Topbar: el selector de workspace ya no usa opciones fijas legacy; ahora refleja el `accountName` real del workspace actual
 - Modulos internos: `/products`, `/funnels`, `/stores`, `/orders`, `/analytics`, `/contacts`, `/offers`, `/apps` y `/settings` reutilizan el mismo layout compartido, pero ya muestran vistas funcionales del negocio
 - Productos: `/products` ahora muestra tabla con buscador, filtros, duplicado, borrado y metricas reactivas segun catalogo y pedidos reales
 - Funnels: `/funnels` ahora muestra listado con preview, conversion y visitas, e incluye wizard de 3 pasos para crear funnels, abrir el editor y borrar funnels
@@ -90,6 +91,7 @@
 ## Notas Operativas
 
 - Las envs publicas de Firebase ya fueron cargadas en Vercel para `Production` y `Preview`.
+- Reglas de Firestore se despliegan desde este repo con `firebase.cmd deploy --only firestore:rules --project shopcod-auth-20260304` usando `firebase.json` + `firestore.rules`.
 - El shell del dashboard vive en `src/layouts/DashboardLayout.tsx`.
 - Los componentes del shell viven en `src/components/dashboard/*` (`Sidebar`, `Topbar`, `MainContent` y `navigation`).
 - `Sidebar` incorpora mensajes de promotion de upgrade por plan activo (`Starter` y `Pro`) para impulsar la subida de plan.

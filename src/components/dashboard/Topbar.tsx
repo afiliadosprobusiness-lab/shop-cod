@@ -5,16 +5,16 @@ import type { AuthUser } from "@/lib/auth";
 interface TopbarProps {
   sectionLabel: string;
   workspace: string;
+  workspaceOptions: string[];
   onWorkspaceChange: (value: string) => void;
   onOpenSidebar: () => void;
   user: AuthUser | null;
 }
 
-const workspaceOptions = ["Workspace principal", "Operacion LATAM", "Growth Lab"];
-
 export default function Topbar({
   sectionLabel,
   workspace,
+  workspaceOptions,
   onWorkspaceChange,
   onOpenSidebar,
   user,
@@ -62,6 +62,7 @@ export default function Topbar({
                 id="workspace-selector"
                 value={workspace}
                 onChange={(event) => onWorkspaceChange(event.target.value)}
+                disabled={workspaceOptions.length <= 1}
                 className="h-11 w-full appearance-none rounded-2xl border border-border bg-card px-4 pr-9 text-sm text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
               >
                 {workspaceOptions.map((option) => (

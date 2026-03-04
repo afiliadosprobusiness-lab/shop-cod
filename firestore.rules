@@ -1,0 +1,28 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isAuth() {
+      return request.auth != null;
+    }
+
+    function isRoot() {
+      return isAuth() && request.auth.token.email == "afiliadosprobusiness@gmail.com";
+    }
+
+    function isOwnClient(clientId) {
+      return isAuth() && clientId == ("workspace-" + request.auth.uid);
+    }
+
+    // Shared operational snapshot used by platform-data mirror.
+    match /shopcod/{docId} {
+      allow read, write: if isAuth();
+    }
+
+    // Superadmin registry.
+    match /shopcod-superadmin-clients/{clientId} {
+      allow read: if isAuth();
+      allow create, update: if isRoot() || isOwnClient(clientId);
+      allow delete: if isRoot();
+    }
+  }
+}
