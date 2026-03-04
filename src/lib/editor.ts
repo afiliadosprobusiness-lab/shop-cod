@@ -1,3 +1,20 @@
+import {
+  isPageBuilderBlockType,
+  type PageBuilderBlock,
+} from "@/builders/page-builder/blocks/schema";
+import {
+  createDefaultFunnelGraph,
+  isFunnelNodeType,
+  type FunnelConnection as VisualFunnelConnection,
+  type FunnelGraph as VisualFunnelGraph,
+  type FunnelNode as VisualFunnelNode,
+} from "@/builders/funnel-builder";
+import {
+  createDefaultStoreBuilderState,
+  isCurrencyCode,
+  type StoreBuilderState,
+} from "@/builders/store-builder/schema";
+
 export type BlockType =
   | "hero"
   | "problem"
@@ -42,6 +59,10 @@ export interface StoreCatalogItem {
 export interface StoredEditorState {
   blocks: FunnelBlock[];
   profile: StoreProfile | null;
+  pageBuilder: PageBuilderBlock[] | null;
+  pageBuilderPages: Record<string, PageBuilderBlock[]> | null;
+  funnelBuilder: VisualFunnelGraph | null;
+  storeBuilder: StoreBuilderState | null;
   updatedAt: string;
   publishedAt: string | null;
 }
@@ -135,6 +156,387 @@ function normalizeCatalogItem(candidate: unknown) {
     publishedAt:
       typeof item.publishedAt === "string" ? item.publishedAt : null,
   } satisfies StoreCatalogItem;
+}
+
+function normalizePageBuilderBlock(candidate: unknown): PageBuilderBlock | null {
+  if (!candidate || typeof candidate !== "object") {
+    return null;
+  }
+
+  const block = candidate as Partial<PageBuilderBlock>;
+
+  if (
+    typeof block.id !== "string" ||
+    typeof block.type !== "string" ||
+    !isPageBuilderBlockType(block.type) ||
+    !block.content ||
+    typeof block.content !== "object" ||
+    !block.style ||
+    typeof block.style !== "object" ||
+    !block.layout ||
+    typeof block.layout !== "object" ||
+    !Array.isArray(block.children)
+  ) {
+    return null;
+  }
+
+  const normalizedChildren = block.children
+    .map((child) => normalizePageBuilderBlock(child))
+    .filter((child): child is PageBuilderBlock => Boolean(child));
+
+  return {
+    id: block.id,
+    type: block.type,
+    content: Object.fromEntries(
+      Object.entries(block.content).filter(
+        (entry): entry is [string, string] => typeof entry[0] === "string" && typeof entry[1] === "string",
+      ),
+    ),
+    style: {
+      backgroundColor:
+        typeof block.style.backgroundColor === "string"
+          ? block.style.backgroundColor
+          : "#0f172a",
+      textColor:
+        typeof block.style.textColor === "string" ? block.style.textColor : "#f8fafc",
+      align:
+        block.style.align === "center" ||
+        block.style.align === "right" ||
+        block.style.align === "left"
+          ? block.style.align
+          : "left",
+      padding:
+        block.style.padding === "compact" ||
+        block.style.padding === "spacious" ||
+        block.style.padding === "comfortable"
+          ? block.style.padding
+          : "comfortable",
+      radius:
+        block.style.radius === "soft" ||
+        block.style.radius === "pill" ||
+        block.style.radius === "rounded"
+          ? block.style.radius
+          : "rounded",
+    },
+    layout: {
+      width:
+        block.layout.width === "wide" ||
+        block.layout.width === "narrow" ||
+        block.layout.width === "full"
+          ? block.layout.width
+          : "full",
+      gap:
+        block.layout.gap === "tight" ||
+        block.layout.gap === "loose" ||
+        block.layout.gap === "normal"
+          ? block.layout.gap
+          : "normal",
+      columns:
+        typeof block.layout.columns === "number" && Number.isFinite(block.layout.columns)
+          ? Math.max(2, Math.trunc(block.layout.columns))
+          : 2,
+    },
+    children: normalizedChildren,
+  };
+}
+
+function normalizePageBuilder(candidate: unknown) {
+  if (!Array.isArray(candidate)) {
+    return null;
+  }
+
+  return candidate
+    .map((block) => normalizePageBuilderBlock(block))
+    .filter((block): block is PageBuilderBlock => Boolean(block));
+}
+
+function normalizePageBuilderPages(candidate: unknown) {
+  if (!candidate || typeof candidate !== "object" || Array.isArray(candidate)) {
+    return null;
+  }
+
+  const entries = Object.entries(candidate).flatMap(([key, value]) => {
+    const normalizedBlocks = normalizePageBuilder(value);
+
+    if (!normalizedBlocks) {
+      return [];
+    }
+
+    return [[key, normalizedBlocks] as const];
+  });
+
+  return entries.length ? Object.fromEntries(entries) : null;
+}
+
+function normalizeFunnelNode(candidate: unknown): VisualFunnelNode | null {
+  if (!candidate || typeof candidate !== "object") {
+    return null;
+  }
+
+  const node = candidate as Partial<VisualFunnelNode>;
+
+  if (
+    typeof node.id !== "string" ||
+    typeof node.pageId !== "string" ||
+    typeof node.type !== "string" ||
+    !isFunnelNodeType(node.type) ||
+    !node.position ||
+    typeof node.position !== "object" ||
+    typeof node.position.x !== "number" ||
+    typeof node.position.y !== "number" ||
+    !node.analytics ||
+    typeof node.analytics !== "object"
+  ) {
+    return null;
+  }
+
+  return {
+    id: node.id,
+    pageId: node.pageId,
+    type: node.type,
+    position: {
+      x: node.position.x,
+      y: node.position.y,
+    },
+    analytics: {
+      visits:
+        typeof node.analytics.visits === "number" ? node.analytics.visits : 0,
+      clicks:
+        typeof node.analytics.clicks === "number" ? node.analytics.clicks : 0,
+      conversionRate:
+        typeof node.analytics.conversionRate === "number"
+          ? node.analytics.conversionRate
+          : 0,
+    },
+  };
+}
+
+function normalizeFunnelConnection(
+  candidate: unknown,
+): VisualFunnelConnection | null {
+  if (!candidate || typeof candidate !== "object") {
+    return null;
+  }
+
+  const connection = candidate as Partial<VisualFunnelConnection>;
+
+  if (typeof connection.from !== "string" || typeof connection.to !== "string") {
+    return null;
+  }
+
+  return {
+    from: connection.from,
+    to: connection.to,
+  };
+}
+
+function normalizeFunnelBuilder(candidate: unknown) {
+  if (!candidate || typeof candidate !== "object") {
+    return null;
+  }
+
+  const graph = candidate as Partial<VisualFunnelGraph>;
+
+  if (
+    typeof graph.id !== "string" ||
+    typeof graph.name !== "string" ||
+    !Array.isArray(graph.nodes) ||
+    !Array.isArray(graph.connections)
+  ) {
+    return null;
+  }
+
+  const nodes = graph.nodes
+    .map((node) => normalizeFunnelNode(node))
+    .filter((node): node is VisualFunnelNode => Boolean(node));
+  const nodeIds = new Set(nodes.map((node) => node.id));
+  const connections = graph.connections
+    .map((connection) => normalizeFunnelConnection(connection))
+    .filter(
+      (connection): connection is VisualFunnelConnection =>
+        Boolean(connection) &&
+        nodeIds.has(connection.from) &&
+        nodeIds.has(connection.to),
+    );
+
+  return {
+    id: graph.id,
+    name: graph.name,
+    nodes,
+    connections,
+  } satisfies VisualFunnelGraph;
+}
+
+function normalizeStoreBuilder(candidate: unknown) {
+  if (!candidate || typeof candidate !== "object") {
+    return null;
+  }
+
+  const storeBuilder = candidate as Partial<StoreBuilderState>;
+
+  if (
+    !Array.isArray(storeBuilder.products) ||
+    !Array.isArray(storeBuilder.bundles) ||
+    !Array.isArray(storeBuilder.collections) ||
+    !storeBuilder.checkout ||
+    typeof storeBuilder.checkout !== "object"
+  ) {
+    return null;
+  }
+
+  const products = storeBuilder.products.flatMap((product) => {
+    if (!product || typeof product !== "object") {
+      return [];
+    }
+
+    const candidateProduct = product as Partial<StoreBuilderState["products"][number]>;
+
+    if (
+      typeof candidateProduct.id !== "string" ||
+      typeof candidateProduct.name !== "string" ||
+      typeof candidateProduct.description !== "string" ||
+      typeof candidateProduct.price !== "number" ||
+      !Array.isArray(candidateProduct.images) ||
+      !Array.isArray(candidateProduct.variants) ||
+      typeof candidateProduct.stock !== "number" ||
+      !candidateProduct.prices ||
+      typeof candidateProduct.prices !== "object"
+    ) {
+      return [];
+    }
+
+    return [
+      {
+        id: candidateProduct.id,
+        name: candidateProduct.name,
+        description: candidateProduct.description,
+        price: candidateProduct.price,
+        prices: {
+          USD:
+            typeof candidateProduct.prices.USD === "number"
+              ? candidateProduct.prices.USD
+              : candidateProduct.price,
+          EUR:
+            typeof candidateProduct.prices.EUR === "number"
+              ? candidateProduct.prices.EUR
+              : candidateProduct.price,
+          PEN:
+            typeof candidateProduct.prices.PEN === "number"
+              ? candidateProduct.prices.PEN
+              : candidateProduct.price,
+        },
+        images: candidateProduct.images.filter(
+          (image): image is string => typeof image === "string",
+        ),
+        variants: candidateProduct.variants.filter(
+          (variant): variant is string => typeof variant === "string",
+        ),
+        stock: Math.max(0, Math.trunc(candidateProduct.stock)),
+      },
+    ];
+  });
+
+  const productIds = new Set(products.map((product) => product.id));
+  const bundles = storeBuilder.bundles.flatMap((bundle) => {
+    if (!bundle || typeof bundle !== "object") {
+      return [];
+    }
+
+    const candidateBundle = bundle as Partial<StoreBuilderState["bundles"][number]>;
+
+    if (
+      typeof candidateBundle.id !== "string" ||
+      !Array.isArray(candidateBundle.productIds) ||
+      typeof candidateBundle.bundlePrice !== "number"
+    ) {
+      return [];
+    }
+
+    return [
+      {
+        id: candidateBundle.id,
+        productIds: candidateBundle.productIds.filter(
+          (productId): productId is string =>
+            typeof productId === "string" && productIds.has(productId),
+        ),
+        bundlePrice: candidateBundle.bundlePrice,
+      },
+    ];
+  });
+
+  const collections = storeBuilder.collections.flatMap((collection) => {
+    if (!collection || typeof collection !== "object") {
+      return [];
+    }
+
+    const candidateCollection = collection as Partial<StoreBuilderState["collections"][number]>;
+
+    if (
+      typeof candidateCollection.id !== "string" ||
+      typeof candidateCollection.name !== "string" ||
+      !Array.isArray(candidateCollection.productIds)
+    ) {
+      return [];
+    }
+
+    return [
+      {
+        id: candidateCollection.id,
+        name: candidateCollection.name,
+        productIds: candidateCollection.productIds.filter(
+          (productId): productId is string =>
+            typeof productId === "string" && productIds.has(productId),
+        ),
+      },
+    ];
+  });
+
+  const checkout = storeBuilder.checkout as Partial<StoreBuilderState["checkout"]>;
+
+  return {
+    products,
+    bundles,
+    collections,
+    checkout: {
+      domains: Array.isArray(checkout.domains)
+        ? checkout.domains.filter((domain): domain is string => typeof domain === "string")
+        : [],
+      enabledCurrencies: Array.isArray(checkout.enabledCurrencies)
+        ? checkout.enabledCurrencies.filter(
+            (currency): currency is StoreBuilderState["checkout"]["enabledCurrencies"][number] =>
+              typeof currency === "string" && isCurrencyCode(currency),
+          )
+        : [],
+      orderBumps: Array.isArray(checkout.orderBumps)
+        ? checkout.orderBumps.flatMap((orderBump) => {
+            if (!orderBump || typeof orderBump !== "object") {
+              return [];
+            }
+
+            const candidateOrderBump = orderBump as Partial<
+              StoreBuilderState["checkout"]["orderBumps"][number]
+            >;
+
+            if (
+              typeof candidateOrderBump.productId !== "string" ||
+              !productIds.has(candidateOrderBump.productId) ||
+              typeof candidateOrderBump.price !== "number" ||
+              typeof candidateOrderBump.description !== "string"
+            ) {
+              return [];
+            }
+
+            return [
+              {
+                productId: candidateOrderBump.productId,
+                price: candidateOrderBump.price,
+                description: candidateOrderBump.description,
+              },
+            ];
+          })
+        : [],
+    },
+  } satisfies StoreBuilderState;
 }
 
 function writeStoreCatalog(items: StoreCatalogItem[]) {
@@ -266,6 +668,16 @@ export function loadEditorState(storeId: string) {
     return {
       blocks: parsedValue.blocks,
       profile: normalizeProfile(parsedValue.profile),
+      pageBuilder: normalizePageBuilder(parsedValue.pageBuilder),
+      pageBuilderPages:
+        normalizePageBuilderPages(parsedValue.pageBuilderPages) ??
+        (normalizePageBuilder(parsedValue.pageBuilder)
+          ? { default: normalizePageBuilder(parsedValue.pageBuilder) ?? [] }
+          : null),
+      funnelBuilder:
+        normalizeFunnelBuilder(parsedValue.funnelBuilder) ?? createDefaultFunnelGraph(),
+      storeBuilder:
+        normalizeStoreBuilder(parsedValue.storeBuilder) ?? createDefaultStoreBuilderState(),
       updatedAt:
         typeof parsedValue.updatedAt === "string"
           ? parsedValue.updatedAt
@@ -282,11 +694,19 @@ export function saveEditorState(
   storeId: string,
   blocks: FunnelBlock[],
   profile?: StoreProfile | null,
+  pageBuilder?: PageBuilderBlock[] | null,
+  pageBuilderPages?: Record<string, PageBuilderBlock[]> | null,
+  funnelBuilder?: VisualFunnelGraph | null,
+  storeBuilder?: StoreBuilderState | null,
 ) {
   const previousState = loadEditorState(storeId);
   const nextState: StoredEditorState = {
     blocks,
     profile: profile ?? previousState?.profile ?? null,
+    pageBuilder: pageBuilder ?? previousState?.pageBuilder ?? null,
+    pageBuilderPages: pageBuilderPages ?? previousState?.pageBuilderPages ?? null,
+    funnelBuilder: funnelBuilder ?? previousState?.funnelBuilder ?? createDefaultFunnelGraph(),
+    storeBuilder: storeBuilder ?? previousState?.storeBuilder ?? createDefaultStoreBuilderState(),
     updatedAt: new Date().toISOString(),
     publishedAt: previousState?.publishedAt ?? null,
   };
@@ -308,6 +728,10 @@ export function publishEditorState(
   storeId: string,
   fallbackBlocks?: FunnelBlock[],
   profile?: StoreProfile | null,
+  pageBuilder?: PageBuilderBlock[] | null,
+  pageBuilderPages?: Record<string, PageBuilderBlock[]> | null,
+  funnelBuilder?: VisualFunnelGraph | null,
+  storeBuilder?: StoreBuilderState | null,
 ) {
   const baseState =
     loadEditorState(storeId) ??
@@ -315,6 +739,10 @@ export function publishEditorState(
       ? {
           blocks: fallbackBlocks,
           profile: profile ?? null,
+          pageBuilder: pageBuilder ?? null,
+          pageBuilderPages: pageBuilderPages ?? null,
+          funnelBuilder: funnelBuilder ?? createDefaultFunnelGraph(),
+          storeBuilder: storeBuilder ?? createDefaultStoreBuilderState(),
           updatedAt: new Date().toISOString(),
           publishedAt: null,
         }
@@ -327,6 +755,10 @@ export function publishEditorState(
   const nextState: StoredEditorState = {
     ...baseState,
     profile: profile ?? baseState.profile ?? null,
+    pageBuilder: pageBuilder ?? baseState.pageBuilder ?? null,
+    pageBuilderPages: pageBuilderPages ?? baseState.pageBuilderPages ?? null,
+    funnelBuilder: funnelBuilder ?? baseState.funnelBuilder ?? createDefaultFunnelGraph(),
+    storeBuilder: storeBuilder ?? baseState.storeBuilder ?? createDefaultStoreBuilderState(),
     publishedAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   };

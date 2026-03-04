@@ -46,6 +46,22 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  PageBuilderEditor,
+  createDefaultPageBuilderBlocks,
+  type PageBuilderBlock,
+} from "@/builders/page-builder";
+import {
+  FunnelBuilderEditor,
+  createDefaultFunnelGraph,
+  type FunnelGraph,
+  type FunnelNode,
+} from "@/builders/funnel-builder";
+import {
+  StoreBuilderEditor,
+  createDefaultStoreBuilderState,
+  type StoreBuilderState,
+} from "@/builders/store-builder";
 import { cn } from "@/lib/utils";
 import { BlockPreview } from "@/components/editor/BlockPreview";
 import {
@@ -993,6 +1009,19 @@ export default function EditorPage() {
   const [blocks, setBlocks] = useState<FunnelBlock[]>(() =>
     createDefaultBlocks(createDefaultProfile(), isNew),
   );
+  const [pageBuilderBlocks, setPageBuilderBlocks] = useState<PageBuilderBlock[]>(() =>
+    createDefaultPageBuilderBlocks(createDefaultProfile()),
+  );
+  const [pageBuilderPages, setPageBuilderPages] = useState<Record<string, PageBuilderBlock[]>>({
+    default: createDefaultPageBuilderBlocks(createDefaultProfile()),
+  });
+  const [funnelGraph, setFunnelGraph] = useState<FunnelGraph>(() =>
+    createDefaultFunnelGraph(),
+  );
+  const [storeBuilderState, setStoreBuilderState] = useState<StoreBuilderState>(() =>
+    createDefaultStoreBuilderState(createDefaultProfile()),
+  );
+  const [activePageId, setActivePageId] = useState<string>("default");
   const [selectedId, setSelectedId] = useState<string | null>(blocks[0]?.id || null);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [previewMode, setPreviewMode] = useState<"desktop" | "mobile">("desktop");
@@ -1000,15 +1029,40 @@ export default function EditorPage() {
 
   useEffect(() => {
     const storedState = loadEditorState(resolvedStoreId);
+    const resolvedProfile = storedState?.profile || createDefaultProfile();
 
     if (storedState?.profile) {
       setStoreProfile(storedState.profile);
     }
 
+    setStoreBuilderState(
+      storedState?.storeBuilder || createDefaultStoreBuilderState(resolvedProfile),
+    );
+
+    const nextFunnelGraph = storedState?.funnelBuilder || createDefaultFunnelGraph();
+    setFunnelGraph(nextFunnelGraph);
+
+    const fallbackPageBlocks =
+      storedState?.pageBuilder?.length
+        ? storedState.pageBuilder
+        : createDefaultPageBuilderBlocks(resolvedProfile);
+    const nextActivePageId = nextFunnelGraph.nodes[0]?.pageId || "default";
+    const nextPageBuilderPages = {
+      default: fallbackPageBlocks,
+      ...(storedState?.pageBuilderPages || {}),
+    };
+
+    if (!nextPageBuilderPages[nextActivePageId]) {
+      nextPageBuilderPages[nextActivePageId] = createDefaultPageBuilderBlocks(resolvedProfile);
+    }
+
+    setPageBuilderPages(nextPageBuilderPages);
+    setActivePageId(nextActivePageId);
+    setPageBuilderBlocks(nextPageBuilderPages[nextActivePageId]);
+
     if (!storedState?.blocks.length) {
       if (isNew) {
-        const baseProfile = storedState?.profile || createDefaultProfile();
-        const nextBlocks = createDefaultBlocks(baseProfile, true);
+        const nextBlocks = createDefaultBlocks(resolvedProfile, true);
         setBlocks(nextBlocks);
         setSelectedId(nextBlocks[0]?.id || null);
       }
@@ -1018,6 +1072,13 @@ export default function EditorPage() {
     setBlocks(storedState.blocks);
     setSelectedId(storedState.blocks[0]?.id || null);
   }, [resolvedStoreId, isNew]);
+
+  useEffect(() => {
+    const nextBlocks =
+      pageBuilderPages[activePageId] || createDefaultPageBuilderBlocks(storeProfile);
+
+    setPageBuilderBlocks(nextBlocks);
+  }, [activePageId, pageBuilderPages, storeProfile]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -1039,6 +1100,10 @@ export default function EditorPage() {
   const activeBlock = useMemo(
     () => blocks.find((block) => block.id === activeId) || null,
     [activeId, blocks],
+  );
+  const activeFunnelNode = useMemo(
+    () => funnelGraph.nodes.find((node) => node.pageId === activePageId) || null,
+    [activePageId, funnelGraph.nodes],
   );
 
   const canvasModeTitle =
@@ -1151,6 +1216,24 @@ export default function EditorPage() {
     setStoreProfile((previous) => ({ ...previous, [field]: value }));
   };
 
+  const syncPageBuilderPage = (pageId: string, nextBlocks: PageBuilderBlock[]) => {
+    setActivePageId(pageId);
+    setPageBuilderBlocks(nextBlocks);
+    setPageBuilderPages((previous) => ({
+      ...previous,
+      [pageId]: nextBlocks,
+      default: nextBlocks,
+    }));
+  };
+
+  const openFunnelNodePage = (node: FunnelNode) => {
+    const nextBlocks =
+      pageBuilderPages[node.pageId] || createDefaultPageBuilderBlocks(storeProfile);
+
+    syncPageBuilderPage(node.pageId, nextBlocks);
+    setBuilderMode("page");
+  };
+
   const applyProfile = () => {
     setBlocks((previous) => applyProfileToBlocks(previous, storeProfile));
     toast.success("La estrategia de oferta se aplico al funnel.");
@@ -1160,16 +1243,95 @@ export default function EditorPage() {
     const nextBlocks = applyProfileToBlocks(blocks, storeProfile);
     setBlocks(nextBlocks);
 
-    const storedState = saveEditorState(resolvedStoreId, nextBlocks, storeProfile);
+    const storedState = saveEditorState(
+      resolvedStoreId,
+      nextBlocks,
+      storeProfile,
+      pageBuilderBlocks,
+      pageBuilderPages,
+      funnelGraph,
+      storeBuilderState,
+    );
 
     toast.success("Cambios guardados.", {
       description: `Ultima actualizacion: ${new Date(storedState.updatedAt).toLocaleString()}`,
     });
   };
 
+  const persistStoreBuilderDraft = () => {
+    const nextBlocks = applyProfileToBlocks(blocks, storeProfile);
+    setBlocks(nextBlocks);
+
+    const storedState = saveEditorState(
+      resolvedStoreId,
+      nextBlocks,
+      storeProfile,
+      pageBuilderBlocks,
+      pageBuilderPages,
+      funnelGraph,
+      storeBuilderState,
+    );
+
+    toast.success("Store builder guardado.", {
+      description: `Ultima actualizacion: ${new Date(storedState.updatedAt).toLocaleString()}`,
+    });
+  };
+
+  const persistPageBuilderDraft = (nextPageBuilderBlocks: PageBuilderBlock[]) => {
+    syncPageBuilderPage(activePageId, nextPageBuilderBlocks);
+    const nextBlocks = applyProfileToBlocks(blocks, storeProfile);
+    setBlocks(nextBlocks);
+
+    const storedState = saveEditorState(
+      resolvedStoreId,
+      nextBlocks,
+      storeProfile,
+      nextPageBuilderBlocks,
+      {
+        ...pageBuilderPages,
+        [activePageId]: nextPageBuilderBlocks,
+        default: nextPageBuilderBlocks,
+      },
+      funnelGraph,
+      storeBuilderState,
+    );
+
+    toast.success("Page builder guardado.", {
+      description: `Ultima actualizacion: ${new Date(storedState.updatedAt).toLocaleString()}`,
+    });
+  };
+
   const openPreview = () => {
     const nextBlocks = applyProfileToBlocks(blocks, storeProfile);
-    saveEditorState(resolvedStoreId, nextBlocks, storeProfile);
+    saveEditorState(
+      resolvedStoreId,
+      nextBlocks,
+      storeProfile,
+      pageBuilderBlocks,
+      pageBuilderPages,
+      funnelGraph,
+      storeBuilderState,
+    );
+    setBlocks(nextBlocks);
+    navigate(`/preview/${resolvedStoreId}`);
+  };
+
+  const openPageBuilderPreview = (nextPageBuilderBlocks: PageBuilderBlock[]) => {
+    syncPageBuilderPage(activePageId, nextPageBuilderBlocks);
+    const nextBlocks = applyProfileToBlocks(blocks, storeProfile);
+    saveEditorState(
+      resolvedStoreId,
+      nextBlocks,
+      storeProfile,
+      nextPageBuilderBlocks,
+      {
+        ...pageBuilderPages,
+        [activePageId]: nextPageBuilderBlocks,
+        default: nextPageBuilderBlocks,
+      },
+      funnelGraph,
+      storeBuilderState,
+    );
     setBlocks(nextBlocks);
     navigate(`/preview/${resolvedStoreId}`);
   };
@@ -1178,7 +1340,15 @@ export default function EditorPage() {
     const nextBlocks = applyProfileToBlocks(blocks, storeProfile);
     setBlocks(nextBlocks);
 
-    const publishedState = publishEditorState(resolvedStoreId, nextBlocks, storeProfile);
+    const publishedState = publishEditorState(
+      resolvedStoreId,
+      nextBlocks,
+      storeProfile,
+      pageBuilderBlocks,
+      pageBuilderPages,
+      funnelGraph,
+      storeBuilderState,
+    );
 
     if (!publishedState) {
       toast.error("No hay contenido para publicar.");
@@ -1188,6 +1358,67 @@ export default function EditorPage() {
     toast.success("Version publicada.", {
       description: `Publicada: ${new Date(publishedState.publishedAt || "").toLocaleString()}`,
     });
+  };
+
+  const handlePageBuilderPublish = (nextPageBuilderBlocks: PageBuilderBlock[]) => {
+    syncPageBuilderPage(activePageId, nextPageBuilderBlocks);
+    const nextBlocks = applyProfileToBlocks(blocks, storeProfile);
+    setBlocks(nextBlocks);
+
+    const publishedState = publishEditorState(
+      resolvedStoreId,
+      nextBlocks,
+      storeProfile,
+      nextPageBuilderBlocks,
+      {
+        ...pageBuilderPages,
+        [activePageId]: nextPageBuilderBlocks,
+        default: nextPageBuilderBlocks,
+      },
+      funnelGraph,
+      storeBuilderState,
+    );
+
+    if (!publishedState) {
+      toast.error("No hay contenido para publicar.");
+      return;
+    }
+
+    toast.success("Version publicada.", {
+      description: `Publicada: ${new Date(publishedState.publishedAt || "").toLocaleString()}`,
+    });
+  };
+
+  const handlePrimaryPreview = () => {
+    if (builderMode === "page") {
+      openPageBuilderPreview(pageBuilderBlocks);
+      return;
+    }
+
+    openPreview();
+  };
+
+  const handlePrimarySave = () => {
+    if (builderMode === "store") {
+      persistStoreBuilderDraft();
+      return;
+    }
+
+    if (builderMode === "page") {
+      persistPageBuilderDraft(pageBuilderBlocks);
+      return;
+    }
+
+    persistDraft();
+  };
+
+  const handlePrimaryPublish = () => {
+    if (builderMode === "page") {
+      handlePageBuilderPublish(pageBuilderBlocks);
+      return;
+    }
+
+    handlePublish();
   };
 
   return (
@@ -1213,7 +1444,8 @@ export default function EditorPage() {
                 </p>
               </div>
               <p className="truncate text-xs text-muted-foreground">
-                Funnel builder para {storeProfile.productName || "tu producto principal"}
+                {builderMode === "page" ? "Page builder" : "Funnel builder"} para{" "}
+                {storeProfile.productName || "tu producto principal"}
               </p>
             </div>
           </div>
@@ -1229,48 +1461,115 @@ export default function EditorPage() {
               </div>
             </div>
 
-            <div className="flex items-center gap-1 rounded-2xl border border-border/70 bg-card/90 p-1">
-              <button
-                type="button"
-                onClick={() => setPreviewMode("desktop")}
-                className={cn(
-                  "rounded-xl px-3 py-2 text-sm transition-colors",
-                  previewMode === "desktop"
-                    ? "bg-primary text-primary-foreground"
-                    : "text-muted-foreground",
-                )}
-                aria-label="Vista desktop"
-              >
-                <Monitor className="h-4 w-4" />
-              </button>
-              <button
-                type="button"
-                onClick={() => setPreviewMode("mobile")}
-                className={cn(
-                  "rounded-xl px-3 py-2 text-sm transition-colors",
-                  previewMode === "mobile"
-                    ? "bg-primary text-primary-foreground"
-                    : "text-muted-foreground",
-                )}
-                aria-label="Vista mobile"
-              >
-                <Smartphone className="h-4 w-4" />
-              </button>
-            </div>
+            {builderMode === "funnel" ? (
+              <div className="flex items-center gap-1 rounded-2xl border border-border/70 bg-card/90 p-1">
+                <button
+                  type="button"
+                  onClick={() => setPreviewMode("desktop")}
+                  className={cn(
+                    "rounded-xl px-3 py-2 text-sm transition-colors",
+                    previewMode === "desktop"
+                      ? "bg-primary text-primary-foreground"
+                      : "text-muted-foreground",
+                  )}
+                  aria-label="Vista desktop"
+                >
+                  <Monitor className="h-4 w-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPreviewMode("mobile")}
+                  className={cn(
+                    "rounded-xl px-3 py-2 text-sm transition-colors",
+                    previewMode === "mobile"
+                      ? "bg-primary text-primary-foreground"
+                      : "text-muted-foreground",
+                  )}
+                  aria-label="Vista mobile"
+                >
+                  <Smartphone className="h-4 w-4" />
+                </button>
+              </div>
+            ) : null}
 
-            <Button variant="outline" size="sm" onClick={openPreview}>
+            <Button variant="outline" size="sm" onClick={handlePrimaryPreview}>
               <Eye className="h-4 w-4" /> Preview
             </Button>
-            <Button variant="outline" size="sm" onClick={persistDraft}>
+            <Button variant="outline" size="sm" onClick={handlePrimarySave}>
               <Save className="h-4 w-4" /> Guardar
             </Button>
-            <Button variant="cta" size="sm" onClick={handlePublish}>
+            <Button variant="cta" size="sm" onClick={handlePrimaryPublish}>
               <Rocket className="h-4 w-4" /> Publicar
             </Button>
           </div>
         </div>
       </header>
       <main className="flex flex-1 overflow-hidden">
+        {builderMode === "page" ? (
+          <div className="flex-1 overflow-y-auto px-4 py-5 lg:px-6">
+            <div className="mx-auto max-w-[1800px] space-y-5">
+              <BuilderModeTabs mode={builderMode} onChange={setBuilderMode} />
+              <BuilderShowcaseCard mode={builderMode} />
+              <div className="rounded-[2rem] border border-sky-200/70 bg-white p-5 shadow-sm">
+                <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                  <div>
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-sky-600">
+                      Active page
+                    </p>
+                    <h2 className="mt-2 text-xl font-bold text-slate-900">
+                      {activeFunnelNode
+                        ? `Editando ${activeFunnelNode.type} (${activeFunnelNode.pageId})`
+                        : `Editando pageId ${activePageId}`}
+                    </h2>
+                    <p className="mt-1 text-sm text-slate-600">
+                      Esta pagina viene del nodo seleccionado en el Funnel Builder.
+                    </p>
+                  </div>
+                  <Button variant="outline" onClick={() => setBuilderMode("funnel")}>
+                    <TrendingUp className="h-4 w-4" />
+                    Volver al funnel
+                  </Button>
+                </div>
+              </div>
+              <PageBuilderEditor
+                editorKey={`${resolvedStoreId}:${activePageId}`}
+                initialBlocks={pageBuilderBlocks}
+                seed={storeProfile}
+                onBlocksChange={(nextBlocks) => syncPageBuilderPage(activePageId, nextBlocks)}
+                onSave={persistPageBuilderDraft}
+                onPreview={openPageBuilderPreview}
+                onPublish={handlePageBuilderPublish}
+              />
+            </div>
+          </div>
+        ) : builderMode === "funnel" ? (
+          <div className="flex-1 overflow-y-auto px-4 py-5 lg:px-6">
+            <div className="mx-auto max-w-[1800px] space-y-5">
+              <BuilderModeTabs mode={builderMode} onChange={setBuilderMode} />
+              <BuilderShowcaseCard mode={builderMode} />
+              <FunnelBuilderEditor
+                graph={funnelGraph}
+                onGraphChange={setFunnelGraph}
+                onOpenPage={openFunnelNodePage}
+              />
+            </div>
+          </div>
+        ) : builderMode === "store" ? (
+          <div className="flex-1 overflow-y-auto px-4 py-5 lg:px-6">
+            <div className="mx-auto max-w-[1800px] space-y-5">
+              <BuilderModeTabs mode={builderMode} onChange={setBuilderMode} />
+              <BuilderShowcaseCard mode={builderMode} />
+              <StoreBuilderEditor
+                state={storeBuilderState}
+                onChange={setStoreBuilderState}
+                onSave={persistStoreBuilderDraft}
+                onGoToFunnel={() => setBuilderMode("funnel")}
+                onGoToPage={() => setBuilderMode("page")}
+              />
+            </div>
+          </div>
+        ) : (
+          <>
         <aside className="hidden w-80 shrink-0 border-r border-border/70 bg-card/70 p-4 xl:block">
           <div className="flex h-full flex-col gap-4 overflow-y-auto pr-1">
             {builderMode === "store" ? (
@@ -1684,6 +1983,8 @@ export default function EditorPage() {
           </div>
           </div>
         </div>
+          </>
+        )}
       </main>
     </div>
   );

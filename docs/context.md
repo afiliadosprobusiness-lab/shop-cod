@@ -101,8 +101,8 @@ ShopCOD is a frontend SPA for COD-focused funnel selling. It uses Firebase Authe
 
 1. User edits blocks in `/editor/:storeId`.
 2. The editor now starts with builder modes inside the same route:
-  - `Store builder` for product, offer, and commercial setup
-  - `Funnel builder` for drag-and-drop sequencing
+  - `Store builder` for product, catalog, bundle, checkout, and collection setup
+  - `Funnel builder` for drag-and-drop sequencing and node-based page flow editing
   - `Page builder` for page-level refinement on the same block set
 3. User edits the store commercial profile in the store builder panel.
 4. The editor behaves as a visual funnel workspace with:
@@ -111,8 +111,28 @@ ShopCOD is a frontend SPA for COD-focused funnel selling. It uses Firebase Authe
   - funnel map navigation
   - contextual insertion suggestions
   - heuristic conversion score and quick-win guidance
-5. `Aplicar al funnel` syncs the profile into hero, CTA, FAQ, benefits, and checkout copy.
-6. `Guardar` stores blocks and profile in browser storage.
+5. `Page builder` now mounts a dedicated module at `src/builders/page-builder` with:
+  - `sidebar` tabs: Add Elements, Edit Elements, Layers, Styles
+  - `topbar` controls: undo, redo, responsive desktop/tablet/mobile, save, preview, publish
+  - `canvas` tree: drag, drop, reorder, nested containers, inline editing, hover controls
+  - `renderer/renderBlock(block)` for block-by-block rendering
+6. The visual page layout is stored as nested JSON blocks alongside the funnel draft.
+7. `Funnel builder` now mounts a dedicated module at `src/builders/funnel-builder` with:
+  - infinite-feel canvas with pan and zoom
+  - draggable page nodes
+  - SVG node connections with disconnect controls
+  - per-node analytics badges (visits, clicks, conversion rate)
+  - click-on-node transition into the `Page builder`
+8. Page builder layouts are now also stored by `pageId` so each funnel node can own a distinct page draft.
+9. `Store builder` now mounts a dedicated module at `src/builders/store-builder` with:
+  - product creation and catalog management
+  - bundle configuration
+  - checkout setup with order bumps
+  - multi-currency and multi-domain inputs
+  - collection grouping for catalog organization
+10. `Aplicar al funnel` syncs the profile into hero, CTA, FAQ, benefits, and checkout copy.
+11. The page, funnel, and store builders now share a common engine in `src/builders/shared` for canonical models, block rendering, and editor shell components (`canvas`, `toolbar`, `sidebar`, `blocks`, `editor`).
+12. `Guardar` stores blocks, page-builder JSON, page layouts by `pageId`, funnel graph, store builder state, and profile in browser storage.
 
 ### Preview Flow
 
@@ -155,6 +175,31 @@ ShopCOD is a frontend SPA for COD-focused funnel selling. It uses Firebase Authe
 - `src/pages/EditorPage.tsx` manages the guided builder, store/funnel/page modes, drag-and-drop composition, and conversion guidance UI.
 - `src/pages/PreviewPage.tsx` renders the saved commercial profile into the storefront preview.
 
+### Page Builder Module
+
+- `src/builders/page-builder/sidebar/*` renders the left inspector and draggable element library.
+- `src/builders/page-builder/topbar/*` renders history, preview/publish, and responsive controls.
+- `src/builders/page-builder/canvas/*` renders the nested visual canvas and drop zones.
+- `src/builders/page-builder/blocks/*` re-exports the shared page model and keeps immutable tree helpers local.
+- `src/builders/page-builder/renderer/renderBlock.tsx` delegates to the shared block renderer.
+
+### Funnel Builder Module
+
+- `src/builders/funnel-builder/schema.ts` re-exports the shared funnel model and helpers.
+- `src/builders/funnel-builder/FunnelBuilderEditor.tsx` renders the interactive canvas, node cards, analytics, pan/zoom, and connection UX.
+
+### Store Builder Module
+
+- `src/builders/store-builder/schema.ts` re-exports the shared product/store model and helper factories.
+- `src/builders/store-builder/StoreBuilderEditor.tsx` renders the store configuration workspace for catalog, order bumps, currencies, domains, and collections.
+
+### Shared Builder Engine
+
+- `src/builders/shared/models/page.ts` is now the canonical page-builder schema and factories.
+- `src/builders/shared/models/funnel.ts` is now the canonical funnel graph schema and helpers.
+- `src/builders/shared/models/product.ts` is now the canonical product/store schema and helpers.
+- `src/builders/shared/components/*` provides shared editor shells for `canvas`, `toolbar`, `sidebar`, `blocks`, `editor`, plus the shared `renderBlock(block)` renderer.
+
 ### UI Layer
 
 - `src/components/ui/*` contains shared shadcn-style primitives.
@@ -166,6 +211,10 @@ ShopCOD is a frontend SPA for COD-focused funnel selling. It uses Firebase Authe
 - Each draft stores:
   - funnel blocks
   - store commercial profile
+  - page builder nested layout JSON
+  - page builder layouts keyed by `pageId`
+  - funnel graph nodes and connections
+  - store builder products, bundles, collections, and checkout settings
   - timestamps
 - A browser-side store catalog is also stored in `localStorage` for dashboard listing.
 - Dashboard and orders still include mock fixture metrics for the base demo.

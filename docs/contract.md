@@ -70,6 +70,9 @@ There is still no custom backend API implemented in this codebase.
   - new drafts open with a full starter funnel (hero, problem, benefits, reviews, FAQ, checkout, and CTA)
   - exposes a drag-and-drop funnel workspace with block library, funnel map, quick insertion, and conversion guidance
   - now includes builder modes for store setup, funnel ordering, and page refinement within the same route
+  - store setup now uses a dedicated store builder for products, bundles, collections, checkout order bumps, multi-currency, and multi-domain configuration
+  - page refinement uses a visual page builder with sidebar tabs, top bar controls, nested containers, and inline editing without full reloads
+  - funnel ordering now also supports a node-based flow editor with pan, zoom, node connections, analytics badges, and page-level routing per node
 
 ### `GET /preview/:storeId`
 
@@ -128,8 +131,123 @@ interface StoreCatalogItem {
 interface StoredEditorState {
   blocks: FunnelBlock[];
   profile: StoreProfile | null;
+  pageBuilder: PageBuilderBlock[] | null;
+  pageBuilderPages: Record<string, PageBuilderBlock[]> | null;
+  funnelBuilder: FunnelGraph | null;
+  storeBuilder: StoreBuilderState | null;
   updatedAt: string;
   publishedAt: string | null;
+}
+```
+
+### Page Builder Model
+
+Defined canonically in `src/builders/shared/models/page.ts` and re-exported by `src/builders/page-builder/blocks/schema.ts`.
+
+```ts
+type PageBuilderBlockType =
+  | "text"
+  | "image"
+  | "button"
+  | "container"
+  | "columns"
+  | "video"
+  | "product"
+  | "form"
+  | "countdown"
+  | "testimonial";
+
+interface PageBuilderBlock {
+  id: string;
+  type: PageBuilderBlockType;
+  content: Record<string, string>;
+  style: {
+    backgroundColor: string;
+    textColor: string;
+    align: "left" | "center" | "right";
+    padding: "compact" | "comfortable" | "spacious";
+    radius: "soft" | "rounded" | "pill";
+  };
+  layout: {
+    width: "full" | "wide" | "narrow";
+    gap: "tight" | "normal" | "loose";
+    columns: number;
+  };
+  children: PageBuilderBlock[];
+}
+```
+
+### Funnel Builder Model
+
+Defined canonically in `src/builders/shared/models/funnel.ts` and re-exported by `src/builders/funnel-builder/schema.ts`.
+
+```ts
+type FunnelNodeType =
+  | "landing"
+  | "product"
+  | "checkout"
+  | "upsell"
+  | "downsell"
+  | "thankyou";
+
+interface FunnelGraph {
+  id: string;
+  name: string;
+  nodes: FunnelNode[];
+  connections: FunnelConnection[];
+}
+
+interface FunnelNode {
+  id: string;
+  pageId: string;
+  type: FunnelNodeType;
+  position: { x: number; y: number };
+  analytics: {
+    visits: number;
+    clicks: number;
+    conversionRate: number;
+  };
+}
+
+interface FunnelConnection {
+  from: string;
+  to: string;
+}
+```
+
+### Store Builder Model
+
+Defined canonically in `src/builders/shared/models/product.ts` and re-exported by `src/builders/store-builder/schema.ts`.
+
+```ts
+interface StoreBuilderState {
+  products: StoreProduct[];
+  bundles: StoreBundle[];
+  collections: StoreCollection[];
+  checkout: StoreCheckoutConfig;
+}
+
+interface StoreProduct {
+  id: string;
+  name: string;
+  description: string;
+  price: number;
+  prices: { USD: number; EUR: number; PEN: number };
+  images: string[];
+  variants: string[];
+  stock: number;
+}
+
+interface StoreBundle {
+  id: string;
+  productIds: string[];
+  bundlePrice: number;
+}
+
+interface StoreOrderBump {
+  productId: string;
+  price: number;
+  description: string;
 }
 ```
 
@@ -140,6 +258,12 @@ Rules:
 - `data` remains a string map compatible with `BlockPreview`.
 - `profile` stores the commercial base used to hydrate the funnel.
 - The store catalog is a browser-side index for user-created drafts.
+- `pageBuilder` stores the visual page layout as nested JSON blocks.
+- `pageBuilderPages` stores page-builder layouts keyed by `pageId`.
+- Only `container` and `columns` may hold nested `children`.
+- `funnelBuilder` stores the visual funnel graph and node connections.
+- `storeBuilder` stores products, bundles, collections, checkout domains, currencies, and order bumps.
+- `src/builders/shared/components/blocks/renderBlock.tsx` provides the shared `renderBlock(block)` engine used by Page Builder, Funnel Builder, and Store Builder UI.
 
 ## Auth Contract
 
@@ -186,6 +310,9 @@ The following are breaking changes and must be versioned or coordinated before i
 - Changing the `:storeId` route param shape.
 - Renaming or removing any supported `BlockType`.
 - Changing `FunnelBlock.data` away from a string map without updating all consumers.
+- Renaming or removing any supported `PageBuilderBlockType`.
+- Renaming or removing any supported `FunnelNodeType`.
+- Removing required `StoreProduct` fields or changing `StoreBuilderState` shape without updating persistence and editor flows together.
 - Removing `StoreProfile` fields without updating dashboard, editor, and preview flows together.
 - Replacing Firebase auth without updating the login and protected-route flow.
 
@@ -197,3 +324,7 @@ The following are breaking changes and must be versioned or coordinated before i
 - 2026-03-04 | Los nuevos borradores se inicializan con un funnel completo y el dashboard usa un creador guiado mas robusto | non-breaking | Refuerza el flujo de creacion sin alterar rutas ni shapes compartidos
 - 2026-03-04 | El editor evoluciona a un workspace visual tipo funnel builder con score heuristico y controles de optimizacion | non-breaking | Mejora la UX del editor sin cambiar rutas ni contratos de datos
 - 2026-03-04 | El dashboard permite eliminar tiendas locales y el editor agrega modos Store, Funnel y Page builder | non-breaking | Amplia la gestion local sin cambiar rutas ni shapes compartidos
+- 2026-03-04 | El page builder agrega un arbol JSON propio con sidebar, top bar, drag and drop anidado e historial local | non-breaking | Amplia el estado compartido del editor sin romper las rutas ni el contrato del funnel existente
+- 2026-03-04 | El funnel builder agrega un flow editor con nodos, conexiones, analytics y layouts por pageId | non-breaking | Amplia la edicion visual del editor sin romper el contrato del funnel legacy
+- 2026-03-04 | El store builder agrega catalogo, bundles, order bumps, monedas y dominios persistidos en el draft | non-breaking | Amplia la configuracion comercial sin romper rutas ni contratos previos
+- 2026-03-04 | Se centralizan modelos y renderer de Page, Funnel y Store builders en `src/builders/shared` | non-breaking | Mantiene shapes publicos y unifica la arquitectura interna de los builders
