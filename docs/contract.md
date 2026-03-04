@@ -2,41 +2,70 @@
 
 ## Scope
 
-This repository is currently a frontend-only SPA built with Vite, React, TypeScript, Tailwind CSS, shadcn-ui, and React Router.
+This repository is a frontend SPA built with Vite, React, TypeScript, Tailwind CSS, shadcn-ui, and React Router.
 
-There is no backend integration implemented in the current codebase. No `fetch`, no external API client, and no persisted data flow exist yet.
+Firebase is now used only for authentication.
+Vercel is the target hosting platform for the frontend build and routing.
+
+There is still no custom backend API implemented in this codebase.
 
 ## Browser Route Contract
 
 ### `GET /`
 
-- Renders the marketing landing page for the ShopCOD SaaS product.
+- Renders the ShopCOD SaaS landing page.
 - Component: `SaaSLandingPage`.
-- Primary CTAs navigate to `/dashboard`.
+
+### `GET /login`
+
+- Renders the authentication screen.
+- Component: `LoginPage`.
+- Supports:
+  - Email/password sign-in
+  - Google popup sign-in
+
+### `GET /store/demo`
+
+- Renders the public product demo landing.
+- Component: `LandingPage`.
+
+### `GET /checkout`
+
+- Renders the public checkout flow.
+- Component: `CheckoutPage`.
+
+### `GET /order-confirmed`
+
+- Renders the post-checkout confirmation screen.
+- Component: `OrderConfirmedPage`.
 
 ### `GET /dashboard`
 
-- Renders the internal dashboard with mock store metrics and store cards.
+- Renders the authenticated dashboard with mock stores.
 - Component: `DashboardPage`.
-- Data source: in-memory mock array inside the page component.
+- Access: protected by Firebase auth state.
+
+### `GET /orders`
+
+- Renders the authenticated order dashboard with mock orders.
+- Component: `AdminDashboard`.
+- Access: protected by Firebase auth state.
 
 ### `GET /editor/:storeId`
 
-- Renders the funnel editor for a store.
+- Renders the authenticated funnel editor.
 - Component: `EditorPage`.
+- Access: protected by Firebase auth state.
 - Route param:
   - `storeId: string`
-- Special case:
-  - `storeId === "new"` initializes a reduced default block set for new store creation.
-- Any other `storeId` initializes a richer predefined mock block set.
 
 ### `GET /preview/:storeId`
 
-- Renders a storefront preview for the current store.
+- Renders the authenticated store preview.
 - Component: `PreviewPage`.
+- Access: protected by Firebase auth state.
 - Route param:
   - `storeId: string`
-- Current behavior is presentational only; the preview does not load store-specific persisted data.
 
 ### `GET *`
 
@@ -47,7 +76,7 @@ There is no backend integration implemented in the current codebase. No `fetch`,
 
 ### Funnel Block Model
 
-Defined in `src/pages/EditorPage.tsx`.
+Defined in `src/lib/editor.ts`.
 
 ```ts
 type BlockType = "hero" | "problem" | "benefits" | "reviews" | "faq" | "checkout" | "cta";
@@ -57,25 +86,60 @@ interface FunnelBlock {
   type: BlockType;
   data: Record<string, string>;
 }
+
+interface StoredEditorState {
+  blocks: FunnelBlock[];
+  updatedAt: string;
+  publishedAt: string | null;
+}
 ```
 
 Rules:
 
 - `id` must be unique within the in-memory editor session.
 - `type` must be one of the supported block types above.
-- `data` is a string map that must match the editable fields expected by `BlockPreview` for the selected block type.
+- `data` remains a string map compatible with `BlockPreview`.
+- Editor drafts are persisted in browser `localStorage`.
+
+## Auth Contract
+
+- Auth provider: Firebase Authentication.
+- Frontend methods:
+  - Email/password
+  - Google popup
+- Protected routes redirect unauthenticated users to `/login`.
+- Session persistence uses Firebase browser local persistence.
+
+Current operational requirement:
+
+- Email/Password and Google providers must be enabled in Firebase Authentication.
+- The deployed Vercel domain must be added to Firebase Authorized Domains.
 
 ## State And Persistence Contract
 
-- All current state is client-side only.
-- Editor changes are stored in React state and are lost on refresh.
-- The `Guardar` and `Publicar` buttons are UI placeholders and do not persist or publish data.
-- Dashboard metrics and store records are mock fixtures.
+- Editor changes are stored in `localStorage`.
+- `Guardar` writes a local draft.
+- `Publicar` stores a local published timestamp.
+- Dashboard and order metrics remain mock fixtures.
+- No custom backend persistence exists yet.
 
 ## Environment Contract
 
-- No environment variables are required by the current implementation.
-- No server secrets should be introduced into this repository.
+Required Vite env vars:
+
+- `VITE_FIREBASE_API_KEY`
+- `VITE_FIREBASE_AUTH_DOMAIN`
+- `VITE_FIREBASE_PROJECT_ID`
+- `VITE_FIREBASE_STORAGE_BUCKET`
+- `VITE_FIREBASE_MESSAGING_SENDER_ID`
+- `VITE_FIREBASE_APP_ID`
+
+These are public client configuration values, not server secrets.
+
+## Hosting Contract
+
+- Vercel project: `shop-cod`
+- SPA routing depends on `vercel.json` rewrites to `/index.html`.
 
 ## Change Guard
 
@@ -85,7 +149,9 @@ The following are breaking changes and must be versioned or coordinated before i
 - Changing the `:storeId` route param shape.
 - Renaming or removing any supported `BlockType`.
 - Changing `FunnelBlock.data` away from a string map without updating all consumers.
+- Replacing Firebase auth without updating the login and protected-route flow.
 
 ## Changelog del Contrato
 
 - 2026-03-04 | Creacion inicial del contrato del frontend SPA actual | non-breaking | Documenta el comportamiento existente sin cambiar runtime
+- 2026-03-04 | Se agregan login con Firebase, rutas protegidas, persistencia local del editor y hosting en Vercel | non-breaking | Amplia el contrato publico sin romper rutas previas activas

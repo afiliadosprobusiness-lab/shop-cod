@@ -1,4 +1,4 @@
-import { type BlockType } from "@/pages/EditorPage";
+import { type BlockType } from "@/lib/editor";
 
 // Renders a preview of each block type for the canvas
 export function BlockPreview({ type, data }: { type: BlockType; data: Record<string, string> }) {

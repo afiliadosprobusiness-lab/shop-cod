@@ -2,7 +2,7 @@
 
 ## Resumen
 
-ShopCOD is a frontend-only single page application that prototypes a COD-focused funnel builder for LATAM sellers. The current product is a clickable demo with mocked data and in-memory editor state.
+ShopCOD is a frontend SPA for COD-focused funnel selling. It now includes Firebase Authentication for access control and is configured to run on Vercel with SPA rewrites.
 
 ## Stack Tecnologico
 
@@ -11,17 +11,43 @@ ShopCOD is a frontend-only single page application that prototypes a COD-focused
 - TypeScript
 - React Router DOM 6
 - Tailwind CSS 3
-- shadcn-ui / Radix UI components
+- shadcn-ui / Radix UI
 - Framer Motion
 - dnd-kit
-- TanStack Query (provider mounted, no remote queries implemented yet)
+- TanStack Query
+- Firebase Web SDK (Auth only)
 - Vitest + Testing Library
+
+## Integraciones Activas
+
+### Firebase
+
+- Firebase project created for auth: `shopcod-auth-20260304`
+- Web app: `shopcod-web`
+- Usage scope:
+  - Firebase Authentication only
+- Current auth methods wired in the frontend:
+  - Email/password
+  - Google popup
+
+Operational note:
+
+- Firebase CLI does not directly finish sign-in method toggles in this repo workflow.
+- Email/Password and Google must be enabled in Firebase Console.
+- Add `shop-cod.vercel.app` and any custom domain to Firebase Authorized Domains.
+
+### Vercel
+
+- Local directory is linked to Vercel project: `shop-cod`
+- Public Firebase config was added to Vercel `Production` and `Preview` envs
+- `vercel.json` rewrites all routes to `index.html` for BrowserRouter compatibility
 
 ## Punto De Entrada
 
 - `src/main.tsx` mounts the React app into `#root`.
 - `src/App.tsx` wraps the app with:
   - `QueryClientProvider`
+  - `AuthProvider`
   - `TooltipProvider`
   - shadcn `Toaster`
   - Sonner toaster
@@ -30,93 +56,121 @@ ShopCOD is a frontend-only single page application that prototypes a COD-focused
 ## Rutas Principales
 
 - `/`
-  - Marketing landing page for the SaaS offer.
-  - Current component: `SaaSLandingPage`.
+  - SaaS landing page
+  - Component: `SaaSLandingPage`
+- `/login`
+  - Login screen backed by Firebase Auth
+  - Component: `LoginPage`
+- `/store/demo`
+  - Product demo landing
+  - Component: `LandingPage`
+- `/checkout`
+  - Public checkout
+  - Component: `CheckoutPage`
+- `/order-confirmed`
+  - Post-checkout confirmation
+  - Component: `OrderConfirmedPage`
 - `/dashboard`
-  - Mock dashboard listing stores and summary metrics.
-  - Current component: `DashboardPage`.
+  - Protected store dashboard
+  - Component: `DashboardPage`
+- `/orders`
+  - Protected orders dashboard
+  - Component: `AdminDashboard`
 - `/editor/:storeId`
-  - Drag-and-drop visual editor for funnel blocks.
-  - Current component: `EditorPage`.
+  - Protected funnel editor
+  - Component: `EditorPage`
 - `/preview/:storeId`
-  - Public-facing storefront preview.
-  - Current component: `PreviewPage`.
+  - Protected store preview
+  - Component: `PreviewPage`
 - `*`
-  - Fallback not found route.
-  - Current component: `NotFound`.
+  - 404 fallback
+  - Component: `NotFound`
 
 ## Flujos Principales
 
-### Acquisition Flow
+### Auth Flow
 
-1. User lands on `/`.
-2. User clicks a primary CTA.
-3. App navigates to `/dashboard`.
+1. User clicks `Iniciar sesion`.
+2. App opens `/login`.
+3. User signs in with email/password or Google through Firebase Auth.
+4. Protected routes become accessible.
+
+### Protected Access Flow
+
+1. User navigates to `/dashboard`, `/orders`, `/editor/:storeId`, or `/preview/:storeId`.
+2. `ProtectedRoute` checks Firebase auth state.
+3. If unauthenticated, app redirects to `/login`.
+4. After success, user returns to the intended route.
 
 ### Store Creation Flow
 
 1. User opens `/dashboard`.
-2. User clicks `Nueva Tienda` or `Crear nueva tienda`.
+2. User clicks `Nueva Tienda`.
 3. App navigates to `/editor/new`.
-4. Editor boots with a minimal default block set.
+4. Editor boots with default blocks and can save locally.
 
-### Store Editing Flow
+### Editor Persistence Flow
 
-1. User opens `/dashboard`.
-2. User clicks `Editar` on a store card.
-3. App navigates to `/editor/:storeId`.
-4. User can reorder blocks, add blocks, delete blocks, and edit block field values in memory.
+1. User edits blocks in `/editor/:storeId`.
+2. `Guardar` stores the draft in `localStorage`.
+3. `Preview` saves the current draft and opens `/preview/:storeId`.
+4. `Publicar` stores a local `publishedAt` timestamp.
 
-### Preview Flow
+### Demo Commerce Flow
 
-1. User opens `/editor/:storeId`.
-2. User clicks `Preview`.
-3. App navigates to `/preview/:storeId`.
-4. Preview renders a static product layout with mock content.
+1. User opens `/store/demo`.
+2. CTA navigates to `/checkout`.
+3. Checkout validates fields locally.
+4. App navigates to `/order-confirmed`.
 
 ## Arquitectura
 
+### Auth Layer
+
+- `src/lib/firebase.ts` initializes Firebase app and auth.
+- `src/lib/auth.tsx` exposes auth context and Firebase-backed session methods.
+- `src/components/auth/ProtectedRoute.tsx` gates private routes.
+
 ### Page Layer
 
-- `src/pages/*` contains the route-level views.
-- Some additional page files exist (`LandingPage`, `CheckoutPage`, `OrderConfirmedPage`, `AdminDashboard`, `Index`) but they are not wired into `src/App.tsx` right now.
+- `src/pages/*` contains route-level views.
+- The previously disconnected pages are now wired into the router where relevant.
+
+### Editor Layer
+
+- `src/lib/editor.ts` centralizes block types and draft persistence.
+- `src/components/editor/BlockPreview.tsx` renders block previews and defaults.
 
 ### UI Layer
 
-- `src/components/ui/*` contains shadcn-style primitives and wrappers.
-- `src/components/editor/BlockPreview.tsx` centralizes visual rendering and default field maps for editor blocks.
-
-### Utility Layer
-
-- `src/lib/utils.ts` provides shared helpers such as `cn()`.
-- `src/hooks/*` contains lightweight UI hooks.
+- `src/components/ui/*` contains shared shadcn-style primitives.
 
 ## Datos Y Persistencia
 
-- No backend is connected.
-- No remote fetches are performed.
-- No auth flow exists.
-- Dashboard data is mocked in-page.
-- Editor data is in component state only.
-- Preview content is static and not hydrated from editor state.
-
-## Integraciones Externas
-
-- None at runtime.
-- The repository includes Lovable-generated scaffolding remnants in docs/metadata, but the running app does not depend on Lovable services.
+- Auth session persistence is handled by Firebase browser local persistence.
+- Editor drafts and publish timestamps are stored in browser `localStorage`.
+- Dashboard and orders still use mock in-memory fixtures.
+- No custom backend or database persistence exists yet.
 
 ## Variables De Entorno
 
-- None required at this stage.
+Required:
+
+- `VITE_FIREBASE_API_KEY`
+- `VITE_FIREBASE_AUTH_DOMAIN`
+- `VITE_FIREBASE_PROJECT_ID`
+- `VITE_FIREBASE_STORAGE_BUCKET`
+- `VITE_FIREBASE_MESSAGING_SENDER_ID`
+- `VITE_FIREBASE_APP_ID`
 
 ## Restricciones Y Riesgos
 
-- Because the app uses `BrowserRouter`, static hosting must rewrite unknown paths to `index.html`.
-- Current save/publish actions are non-functional placeholders.
-- Some UI text shows mojibake characters, which indicates an encoding cleanup is still needed.
-- Several existing pages are not reachable from the current router and can drift if not maintained intentionally.
+- Login success depends on Firebase sign-in methods being enabled in Firebase Console.
+- Google popup on deployed domains requires Authorized Domains to include the Vercel domain.
+- The build currently produces a large JS chunk and may benefit from later code-splitting.
+- There is still no backend API for stores, orders, or publishing.
 
 ## Convenciones Para Cambios Futuros
 
 - Treat this file as the architectural source of truth.
-- If routes, flows, integrations, dependencies, or env vars change, update this file in the same commit.
+- If routes, auth flow, integrations, dependencies, hosting, or env vars change, update this file in the same commit.

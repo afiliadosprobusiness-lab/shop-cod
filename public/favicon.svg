@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="ShopCOD">
+  <defs>
+    <linearGradient id="gold" x1="0%" x2="100%" y1="0%" y2="100%">
+      <stop offset="0%" stop-color="#f7c948" />
+      <stop offset="100%" stop-color="#d99606" />
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="18" fill="#111827" />
+  <path d="M17 22h30l-2.5 22H19.5L17 22Z" fill="url(#gold)" />
+  <path d="M24 22c0-4.4 3.6-8 8-8s8 3.6 8 8" fill="none" stroke="#111827" stroke-linecap="round" stroke-width="4" />
+  <path d="M23 31h18" fill="none" stroke="#111827" stroke-linecap="round" stroke-width="4" />
+  <circle cx="26" cy="40" r="3" fill="#111827" />
+  <circle cx="38" cy="40" r="3" fill="#111827" />
+</svg>

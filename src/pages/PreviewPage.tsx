@@ -1,141 +1,279 @@
+import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, ShieldCheck, Truck, Phone, Star, Zap, Heart, Award, CheckCircle2, ChevronDown } from "lucide-react";
+import {
+  ArrowLeft,
+  ShieldCheck,
+  Truck,
+  Phone,
+  Star,
+  Zap,
+  Heart,
+  Award,
+  CheckCircle2,
+  ChevronDown,
+} from "lucide-react";
 import heroProduct from "@/assets/hero-product.png";
-import { useState } from "react";
+import { publishEditorState } from "@/lib/editor";
+import { toast } from "sonner";
 
-// This is a preview of what the generated store looks like
 export default function PreviewPage() {
   const navigate = useNavigate();
   const { storeId } = useParams();
+  const resolvedStoreId = storeId || "new";
   const [openFaq, setOpenFaq] = useState<number | null>(null);
 
   const faqs = [
-    { q: "¿Cómo funciona el pago contraentrega?", a: "Realizas tu pedido y pagas en efectivo al recibir." },
-    { q: "¿Cuánto tarda el envío?", a: "Entre 2 y 5 días hábiles." },
-    { q: "¿Puedo devolver el producto?", a: "Sí, 30 días de garantía de satisfacción." },
+    {
+      q: "Como funciona el pago contraentrega?",
+      a: "Realizas tu pedido y pagas en efectivo cuando recibes el producto.",
+    },
+    {
+      q: "Cuanto tarda el envio?",
+      a: "Entre 2 y 5 dias habiles, segun la ciudad de destino.",
+    },
+    {
+      q: "Puedo devolver el producto?",
+      a: "Si. Tienes 30 dias de garantia de satisfaccion.",
+    },
   ];
+
+  const handlePublish = () => {
+    const publishedState = publishEditorState(resolvedStoreId);
+
+    if (!publishedState) {
+      toast.error("Primero guarda el funnel desde el editor.");
+      return;
+    }
+
+    toast.success("Preview publicado.", {
+      description: `Publicacion: ${new Date(
+        publishedState.publishedAt || "",
+      ).toLocaleString()}`,
+    });
+  };
 
   return (
     <div className="min-h-screen">
-      {/* Preview banner */}
-      <div className="sticky top-0 z-50 bg-primary/10 border-b border-primary/20 backdrop-blur-xl">
-        <div className="container flex items-center justify-between h-10">
-          <button onClick={() => navigate(`/editor/${storeId}`)} className="flex items-center gap-1.5 text-sm text-primary hover:underline">
-            <ArrowLeft className="w-4 h-4" /> Volver al editor
+      <div className="sticky top-0 z-50 border-b border-primary/20 bg-primary/10 backdrop-blur-xl">
+        <div className="container flex h-10 items-center justify-between gap-3">
+          <button
+            type="button"
+            onClick={() => navigate(`/editor/${resolvedStoreId}`)}
+            className="flex items-center gap-1.5 text-sm text-primary hover:underline"
+          >
+            <ArrowLeft className="h-4 w-4" /> Volver al editor
           </button>
-          <span className="text-xs text-muted-foreground">Vista previa — Modo desktop</span>
-          <Button variant="cta" size="sm" className="text-xs h-7">Publicar</Button>
+          <span className="hidden text-xs text-muted-foreground sm:block">
+            Vista previa - Modo desktop
+          </span>
+          <Button variant="cta" size="sm" className="h-7 text-xs" onClick={handlePublish}>
+            Publicar
+          </Button>
         </div>
       </div>
 
-      {/* Hero */}
       <section className="py-20">
-        <div className="container grid lg:grid-cols-2 gap-12 items-center">
-          <motion.div initial={{ opacity: 0, x: -30 }} animate={{ opacity: 1, x: 0 }} className="space-y-6">
+        <div className="container grid items-center gap-12 lg:grid-cols-2">
+          <motion.div
+            initial={{ opacity: 0, x: -30 }}
+            animate={{ opacity: 1, x: 0 }}
+            className="space-y-6"
+          >
             <div className="inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-4 py-1.5 text-sm text-primary">
-              <Zap className="w-4 h-4" /> Oferta por tiempo limitado
+              <Zap className="h-4 w-4" /> Oferta por tiempo limitado
             </div>
-            <h1 className="text-4xl sm:text-5xl font-bold leading-tight">
+            <h1 className="text-4xl font-bold leading-tight sm:text-5xl">
               Auriculares Bluetooth <span className="text-gradient-gold">Pro Max</span>
             </h1>
-            <p className="text-lg text-muted-foreground">Sonido premium, cancelación de ruido activa y 40 horas de batería. Diseñados para quienes exigen lo mejor.</p>
+            <p className="text-lg text-muted-foreground">
+              Sonido premium, cancelacion de ruido activa y 40 horas de bateria.
+            </p>
             <div className="flex items-baseline gap-3">
               <span className="text-4xl font-bold text-gradient-gold">$49.900</span>
               <span className="text-xl text-muted-foreground line-through">$89.900</span>
-              <span className="bg-primary/20 text-primary text-sm font-semibold px-2 py-0.5 rounded">-44%</span>
+              <span className="rounded bg-primary/20 px-2 py-0.5 text-sm font-semibold text-primary">
+                -44%
+              </span>
             </div>
-            <Button variant="cta" size="xl" className="w-full sm:w-auto">🛒 Comprar Ahora — Pago Contraentrega</Button>
+            <Button
+              variant="cta"
+              size="xl"
+              className="w-full sm:w-auto"
+              onClick={() => navigate("/checkout")}
+            >
+              Comprar Ahora - Pago Contraentrega
+            </Button>
             <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
-              <span className="flex items-center gap-1.5"><Truck className="w-4 h-4 text-primary" /> Envío gratis</span>
-              <span className="flex items-center gap-1.5"><ShieldCheck className="w-4 h-4 text-primary" /> Garantía 30 días</span>
-              <span className="flex items-center gap-1.5"><Phone className="w-4 h-4 text-primary" /> Pago contraentrega</span>
+              <span className="flex items-center gap-1.5">
+                <Truck className="h-4 w-4 text-primary" /> Envio gratis
+              </span>
+              <span className="flex items-center gap-1.5">
+                <ShieldCheck className="h-4 w-4 text-primary" /> Garantia 30 dias
+              </span>
+              <span className="flex items-center gap-1.5">
+                <Phone className="h-4 w-4 text-primary" /> Pago contraentrega
+              </span>
             </div>
           </motion.div>
-          <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.3 }}>
-            <img src={heroProduct} alt="Producto" className="w-full max-w-md mx-auto rounded-2xl shadow-gold-lg" />
+
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: 0.3 }}
+          >
+            <img
+              src={heroProduct}
+              alt="Producto"
+              className="mx-auto w-full max-w-md rounded-2xl shadow-gold-lg"
+            />
           </motion.div>
         </div>
       </section>
 
-      {/* Benefits */}
-      <section className="py-16 bg-secondary/20">
+      <section className="bg-secondary/20 py-16">
         <div className="container">
-          <h2 className="text-3xl font-bold text-center mb-10">¿Por qué <span className="text-gradient-gold">elegirnos</span>?</h2>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          <h2 className="mb-10 text-center text-3xl font-bold">
+            Por que <span className="text-gradient-gold">elegirnos</span>?
+          </h2>
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {[
-              { icon: <Award className="w-7 h-7" />, title: "Calidad Premium", desc: "Materiales de primera línea" },
-              { icon: <Truck className="w-7 h-7" />, title: "Envío Express", desc: "2-5 días hábiles" },
-              { icon: <Heart className="w-7 h-7" />, title: "Garantía Total", desc: "30 días de garantía" },
-            ].map((b, i) => (
-              <div key={i} className="bg-card border border-border rounded-xl p-6 space-y-3">
-                <div className="text-primary">{b.icon}</div>
-                <h3 className="font-bold">{b.title}</h3>
-                <p className="text-sm text-muted-foreground">{b.desc}</p>
+              {
+                icon: <Award className="h-7 w-7" />,
+                title: "Calidad Premium",
+                desc: "Materiales de primera linea",
+              },
+              {
+                icon: <Truck className="h-7 w-7" />,
+                title: "Envio Express",
+                desc: "2 a 5 dias habiles",
+              },
+              {
+                icon: <Heart className="h-7 w-7" />,
+                title: "Garantia Total",
+                desc: "30 dias de garantia",
+              },
+            ].map((benefit) => (
+              <div
+                key={benefit.title}
+                className="space-y-3 rounded-xl border border-border bg-card p-6"
+              >
+                <div className="text-primary">{benefit.icon}</div>
+                <h3 className="font-bold">{benefit.title}</h3>
+                <p className="text-sm text-muted-foreground">{benefit.desc}</p>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* Reviews */}
       <section className="py-16">
         <div className="container">
-          <h2 className="text-3xl font-bold text-center mb-2">Lo que dicen nuestros <span className="text-gradient-gold">clientes</span></h2>
-          <div className="flex justify-center gap-1 mb-8">{Array(5).fill(0).map((_, i) => <Star key={i} className="w-5 h-5 fill-primary text-primary" />)}</div>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          <h2 className="mb-2 text-center text-3xl font-bold">
+            Lo que dicen nuestros <span className="text-gradient-gold">clientes</span>
+          </h2>
+          <div className="mb-8 flex justify-center gap-1">
+            {Array.from({ length: 5 }).map((_, index) => (
+              <Star key={index} className="h-5 w-5 fill-primary text-primary" />
+            ))}
+          </div>
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {[
-              { name: "María G.", city: "Bogotá", text: "Increíble calidad y sonido. Llegó en 3 días." },
-              { name: "Carlos R.", city: "CDMX", text: "Mejor compra del año, los uso todos los días." },
-              { name: "Ana L.", city: "Lima", text: "Pagué al recibir y es exactamente como se ve." },
-            ].map((r, i) => (
-              <div key={i} className="bg-card border border-border rounded-xl p-5 space-y-3">
-                <div className="flex gap-0.5">{Array(5).fill(0).map((_, j) => <Star key={j} className="w-4 h-4 fill-primary text-primary" />)}</div>
-                <p className="text-sm">"{r.text}"</p>
-                <p className="text-xs text-muted-foreground font-semibold">{r.name} — {r.city}</p>
+              { name: "Maria G.", city: "Bogota", text: "Increible calidad y sonido." },
+              { name: "Carlos R.", city: "CDMX", text: "La mejor compra del ano." },
+              { name: "Ana L.", city: "Lima", text: "Pague al recibir y todo salio bien." },
+            ].map((review) => (
+              <div
+                key={review.name}
+                className="space-y-3 rounded-xl border border-border bg-card p-5"
+              >
+                <div className="flex gap-0.5">
+                  {Array.from({ length: 5 }).map((_, index) => (
+                    <Star key={index} className="h-4 w-4 fill-primary text-primary" />
+                  ))}
+                </div>
+                <p className="text-sm">"{review.text}"</p>
+                <p className="text-xs font-semibold text-muted-foreground">
+                  {review.name} - {review.city}
+                </p>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* FAQ */}
-      <section className="py-16 bg-secondary/20">
+      <section className="bg-secondary/20 py-16">
         <div className="container max-w-2xl">
-          <h2 className="text-3xl font-bold text-center mb-8">Preguntas <span className="text-gradient-gold">frecuentes</span></h2>
+          <h2 className="mb-8 text-center text-3xl font-bold">
+            Preguntas <span className="text-gradient-gold">frecuentes</span>
+          </h2>
           <div className="space-y-3">
-            {faqs.map((f, i) => (
-              <div key={i} className="border border-border rounded-xl overflow-hidden">
-                <button onClick={() => setOpenFaq(openFaq === i ? null : i)} className="w-full flex items-center justify-between p-4 text-left font-semibold text-sm">
-                  {f.q}
-                  <ChevronDown className={`w-4 h-4 transition-transform ${openFaq === i ? "rotate-180" : ""}`} />
+            {faqs.map((faq, index) => (
+              <div key={faq.q} className="overflow-hidden rounded-xl border border-border">
+                <button
+                  type="button"
+                  onClick={() => setOpenFaq(openFaq === index ? null : index)}
+                  className="flex w-full items-center justify-between p-4 text-left text-sm font-semibold"
+                >
+                  {faq.q}
+                  <ChevronDown
+                    className={`h-4 w-4 transition-transform ${
+                      openFaq === index ? "rotate-180" : ""
+                    }`}
+                  />
                 </button>
-                {openFaq === i && <div className="px-4 pb-4 text-sm text-muted-foreground">{f.a}</div>}
+                {openFaq === index ? (
+                  <div className="px-4 pb-4 text-sm text-muted-foreground">{faq.a}</div>
+                ) : null}
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* Checkout */}
       <section className="py-16">
         <div className="container max-w-lg">
-          <div className="bg-card border border-primary/20 rounded-xl p-6 space-y-4">
-            <h2 className="text-2xl font-bold text-center">Finalizar <span className="text-gradient-gold">Pedido</span></h2>
-            <div className="bg-primary/10 border border-primary/20 rounded-lg p-3 flex items-center gap-2 text-sm">
-              <Phone className="w-4 h-4 text-primary" />
-              <span className="text-primary font-semibold">Pago Contraentrega</span> — Pagas al recibir
+          <div className="space-y-4 rounded-xl border border-primary/20 bg-card p-6">
+            <h2 className="text-center text-2xl font-bold">
+              Finalizar <span className="text-gradient-gold">Pedido</span>
+            </h2>
+            <div className="flex items-center gap-2 rounded-lg border border-primary/20 bg-primary/10 p-3 text-sm">
+              <Phone className="h-4 w-4 text-primary" />
+              <span className="font-semibold text-primary">Pago Contraentrega</span> - Pagas
+              al recibir
             </div>
             <div className="space-y-3">
-              {["Nombre completo", "Teléfono / WhatsApp", "Departamento", "Ciudad", "Dirección completa"].map((f, i) => (
-                <div key={i} className="bg-secondary border border-border rounded-lg px-4 py-3 text-sm text-muted-foreground">{f}</div>
+              {[
+                "Nombre completo",
+                "Telefono / WhatsApp",
+                "Departamento",
+                "Ciudad",
+                "Direccion completa",
+              ].map((field) => (
+                <div
+                  key={field}
+                  className="rounded-lg border border-border bg-secondary px-4 py-3 text-sm text-muted-foreground"
+                >
+                  {field}
+                </div>
               ))}
             </div>
-            <Button variant="cta" size="xl" className="w-full">✅ Confirmar Pedido — $49.900</Button>
+            <Button
+              variant="cta"
+              size="xl"
+              className="w-full"
+              onClick={() => navigate("/checkout")}
+            >
+              Confirmar Pedido - $49.900
+            </Button>
             <div className="flex justify-center gap-4 text-xs text-muted-foreground">
-              <span className="flex items-center gap-1"><CheckCircle2 className="w-3.5 h-3.5 text-primary" /> Envío gratis</span>
-              <span className="flex items-center gap-1"><CheckCircle2 className="w-3.5 h-3.5 text-primary" /> Garantía 30 días</span>
+              <span className="flex items-center gap-1">
+                <CheckCircle2 className="h-3.5 w-3.5 text-primary" /> Envio gratis
+              </span>
+              <span className="flex items-center gap-1">
+                <CheckCircle2 className="h-3.5 w-3.5 text-primary" /> Garantia 30 dias
+              </span>
             </div>
           </div>
         </div>
