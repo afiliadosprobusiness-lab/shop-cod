@@ -222,7 +222,7 @@ export default function SettingsPage() {
                 <Field label="Nombre de la cuenta" className="md:col-span-2"><Input value={settings.accountName} onChange={(e) => patch((c) => ({ ...c, accountName: e.target.value }))} /></Field>
                 <Field label="Correo del propietario"><Input value={settings.ownerEmail} onChange={(e) => patch((c) => ({ ...c, ownerEmail: e.target.value }))} /></Field>
                 <Field label="Correo del formulario de contacto"><Input value={settings.supportEmail} onChange={(e) => patch((c) => ({ ...c, supportEmail: e.target.value }))} /></Field>
-                <Field label="Subdominio" className="md:col-span-2"><div className="flex overflow-hidden rounded-md border border-input bg-background"><Input value={settings.subdomain} onChange={(e) => patch((c) => ({ ...c, subdomain: e.target.value }))} className="rounded-none border-0 shadow-none focus-visible:ring-0" /><span className="inline-flex items-center border-l border-border px-3 text-sm text-muted-foreground">.mylightfunnels.com</span></div></Field>
+                <Field label="Subdominio" className="md:col-span-2"><div className="flex overflow-hidden rounded-md border border-input bg-background"><Input value={settings.subdomain} onChange={(e) => patch((c) => ({ ...c, subdomain: e.target.value }))} className="rounded-none border-0 shadow-none focus-visible:ring-0" /><span className="inline-flex items-center border-l border-border px-3 text-sm text-muted-foreground">.shop-cod.vercel.app</span></div></Field>
               </div>
             </Card>
             <Card title="Direccion">

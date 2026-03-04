@@ -73,16 +73,29 @@ export default function SuperAdminPage() {
   useEffect(() => {
     let isMounted = true;
 
-    void bootstrapSuperAdminClientsFromCloud().then((nextClients) => {
-      if (!isMounted) {
-        return;
-      }
+    const refreshClients = () => {
+      void bootstrapSuperAdminClientsFromCloud().then((nextClients) => {
+        if (!isMounted) {
+          return;
+        }
 
-      setClients(nextClients);
-    });
+        setClients(nextClients);
+      });
+    };
+
+    refreshClients();
+
+    const onFocus = () => {
+      refreshClients();
+    };
+
+    window.addEventListener("focus", onFocus);
+    const intervalId = window.setInterval(refreshClients, 15000);
 
     return () => {
       isMounted = false;
+      window.removeEventListener("focus", onFocus);
+      window.clearInterval(intervalId);
     };
   }, []);
 

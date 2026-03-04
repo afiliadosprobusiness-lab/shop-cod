@@ -340,6 +340,7 @@ ShopCOD is a frontend SPA for COD-focused funnel selling. It uses Firebase Authe
 - `src/pages/dashboard/OffersPage.tsx` renders bundle and discount creation.
 - `src/pages/dashboard/AppsPage.tsx` renders the "coming soon" integrations state.
 - `src/pages/dashboard/SettingsPage.tsx` renders a multi-section settings hub for general account data, shipping, members, billing, domains, digital files, legal copy, abandoned-cart email recovery, security, payment gateways, tracking, webhooks, and the temporary store password payment modal.
+- In `SettingsPage -> General`, the subdomain suffix reference is aligned to `.shop-cod.vercel.app` (production Vercel host).
 - `src/pages/SuperAdminPage.tsx` renders the root control panel for managing real client accounts, statuses, one-click plan changes, and deletions while keeping the root account protected.
 - `src/components/plans/PlanUpgradeDialog.tsx` renders the reusable upgrade modal when a feature is blocked by plan.
 - `src/lib/products.ts` defines the frontend product model and browser persistence helpers.

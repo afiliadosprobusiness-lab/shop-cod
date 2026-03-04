@@ -167,6 +167,7 @@ All routes below are protected by Firebase auth state and render inside the shar
 - Includes:
   - sectioned internal navigation for general, shipping, members, billing, domains, digital products, legal, emails, security, payment gateways, tracking, and webhooks
   - local forms and lists backed by `PlatformSettings`
+  - subdomain reference suffix aligned to `.shop-cod.vercel.app` in the general account section
   - modal flows for member invites, webhook creation, gateway registration, and the payment-method requirement before removing the temporary store password
 
 ### `GET /editor/:storeId`
@@ -723,3 +724,5 @@ The following are breaking changes and must be versioned or coordinated before i
 - 2026-03-04 | Se agrega gating local por plan con modal de upgrade para tiendas, analiticas y multi-usuario | non-breaking | Introduce restricciones de producto sin romper rutas ni persistencia base
 - 2026-03-04 | `GET /superadmin` deja de sembrar cuentas demo y agrega cambio de plan en un clic para cuentas reales visibles | non-breaking | Endurece el panel root sin cambiar rutas ni modelos compartidos
 - 2026-03-04 | El registro de clientes del superadmin pasa a hidratarse y sincronizarse con Firestore cuando esta disponible | non-breaking | Mantiene fallback local mientras permite visibilidad compartida entre sesiones y dispositivos
+- 2026-03-04 | Se fuerza el registro inmediato de workspaces autenticados y el panel superadmin agrega refresco periodico/focus para captar cuentas nuevas | non-breaking | Mejora visibilidad de cuentas sin cambiar rutas ni modelos base
+- 2026-03-04 | `GET /settings` alinea el sufijo de subdominio con `.shop-cod.vercel.app` | non-breaking | Ajusta la referencia visual al entorno de produccion en Vercel

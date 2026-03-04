@@ -66,6 +66,7 @@
 - Ofertas: `/offers` permite crear bundles y descuentos persistidos localmente
 - Aplicaciones: `/apps` muestra un estado de "Proximamente" para el marketplace de integraciones
 - Configuracion: `/settings` ahora concentra secciones reales para cuenta, envio, miembros, facturacion, dominios, productos digitales, legal, correos, seguridad, pasarelas, seguimiento y webhooks, incluyendo la contrasena temporal protegida por modal de metodo de pago
+- Configuracion: el campo de subdominio en `General` usa como sufijo de referencia `.shop-cod.vercel.app` para alinear el entorno de produccion en Vercel
 - Editor: el flujo visual existente sigue disponible en `/editor/:storeId` con `Store builder`, `Funnel builder` y `Page builder`; cada nodo/pagina del funnel abre su propia vista del Page Builder
 - Preview: sigue disponible en `/preview/:storeId` para revisar drafts por `storeId`
 

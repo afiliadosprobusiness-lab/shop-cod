@@ -108,6 +108,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       throw new Error("No se pudo validar tu sesion.");
     }
 
+    await registerAuthenticatedWorkspaceClient({
+      email: nextUser.email,
+      name: nextUser.name,
+    });
+
     setUser(nextUser);
     return nextUser;
   };
@@ -128,6 +133,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       throw new Error("No se pudo validar tu sesion.");
     }
 
+    await registerAuthenticatedWorkspaceClient({
+      email: nextUser.email,
+      name: nextUser.name,
+    });
+
     setUser(nextUser);
     return nextUser;
   };
@@ -143,6 +153,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!nextUser) {
       throw new Error("No se pudo validar tu sesion con Google.");
     }
+
+    await registerAuthenticatedWorkspaceClient({
+      email: nextUser.email,
+      name: nextUser.name,
+    });
 
     setUser(nextUser);
     return nextUser;

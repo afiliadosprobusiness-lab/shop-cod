@@ -296,7 +296,7 @@ const defaultSettings: PlatformSettings = {
   accountName: "ShopCOD Workspace",
   ownerEmail: "owner@shopcod.app",
   supportEmail: "support@shopcod.app",
-  subdomain: "my-shopcod-workspace",
+  subdomain: "shopcod",
   legalName: "ShopCOD LLC",
   companyName: "ShopCOD",
   phone: "+1 555 010 2026",
@@ -351,7 +351,7 @@ const defaultSettings: PlatformSettings = {
     connectedDomains: [
       {
         id: "domain-1",
-        host: "clothfloor.myecosite.net",
+        host: "shop-cod.vercel.app",
         isPrimary: true,
         status: "connected",
         sslStatus: "active",
