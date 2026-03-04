@@ -49,6 +49,7 @@ There is still no custom backend API implemented in this codebase.
   - locally created stores from browser storage
   - modal-based store creation
   - modal-based quick actions and settings
+  - local-store delete action for user-created drafts
 
 ### `GET /orders`
 
@@ -68,6 +69,7 @@ There is still no custom backend API implemented in this codebase.
   - edits both funnel blocks and base commercial profile
   - new drafts open with a full starter funnel (hero, problem, benefits, reviews, FAQ, checkout, and CTA)
   - exposes a drag-and-drop funnel workspace with block library, funnel map, quick insertion, and conversion guidance
+  - now includes builder modes for store setup, funnel ordering, and page refinement within the same route
 
 ### `GET /preview/:storeId`
 
@@ -155,6 +157,7 @@ Rules:
 - `Publicar` stores a local published timestamp and marks the local catalog item as active.
 - The dashboard reads user-created stores from the local catalog in browser storage.
 - Dashboard and order metrics still include mock fixtures for the base demo.
+- Local user-created stores can be removed from browser storage from the dashboard action modal.
 - No custom backend persistence exists yet.
 
 ## Environment Contract
@@ -193,3 +196,4 @@ The following are breaking changes and must be versioned or coordinated before i
 - 2026-03-04 | Se agrega creador guiado, catalogo local de tiendas y preview alimentado por perfil comercial | non-breaking | Mejora el flujo de creacion sin cambiar las rutas publicas
 - 2026-03-04 | Los nuevos borradores se inicializan con un funnel completo y el dashboard usa un creador guiado mas robusto | non-breaking | Refuerza el flujo de creacion sin alterar rutas ni shapes compartidos
 - 2026-03-04 | El editor evoluciona a un workspace visual tipo funnel builder con score heuristico y controles de optimizacion | non-breaking | Mejora la UX del editor sin cambiar rutas ni contratos de datos
+- 2026-03-04 | El dashboard permite eliminar tiendas locales y el editor agrega modos Store, Funnel y Page builder | non-breaking | Amplia la gestion local sin cambiar rutas ni shapes compartidos

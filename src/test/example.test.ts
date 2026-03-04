@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import {
+  deleteStoreDraft,
   loadEditorState,
   loadStoreCatalog,
   publishEditorState,
@@ -66,5 +67,15 @@ describe("editor storage", () => {
     const catalog = loadStoreCatalog();
 
     expect(catalog[0]?.status).toBe("pausada");
+  });
+
+  it("removes the draft and catalog item for deleted stores", () => {
+    saveEditorState(storeId, blocks, profile);
+
+    const catalog = deleteStoreDraft(storeId);
+
+    expect(loadEditorState(storeId)).toBeNull();
+    expect(catalog).toHaveLength(0);
+    expect(loadStoreCatalog()).toHaveLength(0);
   });
 });

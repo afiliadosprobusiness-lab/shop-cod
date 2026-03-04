@@ -233,6 +233,18 @@ export function setStoreCatalogStatus(storeId: string, status: StoreStatus) {
   return nextCatalog;
 }
 
+export function deleteStoreDraft(storeId: string) {
+  if (!isBrowser()) {
+    return [] as StoreCatalogItem[];
+  }
+
+  window.localStorage.removeItem(getEditorStorageKey(storeId));
+
+  const nextCatalog = loadStoreCatalog().filter((item) => item.id !== storeId);
+  writeStoreCatalog(nextCatalog);
+  return nextCatalog;
+}
+
 export function loadEditorState(storeId: string) {
   if (!isBrowser()) {
     return null;

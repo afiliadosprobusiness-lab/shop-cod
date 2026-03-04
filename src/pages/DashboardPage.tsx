@@ -15,11 +15,13 @@ import {
   Copy,
   PackageOpen,
   Sparkles,
+  Trash2,
   X,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/lib/auth";
 import {
+  deleteStoreDraft,
   loadEditorState,
   loadStoreCatalog,
   saveEditorState,
@@ -339,6 +341,21 @@ export default function DashboardPage() {
     refreshCatalog();
     setActiveActionStore(null);
     toast.success(`${store.name} quedo en pausa.`);
+  };
+
+  const handleDeleteStore = (store: StoreItem) => {
+    if (!store.isLocal) {
+      toast("Solo las tiendas creadas en este panel pueden eliminarse por ahora.");
+      setActiveActionStore(null);
+      return;
+    }
+
+    deleteStoreDraft(store.id);
+    refreshCatalog();
+    setActiveActionStore(null);
+    toast.success("Tienda eliminada.", {
+      description: `${store.name} se elimino del panel y del borrador local.`,
+    });
   };
 
   const handleSaveSettings = () => {
@@ -830,6 +847,13 @@ export default function DashboardPage() {
               onClick={() => handlePauseStore(activeActionStore)}
             >
               <Settings className="h-4 w-4" /> Pausar tienda
+            </Button>
+            <Button
+              variant="outline"
+              className="justify-start border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive sm:col-span-2"
+              onClick={() => handleDeleteStore(activeActionStore)}
+            >
+              <Trash2 className="h-4 w-4" /> Eliminar tienda
             </Button>
           </div>
         </ModalShell>

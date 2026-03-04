@@ -79,6 +79,64 @@ const recommendedStack: BlockType[] = [
   "cta",
 ];
 
+type BuilderMode = "store" | "funnel" | "page";
+
+const builderModeMeta: Record<
+  BuilderMode,
+  {
+    label: string;
+    eyebrow: string;
+    title: string;
+    description: string;
+    accentClass: string;
+    surfaceClass: string;
+    points: string[];
+  }
+> = {
+  store: {
+    label: "Store builder",
+    eyebrow: "Store builder",
+    title: "Plantillas de alta conversion y control total de tu oferta",
+    description:
+      "Define marca, producto y posicionamiento antes de entrar al flujo de conversion. Piensa en esto como la capa comercial de tu tienda.",
+    accentClass: "from-emerald-400 to-teal-400",
+    surfaceClass: "bg-emerald-50",
+    points: [
+      "Plantillas de alta conversion",
+      "100% personalizable",
+      "Tu tienda, tu estilo",
+    ],
+  },
+  funnel: {
+    label: "Funnel builder",
+    eyebrow: "Funnel builder",
+    title: "Arrastra, conecta y optimiza cada paso del funnel",
+    description:
+      "Construye la secuencia de compra con una vista clara de los pasos, objeciones y cierres. Aqui mandan la narrativa y la conversion.",
+    accentClass: "from-amber-300 to-yellow-400",
+    surfaceClass: "bg-amber-50",
+    points: [
+      "Facil de usar",
+      "Informacion de un vistazo",
+      "Prueba y optimiza",
+    ],
+  },
+  page: {
+    label: "Page builder",
+    eyebrow: "Page builder",
+    title: "Diseña secciones y componentes como un constructor modular",
+    description:
+      "Pulsa el layout final de cada bloque y ajusta contenido, jerarquia y componentes para que la pagina se vea mas premium.",
+    accentClass: "from-sky-400 to-blue-500",
+    surfaceClass: "bg-sky-50",
+    points: [
+      "Arrastrar y soltar",
+      "Construye cualquier cosa",
+      "Componentes potentes",
+    ],
+  },
+};
+
 function createDefaultProfile(): StoreProfile {
   return {
     storeName: "Nueva tienda",
@@ -577,6 +635,165 @@ function PropertiesPanel({
   );
 }
 
+function BuilderModeTabs({
+  mode,
+  onChange,
+}: {
+  mode: BuilderMode;
+  onChange: (mode: BuilderMode) => void;
+}) {
+  const tabs: Array<{ id: BuilderMode; icon: typeof LayoutTemplate }> = [
+    { id: "store", icon: LayoutTemplate },
+    { id: "funnel", icon: TrendingUp },
+    { id: "page", icon: Sparkles },
+  ];
+
+  return (
+    <div className="flex justify-center">
+      <div className="inline-flex flex-wrap items-center gap-2 rounded-full border border-slate-200 bg-white p-2 shadow-sm">
+        {tabs.map((tab) => {
+          const Icon = tab.icon;
+          const active = mode === tab.id;
+
+          return (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => onChange(tab.id)}
+              className={cn(
+                "inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition-all",
+                active
+                  ? "bg-slate-900 text-white shadow-sm"
+                  : "text-slate-600 hover:bg-slate-100",
+              )}
+            >
+              <Icon className="h-4 w-4" />
+              {builderModeMeta[tab.id].label}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function BuilderShowcaseCard({ mode }: { mode: BuilderMode }) {
+  const meta = builderModeMeta[mode];
+
+  return (
+    <section className="overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-sm">
+      <div className={`h-72 bg-gradient-to-r ${meta.accentClass} p-6 sm:p-8`}>
+        <div className="h-full rounded-[1.5rem] border border-white/50 bg-white/25 p-4 backdrop-blur-sm">
+          <div className="grid h-full gap-4 md:grid-cols-[1.1fr_0.9fr]">
+            <div className="flex flex-col justify-between rounded-[1.5rem] border border-white/60 bg-white/50 p-5">
+              <div className="space-y-3">
+                <div className="inline-flex rounded-full border border-slate-200 bg-white/90 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-600">
+                  {meta.eyebrow}
+                </div>
+                <div className="space-y-2">
+                  <div className="h-4 w-32 rounded-full bg-white/90" />
+                  <div className="h-4 w-48 rounded-full bg-white/80" />
+                  <div className="h-4 w-40 rounded-full bg-white/70" />
+                </div>
+              </div>
+              <div className="grid grid-cols-3 gap-3">
+                {meta.points.map((point) => (
+                  <div
+                    key={point}
+                    className="rounded-2xl border border-white/70 bg-white/75 px-3 py-3"
+                  >
+                    <div className="h-3 w-10 rounded-full bg-slate-200" />
+                    <div className="mt-3 h-16 rounded-2xl bg-slate-100" />
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-3 gap-3 md:grid-cols-1 md:grid-rows-3">
+              {meta.points.map((point) => (
+                <div
+                  key={`${mode}-${point}`}
+                  className={`rounded-[1.5rem] border border-slate-200/60 ${meta.surfaceClass} p-4 shadow-sm`}
+                >
+                  <div className="flex h-full flex-col justify-between">
+                    <div className="h-4 w-16 rounded-full bg-white/80" />
+                    <div className="space-y-2">
+                      <div className="h-3 w-24 rounded-full bg-white/70" />
+                      <div className="h-3 w-20 rounded-full bg-white/60" />
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid gap-4 px-6 py-6 md:grid-cols-3">
+        {meta.points.map((point) => (
+          <div key={`${mode}-copy-${point}`} className="space-y-2 text-center md:text-left">
+            <div className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-slate-100 text-slate-500">
+              <Sparkles className="h-4 w-4" />
+            </div>
+            <h3 className="text-base font-bold text-slate-900">{point}</h3>
+            <p className="text-sm leading-6 text-slate-600">
+              {meta.description}
+            </p>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function StoreBuilderSidePanel({
+  score,
+  onGoToFunnel,
+}: {
+  score: number;
+  onGoToFunnel: () => void;
+}) {
+  return (
+    <div className="space-y-4">
+      <div className="rounded-[1.5rem] border border-slate-200 bg-white p-5 shadow-sm">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+          Progreso comercial
+        </p>
+        <p className="mt-3 text-4xl font-bold text-slate-900">{score}</p>
+        <p className="mt-2 text-sm text-slate-600">
+          Cuando la oferta ya esta clara, el siguiente paso es pasar al funnel builder.
+        </p>
+        <div className="mt-4 h-2 overflow-hidden rounded-full bg-slate-100">
+          <div className="h-full rounded-full bg-gradient-to-r from-emerald-400 to-teal-400" style={{ width: `${score}%` }} />
+        </div>
+      </div>
+
+      <div className="rounded-[1.5rem] border border-slate-200 bg-white p-5 shadow-sm">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+          Siguiente paso
+        </p>
+        <div className="mt-4 space-y-3">
+          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+            <p className="text-sm font-semibold text-slate-900">1. Define producto y promesa</p>
+            <p className="mt-1 text-sm text-slate-600">
+              Ajusta el mensaje central hasta que la oferta quede clara.
+            </p>
+          </div>
+          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+            <p className="text-sm font-semibold text-slate-900">2. Pasa al funnel builder</p>
+            <p className="mt-1 text-sm text-slate-600">
+              Ordena la narrativa, objeciones y cierres antes de publicar.
+            </p>
+          </div>
+        </div>
+        <Button className="mt-4 w-full" onClick={onGoToFunnel}>
+          <TrendingUp className="h-4 w-4" /> Abrir funnel builder
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 function StrategyPanel({
   profile,
   score,
@@ -779,6 +996,7 @@ export default function EditorPage() {
   const [selectedId, setSelectedId] = useState<string | null>(blocks[0]?.id || null);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [previewMode, setPreviewMode] = useState<"desktop" | "mobile">("desktop");
+  const [builderMode, setBuilderMode] = useState<BuilderMode>("store");
 
   useEffect(() => {
     const storedState = loadEditorState(resolvedStoreId);
@@ -822,6 +1040,15 @@ export default function EditorPage() {
     () => blocks.find((block) => block.id === activeId) || null,
     [activeId, blocks],
   );
+
+  const canvasModeTitle =
+    builderMode === "page"
+      ? "Construye y afina cada seccion de la pagina"
+      : "Ordena el funnel como un builder real";
+  const canvasModeDescription =
+    builderMode === "page"
+      ? "Ajusta el orden visual de cada bloque y refina el contenido desde el panel lateral."
+      : "Arrastra cada bloque para cambiar la narrativa, duplica variaciones y usa las inserciones sugeridas para mantener un flujo de conversion claro.";
 
   const handleDragStart = (event: DragStartEvent) => {
     setActiveId(event.active.id as string);
@@ -1046,121 +1273,185 @@ export default function EditorPage() {
       <main className="flex flex-1 overflow-hidden">
         <aside className="hidden w-80 shrink-0 border-r border-border/70 bg-card/70 p-4 xl:block">
           <div className="flex h-full flex-col gap-4 overflow-y-auto pr-1">
-            <div className="rounded-3xl border border-border bg-background/70 p-5">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-primary">
-                    Funnel map
+            {builderMode === "store" ? (
+              <>
+                <div className="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                    Store setup
                   </p>
-                  <h2 className="mt-2 text-lg font-bold">Narrativa visual</h2>
+                  <div className="mt-4 space-y-3">
+                    {builderModeMeta.store.points.map((point) => (
+                      <div
+                        key={point}
+                        className="rounded-2xl border border-slate-200 bg-slate-50 p-4"
+                      >
+                        <p className="text-sm font-semibold text-slate-900">{point}</p>
+                        <p className="mt-1 text-sm text-slate-600">
+                          {builderModeMeta.store.description}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-                <div className="rounded-2xl bg-primary/10 px-3 py-2 text-sm font-semibold text-primary">
-                  {blocks.length} pasos
-                </div>
-              </div>
 
-              <div className="mt-4 space-y-2">
-                {blocks.map((block, index) => (
-                  <button
-                    key={block.id}
-                    type="button"
-                    onClick={() => setSelectedId(block.id)}
-                    className={cn(
-                      "flex w-full items-center gap-3 rounded-2xl border px-3 py-3 text-left transition-all",
-                      selectedId === block.id
-                        ? "border-primary/30 bg-primary/10"
-                        : "border-border bg-card/80 hover:border-primary/20",
-                    )}
-                  >
-                    <span className="flex h-9 w-9 items-center justify-center rounded-2xl bg-secondary text-sm font-bold text-foreground">
-                      {index + 1}
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-semibold">{blockMeta[block.type].label}</p>
-                      <p className="truncate text-xs text-muted-foreground">
-                        {blockPlaybooks[block.type].goal}
+                <div className="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                    Builder flow
+                  </p>
+                  <div className="mt-4 space-y-3">
+                    <button
+                      type="button"
+                      onClick={() => setBuilderMode("funnel")}
+                      className="w-full rounded-2xl border border-slate-200 bg-slate-50 p-4 text-left transition-colors hover:border-slate-300"
+                    >
+                      <p className="text-sm font-semibold text-slate-900">Ir a Funnel builder</p>
+                      <p className="mt-1 text-sm text-slate-600">
+                        Conecta las etapas del recorrido y ordena la conversion.
                       </p>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setBuilderMode("page")}
+                      className="w-full rounded-2xl border border-slate-200 bg-slate-50 p-4 text-left transition-colors hover:border-slate-300"
+                    >
+                      <p className="text-sm font-semibold text-slate-900">Ir a Page builder</p>
+                      <p className="mt-1 text-sm text-slate-600">
+                        Ajusta el layout y los componentes finales de la pagina.
+                      </p>
+                    </button>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="rounded-3xl border border-border bg-background/70 p-5">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-primary">
+                        Funnel map
+                      </p>
+                      <h2 className="mt-2 text-lg font-bold">Narrativa visual</h2>
                     </div>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="rounded-3xl border border-border bg-background/70 p-5">
-              <div className="flex items-center gap-2">
-                <LayoutTemplate className="h-4 w-4 text-primary" />
-                <h3 className="font-bold">Biblioteca de bloques</h3>
-              </div>
-              <div className="mt-4 space-y-4">
-                {libraryGroups.map((group) => (
-                  <div key={group.label} className="space-y-2">
-                    <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                      {group.label}
-                    </p>
-                    <div className="space-y-2">
-                      {group.types.map((type) => (
-                        <button
-                          key={type}
-                          type="button"
-                          onClick={() => addBlock(type)}
-                          className="flex w-full items-center gap-3 rounded-2xl border border-border bg-card/80 px-3 py-3 text-left transition-colors hover:border-primary/20 hover:bg-primary/5"
-                        >
-                          <span className="flex h-9 w-9 items-center justify-center rounded-2xl bg-secondary text-sm font-bold">
-                            {blockMeta[type].emoji}
-                          </span>
-                          <div className="min-w-0 flex-1">
-                            <p className="text-sm font-semibold">{blockMeta[type].label}</p>
-                            <p className="truncate text-xs text-muted-foreground">
-                              {blockPlaybooks[type].description}
-                            </p>
-                          </div>
-                          <Plus className="h-4 w-4 text-muted-foreground" />
-                        </button>
-                      ))}
+                    <div className="rounded-2xl bg-primary/10 px-3 py-2 text-sm font-semibold text-primary">
+                      {blocks.length} pasos
                     </div>
                   </div>
-                ))}
-              </div>
-            </div>
 
-            <div className="rounded-3xl border border-border bg-background/70 p-5">
-              <div className="flex items-center gap-2">
-                <Sparkles className="h-4 w-4 text-primary" />
-                <h3 className="font-bold">Modo alta conversion</h3>
-              </div>
-              <p className="mt-3 text-sm text-muted-foreground">
-                Completa automaticamente las piezas clave que falten en el funnel.
-              </p>
-              <Button className="mt-4 w-full" variant="outline" onClick={addMissingConversionBlocks}>
-                <Plus className="h-4 w-4" /> Completar stack recomendada
-              </Button>
-            </div>
+                  <div className="mt-4 space-y-2">
+                    {blocks.map((block, index) => (
+                      <button
+                        key={block.id}
+                        type="button"
+                        onClick={() => setSelectedId(block.id)}
+                        className={cn(
+                          "flex w-full items-center gap-3 rounded-2xl border px-3 py-3 text-left transition-all",
+                          selectedId === block.id
+                            ? "border-primary/30 bg-primary/10"
+                            : "border-border bg-card/80 hover:border-primary/20",
+                        )}
+                      >
+                        <span className="flex h-9 w-9 items-center justify-center rounded-2xl bg-secondary text-sm font-bold text-foreground">
+                          {index + 1}
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-semibold">{blockMeta[block.type].label}</p>
+                          <p className="truncate text-xs text-muted-foreground">
+                            {blockPlaybooks[block.type].goal}
+                          </p>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="rounded-3xl border border-border bg-background/70 p-5">
+                  <div className="flex items-center gap-2">
+                    <LayoutTemplate className="h-4 w-4 text-primary" />
+                    <h3 className="font-bold">
+                      {builderMode === "page" ? "Componentes de pagina" : "Biblioteca de bloques"}
+                    </h3>
+                  </div>
+                  <div className="mt-4 space-y-4">
+                    {libraryGroups.map((group) => (
+                      <div key={group.label} className="space-y-2">
+                        <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                          {group.label}
+                        </p>
+                        <div className="space-y-2">
+                          {group.types.map((type) => (
+                            <button
+                              key={type}
+                              type="button"
+                              onClick={() => addBlock(type)}
+                              className="flex w-full items-center gap-3 rounded-2xl border border-border bg-card/80 px-3 py-3 text-left transition-colors hover:border-primary/20 hover:bg-primary/5"
+                            >
+                              <span className="flex h-9 w-9 items-center justify-center rounded-2xl bg-secondary text-sm font-bold">
+                                {blockMeta[type].emoji}
+                              </span>
+                              <div className="min-w-0 flex-1">
+                                <p className="text-sm font-semibold">{blockMeta[type].label}</p>
+                                <p className="truncate text-xs text-muted-foreground">
+                                  {blockPlaybooks[type].description}
+                                </p>
+                              </div>
+                              <Plus className="h-4 w-4 text-muted-foreground" />
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="rounded-3xl border border-border bg-background/70 p-5">
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="h-4 w-4 text-primary" />
+                    <h3 className="font-bold">
+                      {builderMode === "page" ? "Modo page builder" : "Modo alta conversion"}
+                    </h3>
+                  </div>
+                  <p className="mt-3 text-sm text-muted-foreground">
+                    {builderMode === "page"
+                      ? "Trabaja el layout final mientras mantienes la misma logica del funnel."
+                      : "Completa automaticamente las piezas clave que falten en el funnel."}
+                  </p>
+                  <Button className="mt-4 w-full" variant="outline" onClick={addMissingConversionBlocks}>
+                    <Plus className="h-4 w-4" /> Completar stack recomendada
+                  </Button>
+                </div>
+              </>
+            )}
           </div>
         </aside>
 
         <div className="flex-1 overflow-y-auto px-4 py-5 lg:px-6">
-          <div className="mx-auto grid max-w-[1800px] gap-5 xl:grid-cols-[minmax(0,1fr)_22rem]">
+          <div className="mx-auto max-w-[1800px] space-y-5">
+            <BuilderModeTabs mode={builderMode} onChange={setBuilderMode} />
+            <BuilderShowcaseCard mode={builderMode} />
+            <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_22rem]">
             <div className="min-w-0 space-y-5">
-              <StrategyPanel
-                profile={storeProfile}
-                score={conversionScore}
-                missingTypes={missingCriticalBlocks}
-                onProfileChange={updateProfileField}
-                onApply={applyProfile}
-                onSave={persistDraft}
-              />
+              {builderMode === "store" ? (
+                <StrategyPanel
+                  profile={storeProfile}
+                  score={conversionScore}
+                  missingTypes={missingCriticalBlocks}
+                  onProfileChange={updateProfileField}
+                  onApply={applyProfile}
+                  onSave={persistDraft}
+                />
+              ) : null}
 
-              <div className="rounded-[2rem] border border-border/70 bg-card/80 p-4 shadow-2xl shadow-black/10">
+              {builderMode !== "store" ? (
+                <div className="rounded-[2rem] border border-border/70 bg-card/80 p-4 shadow-2xl shadow-black/10">
                 <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
                   <div>
                     <div className="inline-flex items-center gap-2 rounded-full bg-primary/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-primary">
                       <Sparkles className="h-3.5 w-3.5" />
-                      Canvas drag and drop
+                      {builderMode === "page" ? "Page builder" : "Canvas drag and drop"}
                     </div>
-                    <h2 className="mt-3 text-2xl font-bold">Ordena el funnel como un builder real</h2>
+                    <h2 className="mt-3 text-2xl font-bold">{canvasModeTitle}</h2>
                     <p className="mt-2 max-w-3xl text-sm text-muted-foreground">
-                      Arrastra cada bloque para cambiar la narrativa, duplica variaciones y
-                      usa las inserciones sugeridas para mantener un flujo de conversion claro.
+                      {canvasModeDescription}
                     </p>
                   </div>
 
@@ -1199,65 +1490,111 @@ export default function EditorPage() {
                   ))}
                 </div>
               </div>
+              ) : null}
 
-              <div
-                className={cn(
-                  "mx-auto w-full transition-all duration-300",
-                  previewMode === "mobile" ? "max-w-md" : "max-w-5xl",
-                )}
-              >
-                <DndContext
-                  sensors={sensors}
-                  collisionDetection={closestCenter}
-                  onDragStart={handleDragStart}
-                  onDragEnd={handleDragEnd}
-                >
-                  <SortableContext
-                    items={blocks.map((block) => block.id)}
-                    strategy={verticalListSortingStrategy}
-                  >
-                    <div className="space-y-4">
-                      {blocks.map((block, index) => (
-                        <SortableBlockCard
-                          key={block.id}
-                          block={block}
-                          index={index}
-                          isSelected={selectedId === block.id}
-                          onSelect={() => setSelectedId(block.id)}
-                          onDelete={() => deleteBlock(block.id)}
-                          onDuplicate={() => duplicateBlock(block.id)}
-                          onInsertAfter={(type) => insertBlockAt(index + 1, type)}
-                        />
-                      ))}
-                    </div>
-                  </SortableContext>
-
-                  <DragOverlay>
-                    {activeBlock ? (
-                      <div className="w-full max-w-3xl rounded-[1.75rem] border border-primary/35 bg-card/95 p-4 opacity-95 shadow-2xl shadow-black/20">
-                        <BlockPreview type={activeBlock.type} data={activeBlock.data} />
-                      </div>
-                    ) : null}
-                  </DragOverlay>
-                </DndContext>
-
-                {blocks.length === 0 ? (
-                  <div className="rounded-[2rem] border border-dashed border-border bg-card/70 px-6 py-16 text-center">
-                    <p className="text-lg font-semibold">Tu funnel esta vacio</p>
-                    <p className="mt-2 text-sm text-muted-foreground">
-                      Carga una estructura recomendada o agrega el primer bloque desde la biblioteca.
+              {builderMode === "store" ? (
+                <div className="grid gap-5 lg:grid-cols-[1.05fr_0.95fr]">
+                  <div className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                      Store builder
                     </p>
-                    <div className="mt-5 flex flex-col justify-center gap-3 sm:flex-row">
-                      <Button variant="cta" onClick={addMissingConversionBlocks}>
-                        <Sparkles className="h-4 w-4" /> Cargar stack recomendada
-                      </Button>
-                      <Button variant="outline" onClick={() => addBlock("hero")}>
-                        <Plus className="h-4 w-4" /> Agregar Hero
-                      </Button>
+                    <h3 className="mt-3 text-2xl font-bold text-slate-900">
+                      Define la oferta y luego pasa al recorrido de conversion
+                    </h3>
+                    <p className="mt-2 text-sm leading-6 text-slate-600">
+                      Este modo existe para pulir producto, marca, precio y promesa. Cuando
+                      cierres esos cuatro puntos, cambia a `Funnel builder` para ordenar el
+                      journey y a `Page builder` para afinar layout y componentes.
+                    </p>
+                    <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                      <button
+                        type="button"
+                        onClick={() => setBuilderMode("funnel")}
+                        className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-left transition-colors hover:border-slate-300"
+                      >
+                        <p className="text-sm font-semibold text-slate-900">Abrir Funnel builder</p>
+                        <p className="mt-1 text-sm text-slate-600">
+                          Arrastra y conecta cada etapa del funnel.
+                        </p>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setBuilderMode("page")}
+                        className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-left transition-colors hover:border-slate-300"
+                      >
+                        <p className="text-sm font-semibold text-slate-900">Abrir Page builder</p>
+                        <p className="mt-1 text-sm text-slate-600">
+                          Ajusta visualmente la presentacion final de la pagina.
+                        </p>
+                      </button>
                     </div>
                   </div>
-                ) : null}
-              </div>
+
+                  <StoreBuilderSidePanel
+                    score={conversionScore}
+                    onGoToFunnel={() => setBuilderMode("funnel")}
+                  />
+                </div>
+              ) : (
+                <div
+                  className={cn(
+                    "mx-auto w-full transition-all duration-300",
+                    previewMode === "mobile" ? "max-w-md" : "max-w-5xl",
+                  )}
+                >
+                  <DndContext
+                    sensors={sensors}
+                    collisionDetection={closestCenter}
+                    onDragStart={handleDragStart}
+                    onDragEnd={handleDragEnd}
+                  >
+                    <SortableContext
+                      items={blocks.map((block) => block.id)}
+                      strategy={verticalListSortingStrategy}
+                    >
+                      <div className="space-y-4">
+                        {blocks.map((block, index) => (
+                          <SortableBlockCard
+                            key={block.id}
+                            block={block}
+                            index={index}
+                            isSelected={selectedId === block.id}
+                            onSelect={() => setSelectedId(block.id)}
+                            onDelete={() => deleteBlock(block.id)}
+                            onDuplicate={() => duplicateBlock(block.id)}
+                            onInsertAfter={(type) => insertBlockAt(index + 1, type)}
+                          />
+                        ))}
+                      </div>
+                    </SortableContext>
+
+                    <DragOverlay>
+                      {activeBlock ? (
+                        <div className="w-full max-w-3xl rounded-[1.75rem] border border-primary/35 bg-card/95 p-4 opacity-95 shadow-2xl shadow-black/20">
+                          <BlockPreview type={activeBlock.type} data={activeBlock.data} />
+                        </div>
+                      ) : null}
+                    </DragOverlay>
+                  </DndContext>
+
+                  {blocks.length === 0 ? (
+                    <div className="rounded-[2rem] border border-dashed border-border bg-card/70 px-6 py-16 text-center">
+                      <p className="text-lg font-semibold">Tu funnel esta vacio</p>
+                      <p className="mt-2 text-sm text-muted-foreground">
+                        Carga una estructura recomendada o agrega el primer bloque desde la biblioteca.
+                      </p>
+                      <div className="mt-5 flex flex-col justify-center gap-3 sm:flex-row">
+                        <Button variant="cta" onClick={addMissingConversionBlocks}>
+                          <Sparkles className="h-4 w-4" /> Cargar stack recomendada
+                        </Button>
+                        <Button variant="outline" onClick={() => addBlock("hero")}>
+                          <Plus className="h-4 w-4" /> Agregar Hero
+                        </Button>
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
+              )}
             </div>
 
             <aside className="min-w-0 space-y-5">
@@ -1265,9 +1602,13 @@ export default function EditorPage() {
                 <div className="flex items-center justify-between gap-3">
                   <div>
                     <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-primary">
-                      Conversion controls
+                      {builderMode === "store" ? "Store controls" : "Conversion controls"}
                     </p>
-                    <h2 className="mt-2 text-lg font-bold">Optimiza sin salir del editor</h2>
+                    <h2 className="mt-2 text-lg font-bold">
+                      {builderMode === "store"
+                        ? "De producto a funnel sin perder contexto"
+                        : "Optimiza sin salir del editor"}
+                    </h2>
                   </div>
                   <div className="rounded-2xl bg-primary/10 p-3 text-primary">
                     <ShoppingCart className="h-5 w-5" />
@@ -1310,8 +1651,37 @@ export default function EditorPage() {
                 </div>
               </div>
 
-              <PropertiesPanel block={selectedBlock} onChange={updateBlockData} />
+              {builderMode === "store" ? (
+                <div className="rounded-[2rem] border border-slate-200 bg-white p-5 shadow-sm">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                    Sugerencias
+                  </p>
+                  <div className="mt-4 space-y-4">
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                      <p className="text-sm font-semibold text-slate-900">Promesa clara</p>
+                      <p className="mt-1 text-sm text-slate-600">
+                        La promesa principal debe leerse en menos de 5 segundos.
+                      </p>
+                    </div>
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                      <p className="text-sm font-semibold text-slate-900">Precio con contraste</p>
+                      <p className="mt-1 text-sm text-slate-600">
+                        Mantener precio actual y comparativo ayuda a reforzar valor.
+                      </p>
+                    </div>
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                      <p className="text-sm font-semibold text-slate-900">CTA directo</p>
+                      <p className="mt-1 text-sm text-slate-600">
+                        Usa verbos cortos: comprar, pedir, reservar o recibir hoy.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <PropertiesPanel block={selectedBlock} onChange={updateBlockData} />
+              )}
             </aside>
+          </div>
           </div>
         </div>
       </main>
