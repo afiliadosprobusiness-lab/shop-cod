@@ -1,7 +1,11 @@
 import { emitShopcodDataUpdated } from "@/lib/live-sync";
-import { loadFunnels } from "@/lib/funnels";
 import { loadOrders, loadPlatformSettings } from "@/lib/platform-data";
-import { loadStores } from "@/lib/stores";
+import {
+  applyPlanToSettings,
+  getPlanDefinition,
+  resolvePlanId,
+  type ShopPlanId,
+} from "@/lib/plans";
 
 export const SUPERADMIN_EMAIL = "afiliadosprobusiness@gmail.com";
 
@@ -25,8 +29,19 @@ export interface SuperAdminClient {
 }
 
 const SUPERADMIN_STORAGE_KEY = "shopcod-superadmin-clients-v1";
+const SETTINGS_STORAGE_KEY = "shopcod-settings-v1";
+const STORES_STORAGE_KEY = "shopcod-stores-v1";
+const FUNNELS_STORAGE_KEY = "shopcod-funnels-v1";
 const ROOT_CLIENT_ID = "superadmin-root";
 const CURRENT_WORKSPACE_ID = "workspace-current";
+const LEGACY_DEMO_EMAILS = new Set([
+  "mariana@codgrowthlab.com",
+  "jorge@widgethouse.io",
+]);
+const LEGACY_DEMO_WORKSPACES = new Set([
+  "COD Growth Lab",
+  "Latam Widget House",
+]);
 
 function canUseStorage() {
   return typeof window !== "undefined" && typeof window.localStorage !== "undefined";
@@ -54,8 +69,26 @@ function writeStorage(key: string, value: unknown) {
   emitShopcodDataUpdated();
 }
 
-function createClientId(prefix: string) {
-  return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+function hasPersistedKey(key: string) {
+  if (!canUseStorage()) {
+    return false;
+  }
+
+  return window.localStorage.getItem(key) !== null;
+}
+
+function readPersistedCollectionCount(key: string) {
+  const stored = readStorage<unknown>(key);
+  return Array.isArray(stored) ? stored.length : 0;
+}
+
+function hasPersistedWorkspaceData() {
+  return (
+    hasPersistedKey(SETTINGS_STORAGE_KEY) ||
+    hasPersistedKey(STORES_STORAGE_KEY) ||
+    hasPersistedKey(FUNNELS_STORAGE_KEY) ||
+    loadOrders().length > 0
+  );
 }
 
 function isClientStatus(value: unknown): value is SuperAdminClientStatus {
@@ -86,10 +119,9 @@ function createRootClient() {
 function createCurrentWorkspaceClient() {
   const now = new Date().toISOString();
   const settings = loadPlatformSettings();
-  const stores = loadStores();
-  const funnels = loadFunnels();
   const orders = loadOrders();
   const revenue = Number(orders.reduce((sum, order) => sum + order.total, 0).toFixed(2));
+  const resolvedPlan = getPlanDefinition(resolvePlanId(settings.billing.planName));
 
   return {
     id: CURRENT_WORKSPACE_ID,
@@ -97,10 +129,10 @@ function createCurrentWorkspaceClient() {
     companyName: settings.companyName || settings.accountName,
     ownerName: settings.legalName || settings.accountName,
     ownerEmail: settings.ownerEmail,
-    planName: settings.billing.planName,
+    planName: resolvedPlan.name,
     status: "active",
-    storesCount: stores.length,
-    funnelsCount: funnels.length,
+    storesCount: readPersistedCollectionCount(STORES_STORAGE_KEY),
+    funnelsCount: readPersistedCollectionCount(FUNNELS_STORAGE_KEY),
     ordersCount: orders.length,
     revenue,
     createdAt: now,
@@ -109,45 +141,20 @@ function createCurrentWorkspaceClient() {
   } satisfies SuperAdminClient;
 }
 
-function createSeedClients() {
-  const now = new Date().toISOString();
-
+function createInitialClients() {
   return [
     createRootClient(),
-    createCurrentWorkspaceClient(),
-    {
-      id: createClientId("client"),
-      workspaceName: "COD Growth Lab",
-      companyName: "COD Growth Lab",
-      ownerName: "Mariana Ortiz",
-      ownerEmail: "mariana@codgrowthlab.com",
-      planName: "Growth",
-      status: "active",
-      storesCount: 4,
-      funnelsCount: 7,
-      ordersCount: 94,
-      revenue: 18430,
-      createdAt: now,
-      updatedAt: now,
-      isProtected: false,
-    },
-    {
-      id: createClientId("client"),
-      workspaceName: "Latam Widget House",
-      companyName: "Latam Widget House",
-      ownerName: "Jorge Perez",
-      ownerEmail: "jorge@widgethouse.io",
-      planName: "Starter",
-      status: "inactive",
-      storesCount: 1,
-      funnelsCount: 2,
-      ordersCount: 11,
-      revenue: 2140,
-      createdAt: now,
-      updatedAt: now,
-      isProtected: false,
-    },
+    ...(hasPersistedWorkspaceData() ? [createCurrentWorkspaceClient()] : []),
   ] satisfies SuperAdminClient[];
+}
+
+function isLegacyDemoClient(client: SuperAdminClient) {
+  return (
+    client.id !== CURRENT_WORKSPACE_ID &&
+    !client.isProtected &&
+    (LEGACY_DEMO_EMAILS.has(client.ownerEmail.trim().toLowerCase()) ||
+      LEGACY_DEMO_WORKSPACES.has(client.workspaceName))
+  );
 }
 
 function normalizeClient(candidate: unknown): SuperAdminClient | null {
@@ -169,13 +176,22 @@ function normalizeClient(candidate: unknown): SuperAdminClient | null {
     return null;
   }
 
+  const isProtected =
+    Boolean(client.isProtected) ||
+    client.id === ROOT_CLIENT_ID ||
+    client.ownerEmail.trim().toLowerCase() === SUPERADMIN_EMAIL;
+
+  const resolvedPlanName = isProtected
+    ? "Root"
+    : getPlanDefinition(resolvePlanId(client.planName)).name;
+
   return {
     id: client.id,
     workspaceName: client.workspaceName,
     companyName: client.companyName,
     ownerName: client.ownerName,
     ownerEmail: client.ownerEmail,
-    planName: client.planName,
+    planName: resolvedPlanName,
     status: client.status,
     storesCount:
       typeof client.storesCount === "number" && Number.isFinite(client.storesCount)
@@ -197,7 +213,7 @@ function normalizeClient(candidate: unknown): SuperAdminClient | null {
       typeof client.createdAt === "string" ? client.createdAt : new Date().toISOString(),
     updatedAt:
       typeof client.updatedAt === "string" ? client.updatedAt : new Date().toISOString(),
-    isProtected: Boolean(client.isProtected),
+    isProtected,
   };
 }
 
@@ -206,6 +222,7 @@ function normalizeClients(candidate: unknown) {
     ? candidate
         .map((client) => normalizeClient(client))
         .filter((client): client is SuperAdminClient => Boolean(client))
+        .filter((client) => !isLegacyDemoClient(client))
     : [];
 
   const rootIndex = normalized.findIndex((client) => client.id === ROOT_CLIENT_ID);
@@ -229,22 +246,26 @@ function normalizeClients(candidate: unknown) {
     (client) => client.id === CURRENT_WORKSPACE_ID,
   );
 
-  if (workspaceIndex >= 0) {
+  if (hasPersistedWorkspaceData()) {
     const workspace = createCurrentWorkspaceClient();
 
-    normalized[workspaceIndex] = {
-      ...normalized[workspaceIndex],
-      workspaceName: workspace.workspaceName,
-      companyName: workspace.companyName,
-      ownerName: workspace.ownerName,
-      ownerEmail: workspace.ownerEmail,
-      planName: workspace.planName,
-      storesCount: workspace.storesCount,
-      funnelsCount: workspace.funnelsCount,
-      ordersCount: workspace.ordersCount,
-      revenue: workspace.revenue,
-      updatedAt: new Date().toISOString(),
-    };
+    if (workspaceIndex >= 0) {
+      normalized[workspaceIndex] = {
+        ...normalized[workspaceIndex],
+        workspaceName: workspace.workspaceName,
+        companyName: workspace.companyName,
+        ownerName: workspace.ownerName,
+        ownerEmail: workspace.ownerEmail,
+        planName: workspace.planName,
+        storesCount: workspace.storesCount,
+        funnelsCount: workspace.funnelsCount,
+        ordersCount: workspace.ordersCount,
+        revenue: workspace.revenue,
+        updatedAt: new Date().toISOString(),
+      };
+    }
+  } else if (workspaceIndex >= 0) {
+    normalized.splice(workspaceIndex, 1);
   }
 
   return normalized.sort((left, right) => {
@@ -269,9 +290,9 @@ export function loadSuperAdminClients() {
   const stored = readStorage<unknown>(SUPERADMIN_STORAGE_KEY);
 
   if (!stored) {
-    const seeded = createSeedClients();
-    persistClients(seeded);
-    return seeded;
+    const initialClients = createInitialClients();
+    persistClients(initialClients);
+    return initialClients;
   }
 
   return normalizeClients(stored);
@@ -302,4 +323,31 @@ export function deleteSuperAdminClient(clientId: string) {
   }
 
   return persistClients(currentClients.filter((client) => client.id !== clientId));
+}
+
+export function updateSuperAdminClientPlan(clientId: string, nextPlanId: ShopPlanId) {
+  const currentClients = loadSuperAdminClients();
+  const target = currentClients.find((client) => client.id === clientId);
+
+  if (!target || target.isProtected) {
+    return currentClients;
+  }
+
+  if (clientId === CURRENT_WORKSPACE_ID) {
+    applyPlanToSettings(loadPlatformSettings(), nextPlanId);
+  }
+
+  const nextPlan = getPlanDefinition(nextPlanId);
+  const nextClients = currentClients.map((client) =>
+    client.id === clientId
+      ? {
+          ...client,
+          planName: nextPlan.name,
+          updatedAt: new Date().toISOString(),
+        }
+      : client,
+  );
+
+  persistClients(nextClients);
+  return loadSuperAdminClients();
 }

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, type ChangeEvent } from "react";
 import { CreditCard, FileText, Globe, Home, Link2, Mail, Package, Plus, Shield, Truck, Users, Webhook } from "lucide-react";
 import { toast } from "sonner";
 import MainContent from "@/components/dashboard/MainContent";
+import PlanUpgradeDialog from "@/components/plans/PlanUpgradeDialog";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -10,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { subscribeToShopcodData } from "@/lib/live-sync";
+import { getMultiUserAccess, type ShopPlanId } from "@/lib/plans";
 import { loadPlatformSettings, savePlatformSettings, type PlatformSettings } from "@/lib/platform-data";
 import { cn } from "@/lib/utils";
 
@@ -90,6 +92,9 @@ export default function SettingsPage() {
   const [countryDraft, setCountryDraft] = useState("");
   const [ipDraft, setIpDraft] = useState("");
   const [currencyDraft, setCurrencyDraft] = useState("");
+  const [upgradeModalOpen, setUpgradeModalOpen] = useState(false);
+  const [requiredPlanId, setRequiredPlanId] = useState<ShopPlanId>("scale");
+  const [upgradeReason, setUpgradeReason] = useState("");
 
   useEffect(() => subscribeToShopcodData(() => setSettings(loadPlatformSettings())), []);
 
@@ -194,6 +199,19 @@ export default function SettingsPage() {
     setCurrencyDraft("");
   };
 
+  const openInviteDialog = () => {
+    const access = getMultiUserAccess();
+
+    if (!access.allowed) {
+      setRequiredPlanId(access.requiredPlan.id);
+      setUpgradeReason(access.reason);
+      setUpgradeModalOpen(true);
+      return;
+    }
+
+    setInviteOpen(true);
+  };
+
   const renderSection = () => {
     switch (activeSection) {
       case "general":
@@ -238,7 +256,7 @@ export default function SettingsPage() {
           <div className="grid gap-6">
             <Card title={`Miembros y administradores (${settings.members.admins.length + settings.members.members.length} de ${settings.billing.memberLimit})`} description="Invita administradores o miembros con acceso parcial.">
               <div className="grid gap-3">{settings.members.admins.map((admin) => <div key={admin.id} className="rounded-2xl border border-border/70 bg-secondary/20 p-4"><p className="font-medium text-foreground">{admin.name}</p><p className="text-sm text-muted-foreground">{admin.email}</p></div>)}</div>
-              <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:justify-between"><p className="text-sm text-muted-foreground">Puedes invitar hasta {settings.billing.memberLimit} miembros en este plan.</p><Button type="button" variant="outline" className="rounded-2xl" onClick={() => setInviteOpen(true)}><Plus className="mr-2 h-4 w-4" />Anadir miembro</Button></div>
+              <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:justify-between"><p className="text-sm text-muted-foreground">Puedes invitar hasta {settings.billing.memberLimit} miembros en este plan.</p><Button type="button" variant="outline" className="rounded-2xl" onClick={openInviteDialog}><Plus className="mr-2 h-4 w-4" />Anadir miembro</Button></div>
               <div className="mt-4 grid gap-3">{settings.members.members.length ? settings.members.members.map((member) => <div key={member.id} className="rounded-2xl border border-border/70 bg-background/80 p-4"><div className="flex items-start justify-between gap-3"><div className="min-w-0"><p className="truncate font-medium text-foreground">{member.email}</p><p className="text-sm text-muted-foreground">{member.isAdmin ? "Admin" : "Permisos parciales"}</p></div><Button type="button" variant="ghost" size="sm" onClick={() => patch((c) => ({ ...c, members: { ...c.members, members: c.members.members.filter((item) => item.id !== member.id) } }))}>Quitar</Button></div><div className="mt-3 flex flex-wrap gap-2">{(member.isAdmin ? ["Acceso total"] : member.permissions).map((permission) => <span key={permission} className="rounded-full border border-border px-3 py-1 text-xs text-muted-foreground">{permission}</span>)}</div></div>) : <div className="rounded-2xl border border-dashed border-border p-5 text-sm text-muted-foreground">Aun no hay miembros adicionales.</div>}</div>
             </Card>
           </div>
@@ -353,6 +371,14 @@ export default function SettingsPage() {
       <Dialog open={paymentModalOpen} onOpenChange={setPaymentModalOpen}>
         <DialogContent className="max-w-xl rounded-3xl"><DialogHeader><DialogTitle>Metodo de pago</DialogTitle><DialogDescription>Falta el metodo de pago. Para eliminar la contrasena de tus funnels, necesitas anadir un metodo de pago.</DialogDescription></DialogHeader><div className="flex justify-center py-2"><div className="flex h-24 w-24 items-center justify-center rounded-full bg-primary/10 text-primary"><CreditCard className="h-10 w-10" /></div></div><DialogFooter><Button type="button" variant="outline" onClick={() => setPaymentModalOpen(false)}>Cerrar</Button><Button type="button" onClick={() => { setActiveSection("payments"); setPaymentModalOpen(false); }}>Gestionar metodos de pago</Button></DialogFooter></DialogContent>
       </Dialog>
+
+      <PlanUpgradeDialog
+        open={upgradeModalOpen}
+        onOpenChange={setUpgradeModalOpen}
+        featureName="Gestion de miembros"
+        reason={upgradeReason}
+        requiredPlanId={requiredPlanId}
+      />
     </>
   );
 }

@@ -46,9 +46,11 @@ There is still no custom backend API implemented in this codebase.
   - restricted to `afiliadosprobusiness@gmail.com`
 - Includes:
   - client list search and status filtering
+  - one-click plan upgrade / downgrade for visible non-root clients
   - activate / deactivate actions
   - delete client action for non-protected clients
   - a protected root client row that cannot be deleted or deactivated
+  - no demo client fallback; only real locally persisted clients plus the protected root account may be rendered
 
 ### `GET /store/demo`
 
@@ -325,6 +327,26 @@ interface PlatformSettings {
 }
 ```
 
+### Plan Access Contract
+
+The frontend workspace exposes three local plans:
+
+- `Starter`
+  - 1 active store
+  - 100 orders/month
+  - COD checkout
+  - basic editor
+- `Pro`
+  - 2 active stores
+  - unlimited orders
+  - full editor
+  - advanced analytics
+- `Scale`
+  - unlimited stores
+  - everything in `Pro`
+  - multi-user
+  - priority support
+
 ### Page Builder Model
 
 Defined canonically in `src/builders/shared/models/page.ts` and re-exported by `src/builders/page-builder/blocks/schema.ts`.
@@ -528,10 +550,13 @@ Rules:
 - `/funnels` uses browser local persistence only and must initialize a compatible `/editor/:storeId` draft when creating a new funnel.
 - `/orders`, `/analytics`, `/contacts`, `/offers`, and `/settings` use browser local persistence only.
 - `/superadmin` uses browser local persistence only for the managed client registry.
+- `/superadmin` must not invent demo clients; it may only render the protected root account and real locally persisted client records.
 - Submitting the COD checkout must create a persisted `PlatformOrder` and upsert a linked `PlatformContact`.
 - Public-facing route visits and checkout starts must be tracked as `PlatformEvent` records and feed analytics KPIs.
 - Products, funnels, stores, and offers must support deletion without reloading the page.
+- Plan-restricted actions must block in the UI and offer an upgrade modal instead of failing silently.
 - The superadmin root client must remain protected and cannot be deleted or deactivated from the UI.
+- The superadmin root client must remain protected and cannot be downgraded or switched to a non-root plan from the UI.
 - Platform operational data may mirror to Firestore when Firebase configuration is available, but the UI must continue working with local persistence as the immediate fallback.
 
 ### Store Catalog Model
@@ -693,3 +718,5 @@ The following are breaking changes and must be versioned or coordinated before i
 - 2026-03-04 | Se agrega `GET /superadmin` con acceso root por email y gestion local de clientes protegidos | non-breaking | Amplia el panel con un flujo de superadmin sin romper el dashboard existente
 - 2026-03-04 | Se agrega `GET /register` y el login deja de autocrear cuentas silenciosamente | non-breaking | Se separan registro e inicio de sesion sin romper rutas existentes
 - 2026-03-04 | Se actualiza la landing publica de ShopCOD y cambian los precios publicos de `Pro` y `Scale` | non-breaking | Ajusta el mensaje comercial y los planes sin alterar rutas ni contratos internos
+- 2026-03-04 | Se agrega gating local por plan con modal de upgrade para tiendas, analiticas y multi-usuario | non-breaking | Introduce restricciones de producto sin romper rutas ni persistencia base
+- 2026-03-04 | `GET /superadmin` deja de sembrar cuentas demo y agrega cambio de plan en un clic para cuentas reales visibles | non-breaking | Endurece el panel root sin cambiar rutas ni modelos compartidos

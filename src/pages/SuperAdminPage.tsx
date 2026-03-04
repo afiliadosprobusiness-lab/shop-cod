@@ -16,10 +16,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/lib/auth";
 import { subscribeToShopcodData } from "@/lib/live-sync";
+import { getPlanDefinition, resolvePlanId, type ShopPlanId } from "@/lib/plans";
 import {
   deleteSuperAdminClient,
   loadSuperAdminClients,
   toggleSuperAdminClientStatus,
+  updateSuperAdminClientPlan,
   type SuperAdminClient,
 } from "@/lib/superadmin";
 
@@ -52,6 +54,8 @@ function ClientMetric({
     </div>
   );
 }
+
+const planOptions: ShopPlanId[] = ["starter", "pro", "scale"];
 
 export default function SuperAdminPage() {
   const { user, logout } = useAuth();
@@ -119,6 +123,21 @@ export default function SuperAdminPage() {
     const nextClients = deleteSuperAdminClient(client.id);
     setClients(nextClients);
     toast.success("Cliente eliminado.");
+  };
+
+  const handlePlanChange = (client: SuperAdminClient, nextPlanId: ShopPlanId) => {
+    if (client.isProtected) {
+      toast.error("El superadmin root no puede cambiar de plan.");
+      return;
+    }
+
+    if (resolvePlanId(client.planName) === nextPlanId) {
+      return;
+    }
+
+    const nextClients = updateSuperAdminClientPlan(client.id, nextPlanId);
+    setClients(nextClients);
+    toast.success(`Plan actualizado a ${getPlanDefinition(nextPlanId).name}.`);
   };
 
   const handleLogout = async () => {
@@ -266,15 +285,53 @@ export default function SuperAdminPage() {
                       </div>
                     </div>
 
-                    <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                      <p className="text-sm text-muted-foreground">
-                        Facturacion estimada:{" "}
-                        <span className="font-medium text-foreground">
-                          {formatMoney(client.revenue)}
-                        </span>
-                      </p>
+                    <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
+                      <div className="min-w-0 space-y-3">
+                        <p className="text-sm text-muted-foreground">
+                          Facturacion estimada:{" "}
+                          <span className="font-medium text-foreground">
+                            {formatMoney(client.revenue)}
+                          </span>
+                        </p>
 
-                      <div className="flex flex-wrap gap-2">
+                        <div>
+                          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                            Cambiar plan con un clic
+                          </p>
+                          <div className="mt-2 flex flex-wrap gap-2">
+                            {planOptions.map((planId) => {
+                              const plan = getPlanDefinition(planId);
+                              const currentPlanId = client.isProtected
+                                ? null
+                                : resolvePlanId(client.planName);
+                              const isActivePlan = currentPlanId === planId;
+
+                              return (
+                                <button
+                                  key={`${client.id}-${planId}`}
+                                  type="button"
+                                  onClick={() => handlePlanChange(client, planId)}
+                                  disabled={client.isProtected || isActivePlan}
+                                  className={`rounded-xl border px-3 py-2 text-xs font-semibold uppercase tracking-[0.16em] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background ${
+                                    isActivePlan
+                                      ? "border-primary bg-primary text-primary-foreground"
+                                      : "border-border/80 bg-background text-muted-foreground hover:border-primary/40 hover:text-foreground disabled:hover:border-border/80 disabled:hover:text-muted-foreground"
+                                  } disabled:cursor-not-allowed disabled:opacity-60`}
+                                >
+                                  {plan.name}
+                                </button>
+                              );
+                            })}
+                          </div>
+                          {client.isProtected ? (
+                            <p className="mt-2 text-xs text-muted-foreground">
+                              La cuenta root conserva su nivel protegido y no cambia de plan.
+                            </p>
+                          ) : null}
+                        </div>
+                      </div>
+
+                      <div className="flex flex-wrap gap-2 lg:justify-end">
                         <Button
                           type="button"
                           variant="outline"
@@ -350,6 +407,7 @@ export default function SuperAdminPage() {
                 <ul className="mt-3 space-y-2 text-sm text-muted-foreground">
                   <li>Activar y desactivar clientes al instante.</li>
                   <li>Eliminar cualquier cliente excepto la cuenta root.</li>
+                  <li>Subir o bajar el plan de cada cuenta en un clic.</li>
                   <li>Buscar por workspace, empresa o correo.</li>
                 </ul>
               </div>

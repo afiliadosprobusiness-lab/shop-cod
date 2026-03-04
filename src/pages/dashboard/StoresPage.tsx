@@ -12,10 +12,12 @@ import {
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import MainContent from "@/components/dashboard/MainContent";
+import PlanUpgradeDialog from "@/components/plans/PlanUpgradeDialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
+import { getStoreCreationAccess, type ShopPlanId } from "@/lib/plans";
 import {
   deleteStore,
   ensureStoreEditorDraft,
@@ -190,6 +192,9 @@ export default function StoresPage() {
   const [slugTouched, setSlugTouched] = useState(false);
   const [currency, setCurrency] = useState<StoreCurrency>("USD");
   const [isCreating, setIsCreating] = useState(false);
+  const [upgradeModalOpen, setUpgradeModalOpen] = useState(false);
+  const [requiredPlanId, setRequiredPlanId] = useState<ShopPlanId>("pro");
+  const [upgradeReason, setUpgradeReason] = useState("");
 
   useEffect(() => {
     return subscribeToShopcodData(() => {
@@ -222,6 +227,15 @@ export default function StoresPage() {
   }, [name, selectedTemplate, slug, step]);
 
   const openWizard = () => {
+    const access = getStoreCreationAccess(stores.length);
+
+    if (!access.allowed) {
+      setRequiredPlanId(access.requiredPlan.id);
+      setUpgradeReason(access.reason);
+      setUpgradeModalOpen(true);
+      return;
+    }
+
     setWizardOpen(true);
     setStep(1);
     setSelectedTemplateId("singleProduct");
@@ -616,6 +630,14 @@ export default function StoresPage() {
           )}
         </aside>
       </section>
+
+      <PlanUpgradeDialog
+        open={upgradeModalOpen}
+        onOpenChange={setUpgradeModalOpen}
+        featureName="Crear una nueva tienda"
+        reason={upgradeReason}
+        requiredPlanId={requiredPlanId}
+      />
     </MainContent>
   );
 }

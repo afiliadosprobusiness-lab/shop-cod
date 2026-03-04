@@ -128,6 +128,14 @@ ShopCOD is a frontend SPA for COD-focused funnel selling. It uses Firebase Authe
 5. If the email is `afiliadosprobusiness@gmail.com`, the app redirects to `/superadmin`.
 6. All other authenticated users continue into the regular dashboard routes.
 
+### Superadmin Flow
+
+1. Root opens `/superadmin`.
+2. The panel always keeps the protected root account visible.
+3. The client list only renders real locally persisted accounts; legacy demo seed rows are filtered out and no new demo rows are generated.
+4. Each non-root account can be activated, deactivated, deleted, or switched between `Starter`, `Pro`, and `Scale` in one click.
+5. When the visible account is the current local workspace, changing its plan also syncs `PlatformSettings.billing`.
+
 ### Landing Flow
 
 1. User opens `/`.
@@ -138,6 +146,16 @@ ShopCOD is a frontend SPA for COD-focused funnel selling. It uses Firebase Authe
   - `Pro`: $9.9/month, 2 active stores, unlimited orders, full editor, advanced analytics
   - `Scale`: $50/month, unlimited stores, everything in Pro, multi-user, priority support
 5. Primary CTAs route to `/register`, while returning users can go to `/login`.
+
+### Plan Gating Flow
+
+1. ShopCOD reads the active plan from `PlatformSettings.billing.planName`.
+2. Restricted actions validate the plan before continuing.
+3. Current gated flows:
+  - creating a new store when the active-store limit is reached
+  - opening advanced analytics while on `Starter`
+  - adding members when the workspace is below `Scale`
+4. When blocked, the UI opens an upgrade modal and can upgrade the local workspace plan in-place.
 
 ### Dashboard Shell Flow
 
@@ -297,7 +315,8 @@ ShopCOD is a frontend SPA for COD-focused funnel selling. It uses Firebase Authe
 - `src/lib/auth.tsx` exposes auth context and Firebase-backed session methods.
 - `src/components/auth/ProtectedRoute.tsx` gates private routes.
 - `src/components/auth/SuperAdminRoute.tsx` gates the root-only superadmin route.
-- `src/lib/superadmin.ts` defines the frontend-only superadmin client registry, the protected root account rule, and local client actions.
+- `src/lib/superadmin.ts` defines the frontend-only superadmin client registry, filters legacy demo rows, enforces the protected root account rule, and syncs one-click plan changes.
+- `src/lib/plans.ts` defines plan tiers, feature gates, and local upgrade helpers for Starter / Pro / Scale.
 
 ### Dashboard Shell Layer
 
@@ -318,7 +337,8 @@ ShopCOD is a frontend SPA for COD-focused funnel selling. It uses Firebase Authe
 - `src/pages/dashboard/OffersPage.tsx` renders bundle and discount creation.
 - `src/pages/dashboard/AppsPage.tsx` renders the "coming soon" integrations state.
 - `src/pages/dashboard/SettingsPage.tsx` renders a multi-section settings hub for general account data, shipping, members, billing, domains, digital files, legal copy, abandoned-cart email recovery, security, payment gateways, tracking, webhooks, and the temporary store password payment modal.
-- `src/pages/SuperAdminPage.tsx` renders the root control panel for managing client accounts, statuses, and deletions while keeping the root account protected.
+- `src/pages/SuperAdminPage.tsx` renders the root control panel for managing real client accounts, statuses, one-click plan changes, and deletions while keeping the root account protected.
+- `src/components/plans/PlanUpgradeDialog.tsx` renders the reusable upgrade modal when a feature is blocked by plan.
 - `src/lib/products.ts` defines the frontend product model and browser persistence helpers.
 - `src/lib/funnels.ts` defines the frontend funnel model, template selector data, local persistence, and editor bootstrapping.
 - `src/lib/stores.ts` defines the frontend store model, template selector data, payment selector, local persistence, editor bootstrapping, and derived store analytics snapshots.
