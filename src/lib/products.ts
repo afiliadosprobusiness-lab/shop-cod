@@ -1,3 +1,5 @@
+import { emitShopcodDataUpdated } from "@/lib/live-sync";
+
 export interface ProductCustomField {
   id: string;
   key: string;
@@ -209,6 +211,7 @@ function writeStoredProducts(products: Product[]) {
   }
 
   window.localStorage.setItem(PRODUCTS_STORAGE_KEY, JSON.stringify(products));
+  emitShopcodDataUpdated();
 }
 
 function createEntityId(prefix: string) {
@@ -299,4 +302,33 @@ export function duplicateProduct(productId: string) {
 
   writeStoredProducts([duplicate, ...currentProducts]);
   return duplicate;
+}
+
+export function deleteProduct(productId: string) {
+  const currentProducts = loadProducts();
+  const nextProducts = currentProducts.filter((product) => product.id !== productId);
+
+  if (nextProducts.length === currentProducts.length) {
+    return null;
+  }
+
+  writeStoredProducts(nextProducts);
+  return nextProducts;
+}
+
+export function consumeProductInventory(productId: string, quantity: number) {
+  const currentProducts = loadProducts();
+  const nextProducts = currentProducts.map((product) => {
+    if (product.id !== productId || !product.inventoryTracking) {
+      return product;
+    }
+
+    return {
+      ...product,
+      inventory: Math.max(0, product.inventory - Math.max(1, Math.trunc(quantity))),
+    };
+  });
+
+  writeStoredProducts(nextProducts);
+  return nextProducts;
 }

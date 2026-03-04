@@ -6,10 +6,12 @@ import {
 } from "@/builders/store-builder/schema";
 import {
   loadEditorState,
+  removeEditorState,
   saveEditorState,
   type FunnelBlock,
   type StoreProfile,
 } from "@/lib/editor";
+import { emitShopcodDataUpdated } from "@/lib/live-sync";
 
 export type StoreCurrency = CurrencyCode;
 export type StorePaymentMethod = "separateCheckout" | "productPagePayment";
@@ -238,6 +240,7 @@ function writeStoredStores(stores: Store[]) {
   }
 
   window.localStorage.setItem(STORES_STORAGE_KEY, JSON.stringify(stores));
+  emitShopcodDataUpdated();
 }
 
 function normalizeStorePage(candidate: unknown): StorePage | null {
@@ -650,4 +653,17 @@ export function saveStore(input: StoreInput) {
   writeStoredStores(sortStores([store, ...currentStores]));
   ensureEditorDraft(store);
   return store;
+}
+
+export function deleteStore(storeId: string) {
+  const currentStores = loadStores();
+  const nextStores = currentStores.filter((store) => store.id !== storeId);
+
+  if (nextStores.length === currentStores.length) {
+    return null;
+  }
+
+  writeStoredStores(sortStores(nextStores));
+  removeEditorState(storeId);
+  return nextStores;
 }

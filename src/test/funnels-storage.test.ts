@@ -1,6 +1,12 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { loadEditorState } from "@/lib/editor";
-import { getFunnelTemplates, loadFunnels, saveFunnel, slugifyFunnelName } from "@/lib/funnels";
+import {
+  deleteFunnel,
+  getFunnelTemplates,
+  loadFunnels,
+  saveFunnel,
+  slugifyFunnelName,
+} from "@/lib/funnels";
 
 describe("funnels storage", () => {
   beforeEach(() => {
@@ -40,5 +46,20 @@ describe("funnels storage", () => {
     expect(editorState).not.toBeNull();
     expect(editorState?.blocks.length).toBeGreaterThan(0);
     expect(slugifyFunnelName(funnel.slug)).toBe(funnel.slug);
+  });
+
+  it("deletes a funnel and removes its draft", () => {
+    const funnel = saveFunnel({
+      name: "Delete Funnel",
+      slug: "delete-funnel",
+      currency: "USD",
+      templateId: "blank",
+    });
+
+    const nextFunnels = deleteFunnel(funnel.id);
+
+    expect(nextFunnels).not.toBeNull();
+    expect(loadFunnels().some((item) => item.id === funnel.id)).toBe(false);
+    expect(loadEditorState(funnel.id)).toBeNull();
   });
 });

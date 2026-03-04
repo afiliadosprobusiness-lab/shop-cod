@@ -85,10 +85,10 @@ function SidebarContent({
       <div className="mt-8 flex flex-1 flex-col gap-6">
         <div className="rounded-3xl border border-border bg-secondary/70 p-4">
           <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">
-            Arquitectura base
+            Control comercial
           </p>
           <p className="mt-3 text-sm text-secondary-foreground">
-            Sidebar, topbar y area dinamica listas para navegar entre modulos.
+            Gestiona ventas, pedidos, clientes y ofertas desde un solo lugar.
           </p>
         </div>
 

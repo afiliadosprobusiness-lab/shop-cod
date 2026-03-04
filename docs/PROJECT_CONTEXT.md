@@ -50,11 +50,17 @@
 - Home del panel: `/dashboard` muestra dos tarjetas principales (`Crear tienda online` y `Crear funnel`) con CTA `Comenzar`
 - Navegacion entre modulos: el sidebar enlaza `Inicio`, `Productos`, `Funnels`, `Tiendas`, `Pedidos`, `Analiticas`, `Contactos`, `Ofertas`, `Aplicaciones` y `Configuracion`
 - Topbar: mantiene buscador global, selector de workspace, notificaciones y avatar del usuario en todos los modulos
-- Modulos internos: `/products`, `/funnels`, `/stores`, `/orders`, `/analytics`, `/contacts`, `/offers`, `/apps` y `/settings` reutilizan el mismo layout compartido
-- Productos: `/products` ahora muestra tabla con buscador, filtros y acciones; `/products/new` crea productos con formulario dividido en informacion, detalles, configuracion e incrementos de pedido
-- Funnels: `/funnels` ahora muestra listado con preview, conversion y visitas, e incluye wizard de 3 pasos para crear funnels y redirigir al editor
-- Tiendas: `/stores` ahora muestra listado con preview, metodo de pago y cantidad de paginas, e incluye wizard de 3 pasos para crear tiendas con plantilla, pagos y configuracion
+- Modulos internos: `/products`, `/funnels`, `/stores`, `/orders`, `/analytics`, `/contacts`, `/offers`, `/apps` y `/settings` reutilizan el mismo layout compartido, pero ya muestran vistas funcionales del negocio
+- Productos: `/products` ahora muestra tabla con buscador, filtros, duplicado, borrado y metricas reactivas segun catalogo y pedidos reales
+- Funnels: `/funnels` ahora muestra listado con preview, conversion y visitas, e incluye wizard de 3 pasos para crear funnels, abrir el editor y borrar funnels
+- Tiendas: `/stores` ahora muestra listado con preview, metodo de pago y cantidad de paginas, e incluye wizard de 3 pasos para crear tiendas con plantilla, pagos, configuracion y borrado
 - Dashboard interno de tienda: `/stores/:storeId` muestra navegacion interna por secciones y un resumen con metricas, top productos y fuentes de trafico derivadas del estado local
+- Pedidos: `/orders` lista pedidos reales que entran desde el checkout COD y permite actualizar su estado
+- Analiticas: `/analytics` consolida KPIs en tiempo real usando pedidos, contactos, productos, funnels y tiendas persistidos localmente
+- Contactos: `/contacts` guarda los clientes capturados por el formulario COD y su historial comercial
+- Ofertas: `/offers` permite crear bundles y descuentos persistidos localmente
+- Aplicaciones: `/apps` muestra un estado de "Proximamente" para el marketplace de integraciones
+- Configuracion: `/settings` expone una vista de cuenta, dominios, correos y datos operativos del workspace
 - Editor: el flujo visual existente sigue disponible en `/editor/:storeId` con `Store builder`, `Funnel builder` y `Page builder`; cada nodo/pagina del funnel abre su propia vista del Page Builder
 - Preview: sigue disponible en `/preview/:storeId` para revisar drafts por `storeId`
 
@@ -80,7 +86,12 @@
 - El shell del dashboard vive en `src/layouts/DashboardLayout.tsx`.
 - Los componentes del shell viven en `src/components/dashboard/*` (`Sidebar`, `Topbar`, `MainContent` y `navigation`).
 - El home del panel vive en `src/pages/dashboard/DashboardHomePage.tsx`.
-- Los modulos genericos (`/orders`, `/analytics`, `/contacts`, `/offers`, `/apps`, `/settings`) comparten `src/pages/dashboard/DashboardModulePage.tsx`.
+- `src/pages/dashboard/OrdersPage.tsx` renderiza el flujo operativo de pedidos reales.
+- `src/pages/dashboard/AnalyticsPage.tsx` renderiza KPIs y tendencias comerciales en tiempo real.
+- `src/pages/dashboard/ContactsPage.tsx` renderiza la base de clientes y leads capturados.
+- `src/pages/dashboard/OffersPage.tsx` renderiza la gestion de bundles y descuentos.
+- `src/pages/dashboard/AppsPage.tsx` renderiza el estado de proximas integraciones.
+- `src/pages/dashboard/SettingsPage.tsx` renderiza la configuracion general del workspace.
 - El modulo real de productos vive en `src/pages/dashboard/ProductsPage.tsx`.
 - El alta de productos vive en `src/pages/dashboard/ProductCreatePage.tsx`.
 - El modelo y almacenamiento local de productos viven en `src/lib/products.ts`.
@@ -89,8 +100,13 @@
 - El modulo real de tiendas vive en `src/pages/dashboard/StoresPage.tsx`.
 - El panel interno por tienda vive en `src/pages/dashboard/StoreDashboardPage.tsx`.
 - El modelo, templates, selector de pagos, almacenamiento local y analytics derivados de tiendas viven en `src/lib/stores.ts`.
+- Los pedidos, contactos, ofertas, configuracion global y el snapshot de analytics en tiempo real viven en `src/lib/platform-data.ts`.
+- `src/lib/live-sync.ts` emite eventos locales para refrescar modulos en tiempo real cuando cambia la data persistida.
+- `src/components/analytics/PlatformTelemetry.tsx` registra visitas reales, inicios de checkout y hace bootstrap de sincronizacion remota.
 - El editor visual y el preview legacy siguen operativos por ruta directa.
 - El creador actual no depende de backend; los drafts viven en `localStorage`.
+- El checkout demo guarda pedidos y contactos reales en `localStorage`, y esos datos alimentan `Pedidos`, `Analiticas` y `Contactos`.
+- `platform-data` ahora hace sincronizacion remota opcional con Firestore (mismo proyecto Firebase) cuando la configuracion esta disponible; `localStorage` sigue siendo el fallback inmediato.
 - El modulo visual del page builder vive en `src/builders/page-builder` y persiste su arbol de bloques dentro del mismo draft del editor, sincronizado por pagina del funnel.
 - El page builder ahora se organiza en `canvas`, `sidebar`, `topbar`, `renderer`, `block-engine` y `state-manager`.
 - El page builder ya soporta drag/drop desde sidebar, reordenamiento, duplicado, resize por bloque, nesting, tabs `Elements/Layers/Styles/Settings` y serializacion `page_json`.

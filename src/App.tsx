@@ -1,6 +1,7 @@
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import PlatformTelemetry from "@/components/analytics/PlatformTelemetry";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import { AuthProvider } from "@/lib/auth";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -15,9 +16,15 @@ import CheckoutPage from "./pages/CheckoutPage";
 import OrderConfirmedPage from "./pages/OrderConfirmedPage";
 import DashboardHomePage from "./pages/dashboard/DashboardHomePage";
 import DashboardModulePage from "./pages/dashboard/DashboardModulePage";
+import AnalyticsPage from "./pages/dashboard/AnalyticsPage";
+import AppsPage from "./pages/dashboard/AppsPage";
+import ContactsPage from "./pages/dashboard/ContactsPage";
 import FunnelsPage from "./pages/dashboard/FunnelsPage";
+import OffersPage from "./pages/dashboard/OffersPage";
+import OrdersPage from "./pages/dashboard/OrdersPage";
 import ProductCreatePage from "./pages/dashboard/ProductCreatePage";
 import ProductsPage from "./pages/dashboard/ProductsPage";
+import SettingsPage from "./pages/dashboard/SettingsPage";
 import StoreDashboardPage from "./pages/dashboard/StoreDashboardPage";
 import StoresPage from "./pages/dashboard/StoresPage";
 import NotFound from "./pages/NotFound";
@@ -31,6 +38,7 @@ const App = () => (
         <Toaster />
         <Sonner />
         <BrowserRouter>
+          <PlatformTelemetry />
           <Routes>
             <Route path="/" element={<SaaSLandingPage />} />
             <Route path="/login" element={<LoginPage />} />
@@ -50,12 +58,13 @@ const App = () => (
               <Route path="funnels" element={<FunnelsPage />} />
               <Route path="stores/:storeId" element={<StoreDashboardPage />} />
               <Route path="stores" element={<StoresPage />} />
-              <Route path="orders" element={<DashboardModulePage />} />
-              <Route path="analytics" element={<DashboardModulePage />} />
-              <Route path="contacts" element={<DashboardModulePage />} />
-              <Route path="offers" element={<DashboardModulePage />} />
-              <Route path="apps" element={<DashboardModulePage />} />
-              <Route path="settings" element={<DashboardModulePage />} />
+              <Route path="orders" element={<OrdersPage />} />
+              <Route path="analytics" element={<AnalyticsPage />} />
+              <Route path="contacts" element={<ContactsPage />} />
+              <Route path="offers" element={<OffersPage />} />
+              <Route path="apps" element={<AppsPage />} />
+              <Route path="settings" element={<SettingsPage />} />
+              <Route path="*" element={<DashboardModulePage />} />
             </Route>
             <Route
               path="/editor/:storeId"

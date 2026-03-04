@@ -1,6 +1,11 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { loadEditorState } from "@/lib/editor";
-import { getStoreDashboardSnapshot, loadStores, saveStore } from "@/lib/stores";
+import {
+  deleteStore,
+  getStoreDashboardSnapshot,
+  loadStores,
+  saveStore,
+} from "@/lib/stores";
 
 describe("stores storage", () => {
   beforeEach(() => {
@@ -66,5 +71,21 @@ describe("stores storage", () => {
     expect(snapshot?.topProducts.length).toBeGreaterThan(0);
     expect(snapshot?.trafficSources).toHaveLength(4);
     expect(snapshot?.languages.length).toBeGreaterThan(0);
+  });
+
+  it("deletes a store and removes its editor draft", () => {
+    const store = saveStore({
+      name: "Delete Store",
+      slug: "delete-store",
+      currency: "USD",
+      templateId: "singleProduct",
+      paymentMethod: "separateCheckout",
+    });
+
+    const nextStores = deleteStore(store.id);
+
+    expect(nextStores).not.toBeNull();
+    expect(loadStores().some((item) => item.id === store.id)).toBe(false);
+    expect(loadEditorState(store.id)).toBeNull();
   });
 });

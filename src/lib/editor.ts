@@ -16,6 +16,7 @@ import {
   isCurrencyCode,
   type StoreBuilderState,
 } from "@/builders/store-builder/schema";
+import { emitShopcodDataUpdated } from "@/lib/live-sync";
 
 export type BlockType =
   | "hero"
@@ -624,6 +625,7 @@ function writeStoreCatalog(items: StoreCatalogItem[]) {
   }
 
   window.localStorage.setItem(STORE_CATALOG_KEY, JSON.stringify(items));
+  emitShopcodDataUpdated();
 }
 
 export function loadStoreCatalog() {
@@ -723,7 +725,17 @@ export function deleteStoreDraft(storeId: string) {
 
   const nextCatalog = loadStoreCatalog().filter((item) => item.id !== storeId);
   writeStoreCatalog(nextCatalog);
+  emitShopcodDataUpdated();
   return nextCatalog;
+}
+
+export function removeEditorState(storeId: string) {
+  if (!isBrowser()) {
+    return;
+  }
+
+  window.localStorage.removeItem(getEditorStorageKey(storeId));
+  emitShopcodDataUpdated();
 }
 
 export function loadEditorState(storeId: string) {
@@ -792,6 +804,7 @@ export function saveEditorState(
 
   if (isBrowser()) {
     window.localStorage.setItem(getEditorStorageKey(storeId), JSON.stringify(nextState));
+    emitShopcodDataUpdated();
   }
 
   upsertStoreCatalogItem(storeId, nextState.profile, {
@@ -844,6 +857,7 @@ export function publishEditorState(
 
   if (isBrowser()) {
     window.localStorage.setItem(getEditorStorageKey(storeId), JSON.stringify(nextState));
+    emitShopcodDataUpdated();
   }
 
   upsertStoreCatalogItem(storeId, nextState.profile, {

@@ -1,11 +1,18 @@
-import { useMemo, useState } from "react";
-import { Copy, Filter, Package, Plus, Search } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { Copy, Filter, Package, Plus, Search, Trash2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import MainContent from "@/components/dashboard/MainContent";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { duplicateProduct, loadProducts, type Product } from "@/lib/products";
+import { subscribeToShopcodData } from "@/lib/live-sync";
+import { loadOrders } from "@/lib/platform-data";
+import {
+  deleteProduct,
+  duplicateProduct,
+  loadProducts,
+  type Product,
+} from "@/lib/products";
 
 type InventoryFilter = "all" | "in-stock" | "low" | "out";
 type ShippingFilter = "all" | "shipping" | "digital";
@@ -40,6 +47,12 @@ export default function ProductsPage() {
   const [inventoryFilter, setInventoryFilter] = useState<InventoryFilter>("all");
   const [shippingFilter, setShippingFilter] = useState<ShippingFilter>("all");
 
+  useEffect(() => {
+    return subscribeToShopcodData(() => {
+      setProducts(loadProducts());
+    });
+  }, []);
+
   const filteredProducts = useMemo(() => {
     const normalizedSearch = search.trim().toLowerCase();
 
@@ -68,6 +81,7 @@ export default function ProductsPage() {
 
   const trackedProducts = products.filter((product) => product.inventoryTracking).length;
   const totalInventory = products.reduce((sum, product) => sum + product.inventory, 0);
+  const recordedOrders = loadOrders().length;
 
   const handleDuplicate = (productId: string) => {
     const duplicate = duplicateProduct(productId);
@@ -81,6 +95,18 @@ export default function ProductsPage() {
     toast.success("Producto duplicado.", {
       description: `${duplicate.name} ya aparece en el listado.`,
     });
+  };
+
+  const handleDelete = (productId: string) => {
+    const nextProducts = deleteProduct(productId);
+
+    if (!nextProducts) {
+      toast.error("No se pudo eliminar el producto.");
+      return;
+    }
+
+    setProducts(nextProducts);
+    toast.success("Producto eliminado.");
   };
 
   const handleCopySlug = async (slug: string) => {
@@ -126,9 +152,12 @@ export default function ProductsPage() {
         </div>
         <div className="rounded-[1.75rem] border border-border/80 bg-card/90 p-5">
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-            Tracking activo
+            Pedidos registrados
           </p>
-          <p className="mt-3 text-3xl font-semibold text-foreground">{trackedProducts}</p>
+          <p className="mt-3 text-3xl font-semibold text-foreground">{recordedOrders}</p>
+          <p className="mt-2 text-xs text-muted-foreground">
+            {trackedProducts} productos con tracking activo
+          </p>
         </div>
       </section>
 
@@ -256,6 +285,16 @@ export default function ProductsPage() {
                           >
                             <Copy className="h-4 w-4" />
                             Slug
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="rounded-xl text-destructive hover:text-destructive"
+                            onClick={() => handleDelete(product.id)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                            Borrar
                           </Button>
                         </div>
                       </td>

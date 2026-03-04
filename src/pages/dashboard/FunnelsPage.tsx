@@ -1,10 +1,11 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ArrowRight,
   ChevronLeft,
   LayoutTemplate,
   Plus,
   Sparkles,
+  Trash2,
   Wand2,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
@@ -14,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
+  deleteFunnel,
   ensureFunnelEditorDraft,
   getFunnelTemplates,
   loadFunnels,
@@ -23,6 +25,7 @@ import {
   type FunnelTemplate,
   type FunnelTemplateId,
 } from "@/lib/funnels";
+import { subscribeToShopcodData } from "@/lib/live-sync";
 
 type WizardStep = 1 | 2 | 3;
 
@@ -109,6 +112,12 @@ export default function FunnelsPage() {
   const [slugTouched, setSlugTouched] = useState(false);
   const [currency, setCurrency] = useState<FunnelCurrency>("USD");
   const [isCreating, setIsCreating] = useState(false);
+
+  useEffect(() => {
+    return subscribeToShopcodData(() => {
+      setFunnels(loadFunnels());
+    });
+  }, []);
 
   const selectedTemplate =
     templates.find((template) => template.id === selectedTemplateId) ?? templates[0];
@@ -210,6 +219,18 @@ export default function FunnelsPage() {
     navigate(`/editor/${funnelId}`);
   };
 
+  const handleDeleteFunnel = (funnelId: string) => {
+    const nextFunnels = deleteFunnel(funnelId);
+
+    if (!nextFunnels) {
+      toast.error("No se pudo eliminar el funnel.");
+      return;
+    }
+
+    setFunnels(nextFunnels);
+    toast.success("Funnel eliminado.");
+  };
+
   return (
     <MainContent
       eyebrow="Conversion"
@@ -291,15 +312,26 @@ export default function FunnelsPage() {
                       <p className="text-xs text-muted-foreground">
                         {funnel.pages.length} paginas en {funnel.currency}
                       </p>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        className="rounded-2xl"
-                        onClick={() => handleOpenEditor(funnel.id)}
-                      >
-                        Abrir editor
-                        <ArrowRight className="h-4 w-4" />
-                      </Button>
+                      <div className="flex flex-wrap gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="rounded-2xl"
+                          onClick={() => handleOpenEditor(funnel.id)}
+                        >
+                          Abrir editor
+                          <ArrowRight className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          className="rounded-2xl text-destructive hover:text-destructive"
+                          onClick={() => handleDeleteFunnel(funnel.id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                          Borrar
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 </article>

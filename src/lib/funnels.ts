@@ -1,9 +1,11 @@
 import { defaultBlockData } from "@/components/editor/block-config";
 import {
   loadEditorState,
+  removeEditorState,
   saveEditorState,
   type FunnelBlock,
 } from "@/lib/editor";
+import { emitShopcodDataUpdated } from "@/lib/live-sync";
 
 export type FunnelCurrency = "USD" | "EUR" | "PEN";
 export type FunnelTemplateId = "blank" | "ai" | "preset";
@@ -151,6 +153,7 @@ function writeStoredFunnels(funnels: Funnel[]) {
   }
 
   window.localStorage.setItem(FUNNELS_STORAGE_KEY, JSON.stringify(funnels));
+  emitShopcodDataUpdated();
 }
 
 function createEntityId(prefix: string) {
@@ -384,4 +387,17 @@ export function saveFunnel(input: FunnelInput) {
   writeStoredFunnels([funnel, ...currentFunnels]);
   ensureEditorDraft(funnel);
   return funnel;
+}
+
+export function deleteFunnel(funnelId: string) {
+  const currentFunnels = loadFunnels();
+  const nextFunnels = currentFunnels.filter((funnel) => funnel.id !== funnelId);
+
+  if (nextFunnels.length === currentFunnels.length) {
+    return null;
+  }
+
+  writeStoredFunnels(nextFunnels);
+  removeEditorState(funnelId);
+  return nextFunnels;
 }

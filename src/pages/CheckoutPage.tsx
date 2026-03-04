@@ -8,6 +8,8 @@ import { ShieldCheck, Truck, Phone, CheckCircle2, Minus, Plus, ArrowLeft } from 
 import heroProduct from "@/assets/hero-product.png";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
+import { saveCodOrder } from "@/lib/platform-data";
+import { loadProducts } from "@/lib/products";
 
 const fadeUp = {
   hidden: { opacity: 0, y: 20 },
@@ -28,6 +30,7 @@ export default function CheckoutPage() {
     name: "", phone: "", address: "", department: "", city: "", notes: "",
   });
   const [submitting, setSubmitting] = useState(false);
+  const featuredProduct = loadProducts()[0];
 
   const unitPrice = 49900;
   const total = unitPrice * quantity;
@@ -44,6 +47,19 @@ export default function CheckoutPage() {
     }
     setSubmitting(true);
     setTimeout(() => {
+      saveCodOrder({
+        customerName: form.name,
+        phone: form.phone,
+        address: form.address,
+        city: form.city,
+        department: form.department,
+        notes: form.notes,
+        quantity,
+        unitPrice,
+        currency: "PEN",
+        productId: featuredProduct?.id ?? null,
+        productName: featuredProduct?.name || "Producto Premium",
+      });
       setSubmitting(false);
       navigate("/order-confirmed");
     }, 1500);

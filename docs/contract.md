@@ -219,6 +219,53 @@ interface StoredEditorState {
 }
 ```
 
+### Platform Operations Model
+
+Defined in `src/lib/platform-data.ts`.
+
+```ts
+interface PlatformOrder {
+  id: string;
+  customerName: string;
+  phone: string;
+  address: string;
+  city: string;
+  department: string;
+  quantity: number;
+  total: number;
+  status: "new" | "confirmed" | "fulfilled" | "cancelled";
+  items: PlatformOrderItem[];
+  createdAt: string;
+}
+
+interface PlatformContact {
+  id: string;
+  fullName: string;
+  phone: string;
+  totalOrders: number;
+  totalSpent: number;
+  lastOrderId: string | null;
+}
+
+interface PlatformEvent {
+  id: string;
+  type: "page_view" | "checkout_started" | "order_placed";
+  path: string;
+  visitorId: string;
+  createdAt: string;
+}
+
+type PlatformOffer = BundleOffer | DiscountOffer;
+
+interface PlatformSettings {
+  accountName: string;
+  ownerEmail: string;
+  supportEmail: string;
+  subdomain: string;
+  timezone: string;
+}
+```
+
 ### Page Builder Model
 
 Defined canonically in `src/builders/shared/models/page.ts` and re-exported by `src/builders/page-builder/blocks/schema.ts`.
@@ -420,6 +467,11 @@ Rules:
 - `/products` and `/products/new` use browser local persistence only.
 - `Funnel.slug` must remain unique within the browser-side catalog.
 - `/funnels` uses browser local persistence only and must initialize a compatible `/editor/:storeId` draft when creating a new funnel.
+- `/orders`, `/analytics`, `/contacts`, `/offers`, and `/settings` use browser local persistence only.
+- Submitting the COD checkout must create a persisted `PlatformOrder` and upsert a linked `PlatformContact`.
+- Public-facing route visits and checkout starts must be tracked as `PlatformEvent` records and feed analytics KPIs.
+- Products, funnels, stores, and offers must support deletion without reloading the page.
+- Platform operational data may mirror to Firestore when Firebase configuration is available, but the UI must continue working with local persistence as the immediate fallback.
 
 ### Store Catalog Model
 
@@ -574,3 +626,5 @@ The following are breaking changes and must be versioned or coordinated before i
 - 2026-03-04 | El page builder adopta `block-engine` y `state-manager`, suma `section` y `divider`, y expone `page_json` serializable | non-breaking | Amplia el editor visual sin romper el contrato base de `PageBuilderBlock`
 - 2026-03-04 | El funnel builder agrega tipos de pagina extendidos y acciones visibles de editar, duplicar, eliminar y conectar | non-breaking | Refuerza el editor visual sin cambiar rutas ni romper el modelo persistido
 - 2026-03-04 | Cada pagina del funnel ahora persiste `contentJson` dentro de `funnelBuilder.pages[]` y abre el Page Builder dedicado | non-breaking | Conecta el Funnel Builder con el Page Builder sin romper el draft existente
+- 2026-03-04 | El panel agrega pedidos, analiticas, contactos, ofertas y configuracion funcionales con storage local reactivo | non-breaking | Convierte modulos placeholder en flujos operativos del producto sin cambiar rutas protegidas
+- 2026-03-04 | El panel agrega tracking real de visitas/conversion y sincronizacion remota opcional con Firestore para datos operativos | non-breaking | Mantiene fallback local mientras habilita KPIs y datos compartidos entre dispositivos

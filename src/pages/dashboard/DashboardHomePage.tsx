@@ -7,7 +7,7 @@ const homeCards = [
   {
     title: "Crear tienda online",
     description:
-      "Prepara una nueva tienda con estructura clara, gestion modular y una base lista para crecer.",
+      "Lanza una tienda con catalogo, checkout y configuracion listos para vender.",
     ctaTo: "/stores",
     icon: Store,
     chips: ["Catalogo", "Checkout", "Workspace listo"],
@@ -15,7 +15,7 @@ const homeCards = [
   {
     title: "Crear funnel",
     description:
-      "Arranca un embudo comercial y navega entre flujos, ofertas y optimizacion desde el panel.",
+      "Construye tu embudo, edita cada pagina visualmente y mejora la conversion.",
     ctaTo: "/funnels",
     icon: Workflow,
     chips: ["Secuencias", "Conversion", "Testing rapido"],
@@ -26,8 +26,8 @@ export default function DashboardHomePage() {
   return (
     <MainContent
       eyebrow="Inicio"
-      title="Panel SaaS base"
-      description="Arquitectura principal lista para operar como hub de trabajo: sidebar izquierda, topbar superior, contenido dinamico y navegacion por modulos."
+      title="¿Cómo quieres vender?"
+      description="Elige cómo quieres vender tu producto y te guiaremos en la configuración."
     >
       <section className="grid gap-6 xl:grid-cols-2">
         {homeCards.map((card) => {
@@ -84,26 +84,26 @@ export default function DashboardHomePage() {
         <div className="grid gap-4 md:grid-cols-3">
           <div className="rounded-3xl border border-border/80 bg-card/80 p-5">
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-              Sidebar
+              Vende mejor
             </p>
             <p className="mt-3 text-sm text-secondary-foreground">
-              Acceso persistente a cada modulo principal del panel.
+              Centraliza productos, tiendas y funnels desde un solo panel.
             </p>
           </div>
           <div className="rounded-3xl border border-border/80 bg-card/80 p-5">
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-              Topbar
+              Opera rapido
             </p>
             <p className="mt-3 text-sm text-secondary-foreground">
-              Busqueda global, workspace, notificaciones y perfil en un solo bloque.
+              Revisa pedidos, contactos y ofertas sin salir del dashboard.
             </p>
           </div>
           <div className="rounded-3xl border border-border/80 bg-card/80 p-5">
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-              Contenido
+              Mide en tiempo real
             </p>
             <p className="mt-3 text-sm text-secondary-foreground">
-              Area central dinamica alimentada por rutas internas protegidas.
+              Sigue ventas, conversion y actividad comercial con datos vivos.
             </p>
           </div>
         </div>

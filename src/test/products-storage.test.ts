@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import {
+  deleteProduct,
   duplicateProduct,
   loadProducts,
   saveProduct,
@@ -52,5 +53,13 @@ describe("products storage", () => {
     expect(duplicate?.id).not.toBe(source.id);
     expect(duplicate?.name).toContain("copia");
     expect(slugifyProductName(duplicate?.slug || "")).toBe(duplicate?.slug);
+  });
+
+  it("deletes an existing product", () => {
+    const source = loadProducts()[0];
+    const nextProducts = deleteProduct(source.id);
+
+    expect(nextProducts).not.toBeNull();
+    expect(loadProducts().some((product) => product.id === source.id)).toBe(false);
   });
 });

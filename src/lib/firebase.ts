@@ -14,6 +14,10 @@ const firebaseConfig = {
   appId: normalizeEnvValue(import.meta.env.VITE_FIREBASE_APP_ID),
 };
 
-const firebaseApp = initializeApp(firebaseConfig);
+export function hasFirebaseConfig() {
+  return Boolean(firebaseConfig.projectId);
+}
+
+export const firebaseApp = initializeApp(firebaseConfig);
 
 export const firebaseAuth = getAuth(firebaseApp);

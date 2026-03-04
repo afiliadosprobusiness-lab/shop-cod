@@ -41,11 +41,11 @@ export default function DashboardModulePage() {
                 Modulo activo
               </span>
               <h2 className="text-2xl font-semibold text-foreground">
-                Estructura base preparada para {section.label.toLowerCase()}
+                Todo listo para operar {section.label.toLowerCase()}
               </h2>
               <p className="max-w-2xl text-sm leading-6 text-muted-foreground">
-                Este espacio ya usa el layout compartido del panel y queda listo para crecer con
-                widgets, tablas y flujos especificos sin rehacer la arquitectura.
+                Este modulo mantiene el flujo del panel para que puedas revisar informacion,
+                ejecutar acciones y seguir el rendimiento del negocio sin salir del workspace.
               </p>
             </div>
 
@@ -85,8 +85,7 @@ export default function DashboardModulePage() {
               Navegacion
             </p>
             <p className="mt-3 text-sm text-secondary-foreground">
-              El sidebar mantiene el contexto y el topbar conserva utilidades globales en toda la
-              experiencia.
+              Muevete rapido entre modulos y manten el control operativo de ShopCOD.
             </p>
           </div>
         </aside>

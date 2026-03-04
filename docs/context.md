@@ -266,7 +266,8 @@ ShopCOD is a frontend SPA for COD-focused funnel selling. It uses Firebase Authe
 1. User opens `/preview/:storeId`.
 2. Preview reads the saved draft profile when present.
 3. The hero, CTA, and checkout copy reflect the saved store data.
-4. `Publicar` marks the local draft as active.
+4. El checkout demo tambien registra pedidos y contactos reales en browser storage, y esos datos alimentan `/orders`, `/analytics` y `/contacts`.
+5. `Publicar` marks the local draft as active.
 
 ## Arquitectura
 
@@ -284,15 +285,23 @@ ShopCOD is a frontend SPA for COD-focused funnel selling. It uses Firebase Authe
 - `src/components/dashboard/Topbar.tsx` renders global search, workspace switching, notifications, and the user avatar.
 - `src/components/dashboard/MainContent.tsx` standardizes the content header and responsive inner container.
 - `src/pages/dashboard/DashboardHomePage.tsx` renders the dashboard landing view.
-- `src/pages/dashboard/DashboardModulePage.tsx` renders the shared placeholder shell for the remaining generic internal modules.
 - `src/pages/dashboard/ProductsPage.tsx` renders the products management table, search, filters, and row actions.
 - `src/pages/dashboard/ProductCreatePage.tsx` renders the multi-section product creation workflow.
 - `src/pages/dashboard/FunnelsPage.tsx` renders the funnels list and the multi-step creation wizard.
 - `src/pages/dashboard/StoresPage.tsx` renders the stores list and the 3-step store creation wizard.
 - `src/pages/dashboard/StoreDashboardPage.tsx` renders the per-store internal dashboard and section navigation.
+- `src/pages/dashboard/OrdersPage.tsx` renders real COD orders and operational status updates.
+- `src/pages/dashboard/AnalyticsPage.tsx` renders real-time KPI snapshots from persisted platform data.
+- `src/pages/dashboard/ContactsPage.tsx` renders the persisted buyers/leads base from COD submissions.
+- `src/pages/dashboard/OffersPage.tsx` renders bundle and discount creation.
+- `src/pages/dashboard/AppsPage.tsx` renders the "coming soon" integrations state.
+- `src/pages/dashboard/SettingsPage.tsx` renders workspace configuration forms.
 - `src/lib/products.ts` defines the frontend product model and browser persistence helpers.
 - `src/lib/funnels.ts` defines the frontend funnel model, template selector data, local persistence, and editor bootstrapping.
 - `src/lib/stores.ts` defines the frontend store model, template selector data, payment selector, local persistence, editor bootstrapping, and derived store analytics snapshots.
+- `src/lib/platform-data.ts` defines real orders, contacts, offers, settings, and shared analytics snapshots for the dashboard.
+- `src/lib/live-sync.ts` dispatches browser events so local modules refresh when persisted data changes.
+- `src/components/analytics/PlatformTelemetry.tsx` tracks real page views / checkout starts and bootstraps optional Firestore synchronization.
 
 ### Store Builder Layer
 
@@ -354,6 +363,12 @@ ShopCOD is a frontend SPA for COD-focused funnel selling. It uses Firebase Authe
   - funnel graph nodes, per-page records, and connections
   - store builder products, bundles, collections, and checkout settings
   - timestamps
+- Additional browser storage also persists:
+  - COD orders
+  - contacts captured from COD submissions
+  - bundle and discount offers
+  - workspace settings
+- When Firebase config is available, platform operational data is also mirrored to Firestore and merged back into local state on app bootstrap.
 - A browser-side store catalog is also stored in `localStorage` for dashboard and editor-adjacent flows.
 - A browser-side product catalog is also stored in `localStorage` with seeded fallback data for the products module.
 - A browser-side funnel catalog is also stored in `localStorage` with seeded fallback data for the funnels module.

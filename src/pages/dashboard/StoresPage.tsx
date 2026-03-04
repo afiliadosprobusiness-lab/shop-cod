@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ArrowRight,
   ChevronLeft,
@@ -7,6 +7,7 @@ import {
   Package2,
   Plus,
   Store as StoreIcon,
+  Trash2,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
@@ -16,6 +17,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import {
+  deleteStore,
   ensureStoreEditorDraft,
   getPaymentMethodOptions,
   getStoreTemplate,
@@ -30,6 +32,7 @@ import {
   type StoreTemplate,
   type StoreTemplateId,
 } from "@/lib/stores";
+import { subscribeToShopcodData } from "@/lib/live-sync";
 
 type WizardStep = 1 | 2 | 3;
 
@@ -103,11 +106,13 @@ function StoreCard({
   paymentMethods,
   onOpenDashboard,
   onOpenEditor,
+  onDelete,
 }: {
   store: Store;
   paymentMethods: PaymentMethodOption[];
   onOpenDashboard: (storeId: string) => void;
   onOpenEditor: (storeId: string) => void;
+  onDelete: (storeId: string) => void;
 }) {
   const template = getStoreTemplate(store.templateId);
 
@@ -155,6 +160,15 @@ function StoreCard({
             >
               Abrir editor
             </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              className="rounded-2xl text-destructive hover:text-destructive"
+              onClick={() => onDelete(store.id)}
+            >
+              <Trash2 className="h-4 w-4" />
+              Borrar
+            </Button>
           </div>
         </div>
       </div>
@@ -176,6 +190,12 @@ export default function StoresPage() {
   const [slugTouched, setSlugTouched] = useState(false);
   const [currency, setCurrency] = useState<StoreCurrency>("USD");
   const [isCreating, setIsCreating] = useState(false);
+
+  useEffect(() => {
+    return subscribeToShopcodData(() => {
+      setStores(loadStores());
+    });
+  }, []);
 
   const selectedTemplate =
     templates.find((template) => template.id === selectedTemplateId) ?? templates[0];
@@ -289,6 +309,18 @@ export default function StoresPage() {
     navigate(`/stores/${storeId}`);
   };
 
+  const handleDeleteStore = (storeId: string) => {
+    const nextStores = deleteStore(storeId);
+
+    if (!nextStores) {
+      toast.error("No se pudo eliminar la tienda.");
+      return;
+    }
+
+    setStores(nextStores);
+    toast.success("Tienda eliminada.");
+  };
+
   return (
     <MainContent
       eyebrow="Storefronts"
@@ -340,6 +372,7 @@ export default function StoresPage() {
                   paymentMethods={paymentMethods}
                   onOpenDashboard={handleOpenDashboard}
                   onOpenEditor={handleOpenEditor}
+                  onDelete={handleDeleteStore}
                 />
               ))}
             </div>
