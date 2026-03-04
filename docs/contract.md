@@ -114,6 +114,7 @@ All routes below are protected by Firebase auth state and render inside the shar
 - Components: `DashboardLayout` + `FunnelsPage`.
 - Includes:
   - a funnel list with preview image area, name, conversion, and visits
+  - no preloaded demo funnels in a fresh browser state
   - `Crear funnel` CTA
   - a fullscreen 3-step wizard (template selection, metadata, confirmation)
   - template fallback to `blank` when template catalog is unavailable
@@ -698,7 +699,7 @@ Rules:
 - `Publicar` stores a local published timestamp and marks the local catalog item as active.
 - The browser can still read user-created stores from the local catalog for editor-adjacent flows.
 - The products module seeds demo products until a browser-local product catalog is written.
-- The funnels module seeds demo funnels until a browser-local funnel catalog is written.
+- The funnels module starts with an empty catalog until a browser-local funnel is created.
 - The stores module seeds demo stores until a browser-local store catalog is written.
 - No custom backend persistence exists yet.
 
@@ -783,3 +784,4 @@ The following are breaking changes and must be versioned or coordinated before i
 - 2026-03-04 | Se versionan y despliegan reglas de Firestore desde el repo (`firestore.rules` + `firebase.json`) | non-breaking | Formaliza el contrato operativo para sync compartida de superadmin
 - 2026-03-04 | El registro superadmin usa `uid` estable, reintenta sync cloud tras fallos temporales y resincroniza el perfil al guardar `GET /settings` | non-breaking | Corrige visibilidad y consistencia de cuentas reales entre workspaces y panel root
 - 2026-03-04 | `GET /funnels` adopta wizard fullscreen y se agrega `GET /funnels/:funnelId/editor` como workspace dedicado | non-breaking | Mantiene compatibilidad con editor legacy y separa flujo moderno de funnels
+- 2026-03-04 | Se elimina el seed de funnels demo por defecto y se limpia automaticamente el legado local (`funnel-101`, `funnel-102`) | non-breaking | Evita que aparezcan funnels pre-cargados en nuevos workspaces

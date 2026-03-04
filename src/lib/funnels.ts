@@ -57,6 +57,7 @@ export interface UpdateFunnelInput {
 }
 
 const FUNNELS_STORAGE_KEY = "shopcod-funnels-v1";
+const LEGACY_DEFAULT_FUNNEL_IDS = new Set(["funnel-101", "funnel-102"]);
 
 const funnelTemplates: FunnelTemplate[] = [
   {
@@ -92,40 +93,8 @@ const funnelTemplates: FunnelTemplate[] = [
   },
 ];
 
-const seedFunnels: Funnel[] = [
-  {
-    id: "funnel-101",
-    name: "Glow COD Sprint",
-    slug: "glow-cod-sprint",
-    currency: "USD",
-    pages: clonePages(funnelTemplates[2].pages),
-    templateId: "preset",
-    conversion: 4.8,
-    visits: 18240,
-    createdAt: "2026-03-01T09:20:00.000Z",
-  },
-  {
-    id: "funnel-102",
-    name: "AI Gadget Push",
-    slug: "ai-gadget-push",
-    currency: "PEN",
-    pages: clonePages(funnelTemplates[1].pages),
-    templateId: "ai",
-    conversion: 6.2,
-    visits: 9340,
-    createdAt: "2026-02-26T14:05:00.000Z",
-  },
-];
-
 function clonePages(pages: FunnelPage[]) {
   return pages.map((page) => ({ ...page }));
-}
-
-function cloneSeedFunnels() {
-  return seedFunnels.map((funnel) => ({
-    ...funnel,
-    pages: clonePages(funnel.pages),
-  }));
 }
 
 function isBrowser() {
@@ -392,6 +361,10 @@ function normalizeFunnel(candidate: unknown): Funnel | null {
   };
 }
 
+function isLegacyDefaultFunnel(funnel: Funnel) {
+  return LEGACY_DEFAULT_FUNNEL_IDS.has(funnel.id);
+}
+
 function ensureUniqueSlug(baseSlug: string, funnels: Funnel[]) {
   const normalizedBase = slugifyFunnelName(baseSlug) || "nuevo-funnel";
   let candidate = normalizedBase;
@@ -426,8 +399,13 @@ export function loadFunnels() {
   const normalizedFunnels = storedFunnels
     ?.map((funnel) => normalizeFunnel(funnel))
     .filter((funnel): funnel is Funnel => Boolean(funnel));
+  const sanitizedFunnels = (normalizedFunnels ?? []).filter((funnel) => !isLegacyDefaultFunnel(funnel));
 
-  return (normalizedFunnels?.length ? normalizedFunnels : cloneSeedFunnels()).sort((left, right) =>
+  if (normalizedFunnels && sanitizedFunnels.length !== normalizedFunnels.length) {
+    writeStoredFunnels(sanitizedFunnels);
+  }
+
+  return sanitizedFunnels.sort((left, right) =>
     right.createdAt.localeCompare(left.createdAt),
   );
 }

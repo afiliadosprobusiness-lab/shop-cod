@@ -226,6 +226,7 @@ ShopCOD is a frontend SPA for COD-focused funnel selling. It uses Firebase Authe
   - name
   - conversion
   - visits
+  - without preloaded demo funnels by default
 3. The user clicks `Crear funnel` to open a full-screen creation wizard.
 4. Step 1 lets the user select one of the available templates:
   - `Blank`
@@ -459,7 +460,7 @@ ShopCOD is a frontend SPA for COD-focused funnel selling. It uses Firebase Authe
 - When Firebase config is available, platform operational data is also mirrored to Firestore and merged back into local state on app bootstrap.
 - A browser-side store catalog is also stored in `localStorage` for dashboard and editor-adjacent flows.
 - A browser-side product catalog is also stored in `localStorage` with seeded fallback data for the products module.
-- A browser-side funnel catalog is also stored in `localStorage` with seeded fallback data for the funnels module.
+- A browser-side funnel catalog is stored in `localStorage` and starts empty until the user creates funnels.
 - A browser-side store catalog for `/stores` is also stored in `localStorage` with seeded fallback data for the stores module.
 - No custom backend or database persistence exists yet.
 

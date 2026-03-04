@@ -60,7 +60,7 @@
 - Topbar: el selector de workspace ya no usa opciones fijas legacy; ahora refleja el `accountName` real del workspace actual
 - Modulos internos: `/products`, `/funnels`, `/stores`, `/orders`, `/analytics`, `/contacts`, `/offers`, `/apps` y `/settings` reutilizan el mismo layout compartido, pero ya muestran vistas funcionales del negocio
 - Productos: `/products` ahora muestra tabla con buscador, filtros, duplicado, borrado y metricas reactivas segun catalogo y pedidos reales
-- Funnels: `/funnels` ahora muestra listado con preview, conversion y visitas, e incluye wizard fullscreen de 3 pasos (plantilla -> datos -> confirmacion) con fallback automatico a plantilla en blanco
+- Funnels: `/funnels` ahora muestra listado con preview, conversion y visitas, e incluye wizard fullscreen de 3 pasos (plantilla -> datos -> confirmacion) con fallback automatico a plantilla en blanco y sin demos precargados por defecto
 - Workspace de funnel: `/funnels/:funnelId/editor` concentra `Resumen`, `Construir y Disenar`, `Configuracion` e `Idiomas`, y permite agregar paginas con selector por tipo desde el builder
 - Tiendas: `/stores` ahora muestra listado con preview, metodo de pago y cantidad de paginas, e incluye wizard de 3 pasos para crear tiendas con plantilla, pagos, configuracion y borrado
 - Dashboard interno de tienda: `/stores/:storeId` muestra navegacion interna por secciones y un resumen con metricas, top productos y fuentes de trafico derivadas del estado local

@@ -14,11 +14,56 @@ describe("funnels storage", () => {
     window.localStorage.clear();
   });
 
-  it("loads seeded funnels when no local data exists", () => {
+  it("starts empty when no local data exists", () => {
     const funnels = loadFunnels();
 
-    expect(funnels.length).toBeGreaterThan(0);
-    expect(funnels[0]?.name).toBeTruthy();
+    expect(funnels).toHaveLength(0);
+  });
+
+  it("removes legacy default funnels from existing local storage", () => {
+    window.localStorage.setItem(
+      "shopcod-funnels-v1",
+      JSON.stringify([
+        {
+          id: "funnel-101",
+          name: "Glow COD Sprint",
+          slug: "glow-cod-sprint",
+          currency: "USD",
+          pages: [],
+          templateId: "preset",
+          conversion: 4.8,
+          visits: 18240,
+          createdAt: "2026-03-01T09:20:00.000Z",
+        },
+        {
+          id: "funnel-102",
+          name: "AI Gadget Push",
+          slug: "ai-gadget-push",
+          currency: "PEN",
+          pages: [],
+          templateId: "ai",
+          conversion: 6.2,
+          visits: 9340,
+          createdAt: "2026-02-26T14:05:00.000Z",
+        },
+        {
+          id: "funnel-custom",
+          name: "Custom",
+          slug: "custom",
+          currency: "USD",
+          pages: [],
+          templateId: "blank",
+          conversion: 0,
+          visits: 0,
+          createdAt: "2026-03-04T20:00:00.000Z",
+        },
+      ]),
+    );
+
+    const funnels = loadFunnels();
+
+    expect(funnels).toHaveLength(1);
+    expect(funnels[0]?.id).toBe("funnel-custom");
   });
 
   it("returns the available wizard templates", () => {
@@ -31,7 +76,13 @@ describe("funnels storage", () => {
   });
 
   it("saves a funnel and initializes a compatible editor draft", () => {
-    const existingSlug = loadFunnels()[0]?.slug || "sample-funnel";
+    const existingSlug = "sample-funnel";
+    saveFunnel({
+      name: "Existing Funnel",
+      slug: existingSlug,
+      currency: "USD",
+      templateId: "blank",
+    });
 
     const funnel = saveFunnel({
       name: "Sample Funnel",
