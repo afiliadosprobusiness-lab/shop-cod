@@ -120,8 +120,8 @@ export default function LoginPage() {
                   <span className="text-gradient-gold">checkout COD</span>.
                 </h1>
                 <p className="max-w-lg text-base text-muted-foreground sm:text-lg">
-                  Este flujo usa Firebase Authentication y deja Vercel para el despliegue
-                  del frontend.
+                  Entra a tu panel para gestionar tiendas, funnels y pedidos desde un
+                  solo lugar.
                 </p>
               </div>
 
@@ -156,7 +156,7 @@ export default function LoginPage() {
                 </p>
                 <h2 className="text-2xl font-bold">Accede a tu cuenta</h2>
                 <p className="text-sm text-muted-foreground">
-                  Si el correo no existe todavia, se crea automaticamente en Firebase.
+                  Usa tu correo y tu acceso para entrar a ShopCOD.
                 </p>
               </div>
 
@@ -223,11 +223,6 @@ export default function LoginPage() {
                   {isSubmitting ? "Ingresando..." : "Iniciar sesion"}
                 </Button>
               </form>
-
-              <div className="mt-6 rounded-2xl border border-primary/15 bg-primary/5 p-4 text-sm text-muted-foreground">
-                Si vienes de una ruta protegida, volveras automaticamente a{" "}
-                <span className="font-semibold text-foreground">{nextPath}</span>.
-              </div>
             </div>
           </section>
         </div>
