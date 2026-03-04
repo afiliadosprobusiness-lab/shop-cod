@@ -108,33 +108,37 @@ All routes below are protected by Firebase auth state and render inside the shar
 
 ### `GET /orders`
 
-- Renders the orders module shell.
-- Components: `DashboardLayout` + `DashboardModulePage`.
+- Renders the orders module.
+- Components: `DashboardLayout` + `OrdersPage`.
 
 ### `GET /analytics`
 
-- Renders the analytics module shell.
-- Components: `DashboardLayout` + `DashboardModulePage`.
+- Renders the analytics module.
+- Components: `DashboardLayout` + `AnalyticsPage`.
 
 ### `GET /contacts`
 
-- Renders the contacts module shell.
-- Components: `DashboardLayout` + `DashboardModulePage`.
+- Renders the contacts module.
+- Components: `DashboardLayout` + `ContactsPage`.
 
 ### `GET /offers`
 
-- Renders the offers module shell.
-- Components: `DashboardLayout` + `DashboardModulePage`.
+- Renders the offers module.
+- Components: `DashboardLayout` + `OffersPage`.
 
 ### `GET /apps`
 
-- Renders the apps module shell.
-- Components: `DashboardLayout` + `DashboardModulePage`.
+- Renders the apps module.
+- Components: `DashboardLayout` + `AppsPage`.
 
 ### `GET /settings`
 
-- Renders the settings module shell.
-- Components: `DashboardLayout` + `DashboardModulePage`.
+- Renders the settings module.
+- Components: `DashboardLayout` + `SettingsPage`.
+- Includes:
+  - sectioned internal navigation for general, shipping, members, billing, domains, digital products, legal, emails, security, payment gateways, tracking, and webhooks
+  - local forms and lists backed by `PlatformSettings`
+  - modal flows for member invites, webhook creation, gateway registration, and the payment-method requirement before removing the temporary store password
 
 ### `GET /editor/:storeId`
 
@@ -262,7 +266,26 @@ interface PlatformSettings {
   ownerEmail: string;
   supportEmail: string;
   subdomain: string;
+  legalName: string;
+  companyName: string;
+  phone: string;
+  addressLine1: string;
+  addressLine2: string;
+  city: string;
+  postalCode: string;
+  country: string;
   timezone: string;
+  shipping: { groups: Array<{ id: string }>; advancedRegions: Array<{ id: string }> };
+  members: { admins: Array<{ id: string }>; members: Array<{ id: string; permissions: string[]; apps: string[] }> };
+  billing: { planName: string; status: "active" | "past_due" };
+  domains: { connectorEnabled: boolean; connectedDomains: Array<{ id: string; host: string; isPrimary: boolean }> };
+  digitalProducts: { files: Array<{ id: string; name: string; sizeLabel: string }> };
+  legal: { refundPolicy: string; privacyPolicy: string; termsOfService: string };
+  emails: { abandonedCartEnabled: boolean; abandonedCartDelayMinutes: number };
+  security: { blockedCountries: string[]; blockedIps: string[]; supportAccess: boolean; captchaEnabled: boolean };
+  payments: { accountCurrency: string; gateways: Array<{ id: string; name: string; active: boolean }>; temporaryStorePassword: string };
+  tracking: Record<string, string>;
+  webhooks: { items: Array<{ id: string; event: string; url: string; version: string }> };
 }
 ```
 
@@ -628,3 +651,4 @@ The following are breaking changes and must be versioned or coordinated before i
 - 2026-03-04 | Cada pagina del funnel ahora persiste `contentJson` dentro de `funnelBuilder.pages[]` y abre el Page Builder dedicado | non-breaking | Conecta el Funnel Builder con el Page Builder sin romper el draft existente
 - 2026-03-04 | El panel agrega pedidos, analiticas, contactos, ofertas y configuracion funcionales con storage local reactivo | non-breaking | Convierte modulos placeholder en flujos operativos del producto sin cambiar rutas protegidas
 - 2026-03-04 | El panel agrega tracking real de visitas/conversion y sincronizacion remota opcional con Firestore para datos operativos | non-breaking | Mantiene fallback local mientras habilita KPIs y datos compartidos entre dispositivos
+- 2026-03-04 | `GET /settings` evoluciona a un hub multi-seccion con miembros, pagos, seguridad y webhooks, y se alinean las rutas reales del dashboard operativo | non-breaking | Actualiza el contrato al comportamiento ya implementado sin romper rutas ni persistencia local

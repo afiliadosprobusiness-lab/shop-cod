@@ -74,11 +74,21 @@ describe("platform data", () => {
     savePlatformSettings({
       ...loadPlatformSettings(),
       accountName: "Workspace Live",
+      billing: {
+        ...loadPlatformSettings().billing,
+        planName: "Growth",
+      },
+      payments: {
+        ...loadPlatformSettings().payments,
+        temporaryStorePassword: "TEMP-12345",
+      },
     });
 
     const analytics = getPlatformAnalyticsSnapshot();
 
     expect(loadPlatformSettings().accountName).toBe("Workspace Live");
+    expect(loadPlatformSettings().billing.planName).toBe("Growth");
+    expect(loadPlatformSettings().payments.temporaryStorePassword).toBe("TEMP-12345");
     expect(analytics.orders).toBe(1);
     expect(analytics.sales).toBe(49900);
     expect(analytics.contacts).toBe(1);

@@ -60,7 +60,7 @@
 - Contactos: `/contacts` guarda los clientes capturados por el formulario COD y su historial comercial
 - Ofertas: `/offers` permite crear bundles y descuentos persistidos localmente
 - Aplicaciones: `/apps` muestra un estado de "Proximamente" para el marketplace de integraciones
-- Configuracion: `/settings` expone una vista de cuenta, dominios, correos y datos operativos del workspace
+- Configuracion: `/settings` ahora concentra secciones reales para cuenta, envio, miembros, facturacion, dominios, productos digitales, legal, correos, seguridad, pasarelas, seguimiento y webhooks, incluyendo la contrasena temporal protegida por modal de metodo de pago
 - Editor: el flujo visual existente sigue disponible en `/editor/:storeId` con `Store builder`, `Funnel builder` y `Page builder`; cada nodo/pagina del funnel abre su propia vista del Page Builder
 - Preview: sigue disponible en `/preview/:storeId` para revisar drafts por `storeId`
 
@@ -91,7 +91,7 @@
 - `src/pages/dashboard/ContactsPage.tsx` renderiza la base de clientes y leads capturados.
 - `src/pages/dashboard/OffersPage.tsx` renderiza la gestion de bundles y descuentos.
 - `src/pages/dashboard/AppsPage.tsx` renderiza el estado de proximas integraciones.
-- `src/pages/dashboard/SettingsPage.tsx` renderiza la configuracion general del workspace.
+- `src/pages/dashboard/SettingsPage.tsx` renderiza el hub completo de configuracion del workspace con formularios, listas y modales operativos por seccion.
 - El modulo real de productos vive en `src/pages/dashboard/ProductsPage.tsx`.
 - El alta de productos vive en `src/pages/dashboard/ProductCreatePage.tsx`.
 - El modelo y almacenamiento local de productos viven en `src/lib/products.ts`.

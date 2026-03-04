@@ -104,6 +104,114 @@ export interface PlatformSettings {
   postalCode: string;
   country: string;
   timezone: string;
+  shipping: {
+    groups: Array<{
+      id: string;
+      name: string;
+      rateLabel: string;
+      regionLabel: string;
+    }>;
+    advancedRegions: Array<{
+      id: string;
+      country: string;
+      regionLabel: string;
+    }>;
+  };
+  members: {
+    admins: Array<{
+      id: string;
+      name: string;
+      email: string;
+    }>;
+    members: Array<{
+      id: string;
+      email: string;
+      isAdmin: boolean;
+      permissions: string[];
+      apps: string[];
+    }>;
+  };
+  billing: {
+    memberSince: string;
+    planName: string;
+    status: "active" | "past_due";
+    planPrice: number;
+    domainsIncluded: number;
+    transactionFee: number;
+    codFee: number;
+    memberLimit: number;
+    fileStorageGb: number;
+    nextPaymentDate: string;
+    billingThreshold: string;
+  };
+  domains: {
+    connectorEnabled: boolean;
+    connectedDomains: Array<{
+      id: string;
+      host: string;
+      isPrimary: boolean;
+      status: "connected" | "pending";
+      sslStatus: "active" | "pending";
+    }>;
+  };
+  digitalProducts: {
+    files: Array<{
+      id: string;
+      name: string;
+      sizeLabel: string;
+    }>;
+  };
+  legal: {
+    refundPolicy: string;
+    privacyPolicy: string;
+    termsOfService: string;
+  };
+  emails: {
+    abandonedCartEnabled: boolean;
+    abandonedCartDelayMinutes: number;
+    abandonedCartSubject: string;
+    abandonedCartPreview: string;
+  };
+  security: {
+    blockedCountries: string[];
+    blockedIps: string[];
+    supportAccess: boolean;
+    captchaEnabled: boolean;
+    maxItemsPerOrder: number;
+    codRetryDelayMinutes: number;
+  };
+  payments: {
+    accountCurrency: string;
+    currencyFormat: string;
+    autoDetectLocalCurrency: boolean;
+    useAllCurrencies: boolean;
+    autoAddMissingCurrency: boolean;
+    additionalCurrencies: string[];
+    gateways: Array<{
+      id: string;
+      name: string;
+      active: boolean;
+    }>;
+    temporaryStorePassword: string;
+  };
+  tracking: {
+    googleAnalyticsId: string;
+    googleTagManagerId: string;
+    googleAdsId: string;
+    snapchatPixelId: string;
+    facebookPixelId: string;
+    tiktokPixelId: string;
+    pinterestPixelId: string;
+  };
+  webhooks: {
+    items: Array<{
+      id: string;
+      event: string;
+      url: string;
+      version: string;
+      createdAt: string;
+    }>;
+  };
 }
 
 export interface PlatformSalesPoint {
@@ -198,6 +306,109 @@ const defaultSettings: PlatformSettings = {
   postalCode: "33101",
   country: "United States",
   timezone: "(GMT-05:00) America/Lima",
+  shipping: {
+    groups: [
+      {
+        id: "ship-group-1",
+        name: "Standard shipping",
+        rateLabel: "$4.90 flat rate",
+        regionLabel: "US + Latam core",
+      },
+    ],
+    advancedRegions: [
+      {
+        id: "ship-region-1",
+        country: "United States",
+        regionLabel: "California, Texas, Florida",
+      },
+    ],
+  },
+  members: {
+    admins: [
+      {
+        id: "member-admin-1",
+        name: "Burn Account",
+        email: "burn.account97@gmail.com",
+      },
+    ],
+    members: [],
+  },
+  billing: {
+    memberSince: "4 hours ago",
+    planName: "Newbie",
+    status: "active",
+    planPrice: 9.99,
+    domainsIncluded: 1,
+    transactionFee: 1.5,
+    codFee: 0.2,
+    memberLimit: 14,
+    fileStorageGb: 1,
+    nextPaymentDate: "Apr 3, 2026",
+    billingThreshold: "$2.00 or every 5 days",
+  },
+  domains: {
+    connectorEnabled: true,
+    connectedDomains: [
+      {
+        id: "domain-1",
+        host: "clothfloor.myecosite.net",
+        isPrimary: true,
+        status: "connected",
+        sslStatus: "active",
+      },
+    ],
+  },
+  digitalProducts: {
+    files: [],
+  },
+  legal: {
+    refundPolicy: "",
+    privacyPolicy: "",
+    termsOfService: "",
+  },
+  emails: {
+    abandonedCartEnabled: true,
+    abandonedCartDelayMinutes: 45,
+    abandonedCartSubject: "You left something in your cart",
+    abandonedCartPreview:
+      "Recover lost sales with an automated follow-up for abandoned checkouts.",
+  },
+  security: {
+    blockedCountries: [],
+    blockedIps: [],
+    supportAccess: false,
+    captchaEnabled: true,
+    maxItemsPerOrder: 20,
+    codRetryDelayMinutes: 1,
+  },
+  payments: {
+    accountCurrency: "United States Dollar",
+    currencyFormat: "${value}",
+    autoDetectLocalCurrency: false,
+    useAllCurrencies: false,
+    autoAddMissingCurrency: false,
+    additionalCurrencies: [],
+    gateways: [
+      {
+        id: "gateway-cod",
+        name: "Cashondelivery",
+        active: true,
+      },
+    ],
+    temporaryStorePassword: "SCqP9S5FhJd73",
+  },
+  tracking: {
+    googleAnalyticsId: "",
+    googleTagManagerId: "",
+    googleAdsId: "",
+    snapchatPixelId: "",
+    facebookPixelId: "",
+    tiktokPixelId: "",
+    pinterestPixelId: "",
+  },
+  webhooks: {
+    items: [],
+  },
 };
 
 function canUseStorage() {
@@ -549,6 +760,17 @@ function normalizeSettings(candidate: unknown): PlatformSettings {
   }
 
   const settings = candidate as Partial<PlatformSettings>;
+  const shipping = settings.shipping;
+  const members = settings.members;
+  const billing = settings.billing;
+  const domains = settings.domains;
+  const digitalProducts = settings.digitalProducts;
+  const legal = settings.legal;
+  const emails = settings.emails;
+  const security = settings.security;
+  const payments = settings.payments;
+  const tracking = settings.tracking;
+  const webhooks = settings.webhooks;
 
   return {
     accountName:
@@ -585,6 +807,377 @@ function normalizeSettings(candidate: unknown): PlatformSettings {
       typeof settings.country === "string" ? settings.country : defaultSettings.country,
     timezone:
       typeof settings.timezone === "string" ? settings.timezone : defaultSettings.timezone,
+    shipping: {
+      groups:
+        shipping && Array.isArray(shipping.groups)
+          ? shipping.groups.flatMap((group) => {
+              if (!group || typeof group !== "object") {
+                return [];
+              }
+
+              const candidateGroup = group as PlatformSettings["shipping"]["groups"][number];
+
+              if (
+                typeof candidateGroup.id !== "string" ||
+                typeof candidateGroup.name !== "string" ||
+                typeof candidateGroup.rateLabel !== "string" ||
+                typeof candidateGroup.regionLabel !== "string"
+              ) {
+                return [];
+              }
+
+              return [candidateGroup];
+            })
+          : defaultSettings.shipping.groups,
+      advancedRegions:
+        shipping && Array.isArray(shipping.advancedRegions)
+          ? shipping.advancedRegions.flatMap((region) => {
+              if (!region || typeof region !== "object") {
+                return [];
+              }
+
+              const candidateRegion =
+                region as PlatformSettings["shipping"]["advancedRegions"][number];
+
+              if (
+                typeof candidateRegion.id !== "string" ||
+                typeof candidateRegion.country !== "string" ||
+                typeof candidateRegion.regionLabel !== "string"
+              ) {
+                return [];
+              }
+
+              return [candidateRegion];
+            })
+          : defaultSettings.shipping.advancedRegions,
+    },
+    members: {
+      admins:
+        members && Array.isArray(members.admins)
+          ? members.admins.flatMap((admin) => {
+              if (!admin || typeof admin !== "object") {
+                return [];
+              }
+
+              const candidateAdmin = admin as PlatformSettings["members"]["admins"][number];
+
+              if (
+                typeof candidateAdmin.id !== "string" ||
+                typeof candidateAdmin.name !== "string" ||
+                typeof candidateAdmin.email !== "string"
+              ) {
+                return [];
+              }
+
+              return [candidateAdmin];
+            })
+          : defaultSettings.members.admins,
+      members:
+        members && Array.isArray(members.members)
+          ? members.members.flatMap((member) => {
+              if (!member || typeof member !== "object") {
+                return [];
+              }
+
+              const candidateMember = member as PlatformSettings["members"]["members"][number];
+
+              if (
+                typeof candidateMember.id !== "string" ||
+                typeof candidateMember.email !== "string" ||
+                !Array.isArray(candidateMember.permissions) ||
+                !Array.isArray(candidateMember.apps)
+              ) {
+                return [];
+              }
+
+              return [
+                {
+                  id: candidateMember.id,
+                  email: candidateMember.email,
+                  isAdmin: Boolean(candidateMember.isAdmin),
+                  permissions: candidateMember.permissions.filter(
+                    (permission): permission is string => typeof permission === "string",
+                  ),
+                  apps: candidateMember.apps.filter(
+                    (app): app is string => typeof app === "string",
+                  ),
+                },
+              ];
+            })
+          : defaultSettings.members.members,
+    },
+    billing: {
+      memberSince:
+        billing && typeof billing.memberSince === "string"
+          ? billing.memberSince
+          : defaultSettings.billing.memberSince,
+      planName:
+        billing && typeof billing.planName === "string"
+          ? billing.planName
+          : defaultSettings.billing.planName,
+      status:
+        billing?.status === "past_due" ? "past_due" : defaultSettings.billing.status,
+      planPrice:
+        billing && typeof billing.planPrice === "number"
+          ? billing.planPrice
+          : defaultSettings.billing.planPrice,
+      domainsIncluded:
+        billing && typeof billing.domainsIncluded === "number"
+          ? billing.domainsIncluded
+          : defaultSettings.billing.domainsIncluded,
+      transactionFee:
+        billing && typeof billing.transactionFee === "number"
+          ? billing.transactionFee
+          : defaultSettings.billing.transactionFee,
+      codFee:
+        billing && typeof billing.codFee === "number"
+          ? billing.codFee
+          : defaultSettings.billing.codFee,
+      memberLimit:
+        billing && typeof billing.memberLimit === "number"
+          ? billing.memberLimit
+          : defaultSettings.billing.memberLimit,
+      fileStorageGb:
+        billing && typeof billing.fileStorageGb === "number"
+          ? billing.fileStorageGb
+          : defaultSettings.billing.fileStorageGb,
+      nextPaymentDate:
+        billing && typeof billing.nextPaymentDate === "string"
+          ? billing.nextPaymentDate
+          : defaultSettings.billing.nextPaymentDate,
+      billingThreshold:
+        billing && typeof billing.billingThreshold === "string"
+          ? billing.billingThreshold
+          : defaultSettings.billing.billingThreshold,
+    },
+    domains: {
+      connectorEnabled:
+        domains && typeof domains.connectorEnabled === "boolean"
+          ? domains.connectorEnabled
+          : defaultSettings.domains.connectorEnabled,
+      connectedDomains:
+        domains && Array.isArray(domains.connectedDomains)
+          ? domains.connectedDomains.flatMap((domain) => {
+              if (!domain || typeof domain !== "object") {
+                return [];
+              }
+
+              const candidateDomain =
+                domain as PlatformSettings["domains"]["connectedDomains"][number];
+
+              if (
+                typeof candidateDomain.id !== "string" ||
+                typeof candidateDomain.host !== "string"
+              ) {
+                return [];
+              }
+
+              return [
+                {
+                  id: candidateDomain.id,
+                  host: candidateDomain.host,
+                  isPrimary: Boolean(candidateDomain.isPrimary),
+                  status: candidateDomain.status === "pending" ? "pending" : "connected",
+                  sslStatus:
+                    candidateDomain.sslStatus === "pending" ? "pending" : "active",
+                },
+              ];
+            })
+          : defaultSettings.domains.connectedDomains,
+    },
+    digitalProducts: {
+      files:
+        digitalProducts && Array.isArray(digitalProducts.files)
+          ? digitalProducts.files.flatMap((file) => {
+              if (!file || typeof file !== "object") {
+                return [];
+              }
+
+              const candidateFile = file as PlatformSettings["digitalProducts"]["files"][number];
+
+              if (
+                typeof candidateFile.id !== "string" ||
+                typeof candidateFile.name !== "string" ||
+                typeof candidateFile.sizeLabel !== "string"
+              ) {
+                return [];
+              }
+
+              return [candidateFile];
+            })
+          : defaultSettings.digitalProducts.files,
+    },
+    legal: {
+      refundPolicy:
+        legal && typeof legal.refundPolicy === "string"
+          ? legal.refundPolicy
+          : defaultSettings.legal.refundPolicy,
+      privacyPolicy:
+        legal && typeof legal.privacyPolicy === "string"
+          ? legal.privacyPolicy
+          : defaultSettings.legal.privacyPolicy,
+      termsOfService:
+        legal && typeof legal.termsOfService === "string"
+          ? legal.termsOfService
+          : defaultSettings.legal.termsOfService,
+    },
+    emails: {
+      abandonedCartEnabled:
+        emails && typeof emails.abandonedCartEnabled === "boolean"
+          ? emails.abandonedCartEnabled
+          : defaultSettings.emails.abandonedCartEnabled,
+      abandonedCartDelayMinutes:
+        emails && typeof emails.abandonedCartDelayMinutes === "number"
+          ? emails.abandonedCartDelayMinutes
+          : defaultSettings.emails.abandonedCartDelayMinutes,
+      abandonedCartSubject:
+        emails && typeof emails.abandonedCartSubject === "string"
+          ? emails.abandonedCartSubject
+          : defaultSettings.emails.abandonedCartSubject,
+      abandonedCartPreview:
+        emails && typeof emails.abandonedCartPreview === "string"
+          ? emails.abandonedCartPreview
+          : defaultSettings.emails.abandonedCartPreview,
+    },
+    security: {
+      blockedCountries:
+        security && Array.isArray(security.blockedCountries)
+          ? security.blockedCountries.filter(
+              (country): country is string => typeof country === "string",
+            )
+          : defaultSettings.security.blockedCountries,
+      blockedIps:
+        security && Array.isArray(security.blockedIps)
+          ? security.blockedIps.filter((ip): ip is string => typeof ip === "string")
+          : defaultSettings.security.blockedIps,
+      supportAccess:
+        security && typeof security.supportAccess === "boolean"
+          ? security.supportAccess
+          : defaultSettings.security.supportAccess,
+      captchaEnabled:
+        security && typeof security.captchaEnabled === "boolean"
+          ? security.captchaEnabled
+          : defaultSettings.security.captchaEnabled,
+      maxItemsPerOrder:
+        security && typeof security.maxItemsPerOrder === "number"
+          ? security.maxItemsPerOrder
+          : defaultSettings.security.maxItemsPerOrder,
+      codRetryDelayMinutes:
+        security && typeof security.codRetryDelayMinutes === "number"
+          ? security.codRetryDelayMinutes
+          : defaultSettings.security.codRetryDelayMinutes,
+    },
+    payments: {
+      accountCurrency:
+        payments && typeof payments.accountCurrency === "string"
+          ? payments.accountCurrency
+          : defaultSettings.payments.accountCurrency,
+      currencyFormat:
+        payments && typeof payments.currencyFormat === "string"
+          ? payments.currencyFormat
+          : defaultSettings.payments.currencyFormat,
+      autoDetectLocalCurrency:
+        payments && typeof payments.autoDetectLocalCurrency === "boolean"
+          ? payments.autoDetectLocalCurrency
+          : defaultSettings.payments.autoDetectLocalCurrency,
+      useAllCurrencies:
+        payments && typeof payments.useAllCurrencies === "boolean"
+          ? payments.useAllCurrencies
+          : defaultSettings.payments.useAllCurrencies,
+      autoAddMissingCurrency:
+        payments && typeof payments.autoAddMissingCurrency === "boolean"
+          ? payments.autoAddMissingCurrency
+          : defaultSettings.payments.autoAddMissingCurrency,
+      additionalCurrencies:
+        payments && Array.isArray(payments.additionalCurrencies)
+          ? payments.additionalCurrencies.filter(
+              (currency): currency is string => typeof currency === "string",
+            )
+          : defaultSettings.payments.additionalCurrencies,
+      gateways:
+        payments && Array.isArray(payments.gateways)
+          ? payments.gateways.flatMap((gateway) => {
+              if (!gateway || typeof gateway !== "object") {
+                return [];
+              }
+
+              const candidateGateway = gateway as PlatformSettings["payments"]["gateways"][number];
+
+              if (
+                typeof candidateGateway.id !== "string" ||
+                typeof candidateGateway.name !== "string"
+              ) {
+                return [];
+              }
+
+              return [
+                {
+                  id: candidateGateway.id,
+                  name: candidateGateway.name,
+                  active: Boolean(candidateGateway.active),
+                },
+              ];
+            })
+          : defaultSettings.payments.gateways,
+      temporaryStorePassword:
+        payments && typeof payments.temporaryStorePassword === "string"
+          ? payments.temporaryStorePassword
+          : defaultSettings.payments.temporaryStorePassword,
+    },
+    tracking: {
+      googleAnalyticsId:
+        tracking && typeof tracking.googleAnalyticsId === "string"
+          ? tracking.googleAnalyticsId
+          : defaultSettings.tracking.googleAnalyticsId,
+      googleTagManagerId:
+        tracking && typeof tracking.googleTagManagerId === "string"
+          ? tracking.googleTagManagerId
+          : defaultSettings.tracking.googleTagManagerId,
+      googleAdsId:
+        tracking && typeof tracking.googleAdsId === "string"
+          ? tracking.googleAdsId
+          : defaultSettings.tracking.googleAdsId,
+      snapchatPixelId:
+        tracking && typeof tracking.snapchatPixelId === "string"
+          ? tracking.snapchatPixelId
+          : defaultSettings.tracking.snapchatPixelId,
+      facebookPixelId:
+        tracking && typeof tracking.facebookPixelId === "string"
+          ? tracking.facebookPixelId
+          : defaultSettings.tracking.facebookPixelId,
+      tiktokPixelId:
+        tracking && typeof tracking.tiktokPixelId === "string"
+          ? tracking.tiktokPixelId
+          : defaultSettings.tracking.tiktokPixelId,
+      pinterestPixelId:
+        tracking && typeof tracking.pinterestPixelId === "string"
+          ? tracking.pinterestPixelId
+          : defaultSettings.tracking.pinterestPixelId,
+    },
+    webhooks: {
+      items:
+        webhooks && Array.isArray(webhooks.items)
+          ? webhooks.items.flatMap((item) => {
+              if (!item || typeof item !== "object") {
+                return [];
+              }
+
+              const candidateItem = item as PlatformSettings["webhooks"]["items"][number];
+
+              if (
+                typeof candidateItem.id !== "string" ||
+                typeof candidateItem.event !== "string" ||
+                typeof candidateItem.url !== "string" ||
+                typeof candidateItem.version !== "string" ||
+                typeof candidateItem.createdAt !== "string"
+              ) {
+                return [];
+              }
+
+              return [candidateItem];
+            })
+          : defaultSettings.webhooks.items,
+    },
   };
 }
 

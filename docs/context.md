@@ -83,23 +83,23 @@ ShopCOD is a frontend SPA for COD-focused funnel selling. It uses Firebase Authe
   - Protected internal store dashboard
   - Components: `DashboardLayout` + `StoreDashboardPage`
 - `/orders`
-  - Protected dashboard module
-  - Components: `DashboardLayout` + `DashboardModulePage`
+  - Protected orders module
+  - Components: `DashboardLayout` + `OrdersPage`
 - `/analytics`
-  - Protected dashboard module
-  - Components: `DashboardLayout` + `DashboardModulePage`
+  - Protected analytics module
+  - Components: `DashboardLayout` + `AnalyticsPage`
 - `/contacts`
-  - Protected dashboard module
-  - Components: `DashboardLayout` + `DashboardModulePage`
+  - Protected contacts module
+  - Components: `DashboardLayout` + `ContactsPage`
 - `/offers`
-  - Protected dashboard module
-  - Components: `DashboardLayout` + `DashboardModulePage`
+  - Protected offers module
+  - Components: `DashboardLayout` + `OffersPage`
 - `/apps`
-  - Protected dashboard module
-  - Components: `DashboardLayout` + `DashboardModulePage`
+  - Protected apps module
+  - Components: `DashboardLayout` + `AppsPage`
 - `/settings`
-  - Protected dashboard module
-  - Components: `DashboardLayout` + `DashboardModulePage`
+  - Protected settings module
+  - Components: `DashboardLayout` + `SettingsPage`
 - `/editor/:storeId`
   - Protected visual editor
   - Component: `EditorPage`
@@ -295,7 +295,7 @@ ShopCOD is a frontend SPA for COD-focused funnel selling. It uses Firebase Authe
 - `src/pages/dashboard/ContactsPage.tsx` renders the persisted buyers/leads base from COD submissions.
 - `src/pages/dashboard/OffersPage.tsx` renders bundle and discount creation.
 - `src/pages/dashboard/AppsPage.tsx` renders the "coming soon" integrations state.
-- `src/pages/dashboard/SettingsPage.tsx` renders workspace configuration forms.
+- `src/pages/dashboard/SettingsPage.tsx` renders a multi-section settings hub for general account data, shipping, members, billing, domains, digital files, legal copy, abandoned-cart email recovery, security, payment gateways, tracking, webhooks, and the temporary store password payment modal.
 - `src/lib/products.ts` defines the frontend product model and browser persistence helpers.
 - `src/lib/funnels.ts` defines the frontend funnel model, template selector data, local persistence, and editor bootstrapping.
 - `src/lib/stores.ts` defines the frontend store model, template selector data, payment selector, local persistence, editor bootstrapping, and derived store analytics snapshots.
