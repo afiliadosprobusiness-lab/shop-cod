@@ -12,7 +12,6 @@ import {
   saveProduct,
   slugifyProductName,
   type ProductCustomField,
-  type ProductOffer,
 } from "@/lib/products";
 
 interface ProductFormState {
@@ -28,15 +27,8 @@ interface ProductFormState {
   inventoryTracking: boolean;
   variantsText: string;
   shipping: boolean;
+  customFieldsEnabled: boolean;
   customFields: ProductCustomField[];
-  orderBumpEnabled: boolean;
-  orderBumpName: string;
-  orderBumpDescription: string;
-  orderBumpPrice: string;
-  upsellEnabled: boolean;
-  upsellName: string;
-  upsellDescription: string;
-  upsellPrice: string;
 }
 
 function createCustomField(): ProductCustomField {
@@ -61,15 +53,8 @@ function createInitialState(): ProductFormState {
     inventoryTracking: true,
     variantsText: "",
     shipping: true,
+    customFieldsEnabled: true,
     customFields: [createCustomField()],
-    orderBumpEnabled: false,
-    orderBumpName: "",
-    orderBumpDescription: "",
-    orderBumpPrice: "",
-    upsellEnabled: false,
-    upsellName: "",
-    upsellDescription: "",
-    upsellPrice: "",
   };
 }
 
@@ -87,21 +72,12 @@ function parseTags(value: string) {
     .filter(Boolean);
 }
 
-function buildOffer(
-  enabled: boolean,
-  name: string,
-  description: string,
-  price: string,
-): ProductOffer | null {
-  if (!enabled) {
-    return null;
-  }
-
-  return {
-    name,
-    description,
-    price: Number(price) || 0,
-  };
+function formatCurrency(value: number) {
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    maximumFractionDigits: 2,
+  }).format(value);
 }
 
 export default function ProductCreatePage() {
@@ -112,7 +88,7 @@ export default function ProductCreatePage() {
 
   const validationError = useMemo(() => {
     if (!form.name.trim()) {
-      return "El nombre es obligatorio.";
+      return "El titulo es obligatorio.";
     }
 
     if (!form.sku.trim()) {
@@ -206,19 +182,9 @@ export default function ProductCreatePage() {
         tags: parseTags(form.tagsText),
         inventoryTracking: form.inventoryTracking,
         shipping: form.shipping,
-        customFields: form.customFields,
-        orderBump: buildOffer(
-          form.orderBumpEnabled,
-          form.orderBumpName,
-          form.orderBumpDescription,
-          form.orderBumpPrice,
-        ),
-        upsell: buildOffer(
-          form.upsellEnabled,
-          form.upsellName,
-          form.upsellDescription,
-          form.upsellPrice,
-        ),
+        customFields: form.customFieldsEnabled ? form.customFields : [],
+        orderBump: null,
+        upsell: null,
       });
 
       toast.success("Producto creado.", {
@@ -234,97 +200,288 @@ export default function ProductCreatePage() {
     <MainContent
       eyebrow="Catalogo"
       title="Nuevo producto"
-      description="Crea un producto completo con informacion, configuracion comercial e incrementos de pedido."
+      description="Flujo de creacion estilo LightFunnels con enfoque en informacion comercial y configuracion operativa."
       actions={
-        <Button asChild variant="outline" className="rounded-2xl">
-          <Link to="/products">
-            <ArrowLeft className="h-4 w-4" />
-            Volver a productos
-          </Link>
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button asChild variant="outline" size="sm" className="rounded-xl">
+            <Link to="/products">
+              <ArrowLeft className="h-4 w-4" />
+              Cancelar
+            </Link>
+          </Button>
+          <Button
+            type="submit"
+            form="product-create-form"
+            size="sm"
+            className="rounded-xl"
+            disabled={isSaving}
+          >
+            {isSaving ? "Guardando..." : "Guardar"}
+          </Button>
+        </div>
       }
     >
-      <form className="grid gap-6 xl:grid-cols-[minmax(0,1.3fr)_minmax(20rem,0.7fr)]" onSubmit={handleSubmit}>
+      <form
+        id="product-create-form"
+        className="grid gap-6 xl:grid-cols-[minmax(0,1.35fr)_minmax(20rem,0.85fr)]"
+        onSubmit={handleSubmit}
+      >
         <div className="space-y-6">
           <section className="rounded-[2rem] border border-border/80 bg-card/90 p-6">
-            <div className="mb-5 space-y-1">
-              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-primary">
-                Informacion del producto
-              </p>
-              <h2 className="text-2xl font-semibold text-foreground">Base comercial</h2>
+            <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+              <div className="space-y-1">
+                <p className="text-xs font-semibold uppercase tracking-[0.22em] text-primary">
+                  Nuevo producto
+                </p>
+                <h2 className="text-2xl font-semibold text-foreground">Contenido principal</h2>
+              </div>
+              <Button type="button" variant="outline" size="sm" className="rounded-xl">
+                <Sparkles className="h-4 w-4" />
+                Generar con IA
+              </Button>
             </div>
 
             <div className="grid gap-5">
               <div className="space-y-2">
-                <Label htmlFor="product-name">Name</Label>
+                <Label htmlFor="product-name">Titulo</Label>
                 <Input
                   id="product-name"
                   value={form.name}
                   onChange={(event) => handleNameChange(event.target.value)}
-                  placeholder="Ej. Glow Serum Pro"
+                  placeholder="Introduce el titulo del producto"
                   className="rounded-2xl"
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="product-description">Description</Label>
+                <Label htmlFor="product-description">Descripcion</Label>
                 <Textarea
                   id="product-description"
                   value={form.description}
                   onChange={(event) => updateField("description", event.target.value)}
                   placeholder="Resume beneficios, transformacion y argumentos de venta"
-                  className="min-h-[120px] rounded-2xl"
+                  className="min-h-[180px] rounded-2xl"
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="product-images">Images</Label>
-                <Textarea
-                  id="product-images"
-                  value={form.imagesText}
-                  onChange={(event) => updateField("imagesText", event.target.value)}
-                  placeholder={"Una URL por linea\nhttps://..."}
-                  className="min-h-[100px] rounded-2xl"
-                />
+                <Label htmlFor="product-images">Imagenes</Label>
+                <div className="rounded-2xl border border-dashed border-border/80 bg-secondary/20 p-4">
+                  <p className="text-sm text-muted-foreground">
+                    Pega una URL por linea o arrastra referencias para el equipo.
+                  </p>
+                  <Textarea
+                    id="product-images"
+                    value={form.imagesText}
+                    onChange={(event) => updateField("imagesText", event.target.value)}
+                    placeholder={"https://...\nhttps://..."}
+                    className="mt-3 min-h-[96px] rounded-xl"
+                  />
+                </div>
               </div>
             </div>
           </section>
 
           <section className="rounded-[2rem] border border-border/80 bg-card/90 p-6">
-            <div className="mb-5 space-y-1">
-              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-primary">
-                Detalles
-              </p>
-              <h2 className="text-2xl font-semibold text-foreground">Precio y metadata</h2>
+            <div className="mb-5 flex items-center justify-between gap-4">
+              <div className="space-y-1">
+                <p className="text-xs font-semibold uppercase tracking-[0.22em] text-primary">
+                  Control de inventario
+                </p>
+                <h2 className="text-2xl font-semibold text-foreground">Inventario</h2>
+              </div>
+              <Switch
+                id="inventory-tracking"
+                checked={form.inventoryTracking}
+                onCheckedChange={(checked) => updateField("inventoryTracking", checked)}
+                aria-label="Activar inventario"
+              />
             </div>
 
-            <div className="grid gap-5 md:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="product-price">Price</Label>
+            <p className="text-sm text-muted-foreground">
+              Activa el seguimiento de inventario para gestionar stock y disponibilidad.
+            </p>
+
+            {form.inventoryTracking ? (
+              <div className="mt-4 space-y-2">
+                <Label htmlFor="product-inventory">Unidades disponibles</Label>
                 <Input
-                  id="product-price"
+                  id="product-inventory"
                   type="number"
                   min="0"
-                  step="0.01"
-                  value={form.price}
-                  onChange={(event) => updateField("price", event.target.value)}
-                  placeholder="0.00"
+                  step="1"
+                  value={form.inventory}
+                  onChange={(event) => updateField("inventory", event.target.value)}
+                  placeholder="0"
                   className="rounded-2xl"
                 />
               </div>
+            ) : null}
+          </section>
 
+          <section className="rounded-[2rem] border border-border/80 bg-card/90 p-6">
+            <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+              <div className="space-y-1">
+                <p className="text-xs font-semibold uppercase tracking-[0.22em] text-primary">
+                  Variantes
+                </p>
+                <h2 className="text-2xl font-semibold text-foreground">Opciones del producto</h2>
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="rounded-xl"
+                onClick={() =>
+                  updateField(
+                    "variantsText",
+                    `${form.variantsText}${form.variantsText.trim() ? "\n" : ""}Nueva opcion`,
+                  )
+                }
+              >
+                <Plus className="h-4 w-4" />
+                Anadir opcion
+              </Button>
+            </div>
+
+            <Textarea
+              id="product-variants"
+              value={form.variantsText}
+              onChange={(event) => updateField("variantsText", event.target.value)}
+              placeholder={"Una variante por linea\nRojo\nAzul"}
+              className="min-h-[120px] rounded-2xl"
+            />
+          </section>
+
+          <section className="rounded-[2rem] border border-border/80 bg-card/90 p-6">
+            <div className="mb-5 flex items-center justify-between gap-4">
+              <div className="space-y-1">
+                <p className="text-xs font-semibold uppercase tracking-[0.22em] text-primary">
+                  Datos personalizados
+                </p>
+                <h2 className="text-2xl font-semibold text-foreground">CMS de producto</h2>
+              </div>
+              <Switch
+                id="custom-fields-enabled"
+                checked={form.customFieldsEnabled}
+                onCheckedChange={(checked) => updateField("customFieldsEnabled", checked)}
+                aria-label="Activar campos personalizados"
+              />
+            </div>
+
+            {form.customFieldsEnabled ? (
+              <div className="space-y-3">
+                <div className="flex justify-end">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="rounded-xl"
+                    onClick={addCustomField}
+                  >
+                    <Plus className="h-4 w-4" />
+                    Anadir caracteristica
+                  </Button>
+                </div>
+
+                {form.customFields.map((field) => (
+                  <div
+                    key={field.id}
+                    className="grid gap-3 rounded-3xl border border-border/80 bg-secondary/20 p-4 md:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)_auto]"
+                  >
+                    <div className="space-y-2">
+                      <Label htmlFor={`${field.id}-key`}>Campo</Label>
+                      <Input
+                        id={`${field.id}-key`}
+                        value={field.key}
+                        onChange={(event) =>
+                          handleCustomFieldChange(field.id, "key", event.target.value)
+                        }
+                        placeholder="Caracteristica"
+                        className="rounded-2xl"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor={`${field.id}-value`}>Valor</Label>
+                      <Input
+                        id={`${field.id}-value`}
+                        value={field.value}
+                        onChange={(event) =>
+                          handleCustomFieldChange(field.id, "value", event.target.value)
+                        }
+                        placeholder="Detalle"
+                        className="rounded-2xl"
+                      />
+                    </div>
+                    <div className="flex items-end">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="rounded-2xl"
+                        onClick={() => removeCustomField(field.id)}
+                        aria-label="Eliminar campo"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : null}
+          </section>
+        </div>
+
+        <aside className="space-y-6">
+          <section className="rounded-[2rem] border border-border/80 bg-card/90 p-6">
+            <div className="mb-5 space-y-1">
+              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-primary">
+                Informacion del producto
+              </p>
+              <h2 className="text-2xl font-semibold text-foreground">Comercial</h2>
+            </div>
+
+            <div className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="product-compare-price">Compare Price</Label>
-                <Input
-                  id="product-compare-price"
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={form.comparePrice}
-                  onChange={(event) => updateField("comparePrice", event.target.value)}
-                  placeholder="0.00"
-                  className="rounded-2xl"
-                />
+                <Label htmlFor="product-type">Tipo</Label>
+                <select
+                  id="product-type"
+                  value={form.shipping ? "physical" : "digital"}
+                  onChange={(event) => updateField("shipping", event.target.value === "physical")}
+                  className="h-11 w-full rounded-2xl border border-border bg-background px-4 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                >
+                  <option value="physical">Producto fisico</option>
+                  <option value="digital">Producto digital</option>
+                </select>
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="product-price">Precio</Label>
+                  <Input
+                    id="product-price"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={form.price}
+                    onChange={(event) => updateField("price", event.target.value)}
+                    placeholder="0.00"
+                    className="rounded-2xl"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="product-compare-price">Comparar con el precio</Label>
+                  <Input
+                    id="product-compare-price"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={form.comparePrice}
+                    onChange={(event) => updateField("comparePrice", event.target.value)}
+                    placeholder="0.00"
+                    className="rounded-2xl"
+                  />
+                </div>
               </div>
 
               <div className="space-y-2">
@@ -339,21 +496,7 @@ export default function ProductCreatePage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="product-slug">Slug</Label>
-                <Input
-                  id="product-slug"
-                  value={form.slug}
-                  onChange={(event) => {
-                    setSlugTouched(true);
-                    updateField("slug", slugifyProductName(event.target.value));
-                  }}
-                  placeholder="glow-serum-pro"
-                  className="rounded-2xl"
-                />
-              </div>
-
-              <div className="space-y-2 md:col-span-2">
-                <Label htmlFor="product-tags">Tags</Label>
+                <Label htmlFor="product-tags">Anadir etiquetas</Label>
                 <Input
                   id="product-tags"
                   value={form.tagsText}
@@ -362,143 +505,23 @@ export default function ProductCreatePage() {
                   className="rounded-2xl"
                 />
               </div>
-            </div>
-          </section>
 
-          <section className="rounded-[2rem] border border-border/80 bg-card/90 p-6">
-            <div className="mb-5 space-y-1">
-              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-primary">
-                Configuracion
-              </p>
-              <h2 className="text-2xl font-semibold text-foreground">Operacion y estructura</h2>
-            </div>
-
-            <div className="grid gap-5">
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="rounded-3xl border border-border/80 bg-secondary/30 p-4">
-                  <div className="flex items-center justify-between gap-4">
-                    <div className="space-y-1">
-                      <Label htmlFor="inventory-tracking">Inventory tracking</Label>
-                      <p className="text-sm text-muted-foreground">
-                        Controla stock disponible y alertas de inventario.
-                      </p>
-                    </div>
-                    <Switch
-                      id="inventory-tracking"
-                      checked={form.inventoryTracking}
-                      onCheckedChange={(checked) => updateField("inventoryTracking", checked)}
-                    />
-                  </div>
-                </div>
-
-                <div className="rounded-3xl border border-border/80 bg-secondary/30 p-4">
-                  <div className="flex items-center justify-between gap-4">
-                    <div className="space-y-1">
-                      <Label htmlFor="shipping-enabled">Shipping</Label>
-                      <p className="text-sm text-muted-foreground">
-                        Define si el producto requiere envio fisico.
-                      </p>
-                    </div>
-                    <Switch
-                      id="shipping-enabled"
-                      checked={form.shipping}
-                      onCheckedChange={(checked) => updateField("shipping", checked)}
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <div className="grid gap-5 md:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="product-inventory">Inventory</Label>
+              <div className="space-y-2">
+                <Label htmlFor="product-slug">URL handle</Label>
+                <div className="flex min-w-0 items-center gap-2 rounded-2xl border border-input bg-background px-3 py-2">
+                  <span className="truncate text-xs text-muted-foreground">
+                    https://mystore.myconsite.net/
+                  </span>
                   <Input
-                    id="product-inventory"
-                    type="number"
-                    min="0"
-                    step="1"
-                    value={form.inventory}
-                    onChange={(event) => updateField("inventory", event.target.value)}
-                    placeholder="0"
-                    className="rounded-2xl"
+                    id="product-slug"
+                    value={form.slug}
+                    onChange={(event) => {
+                      setSlugTouched(true);
+                      updateField("slug", slugifyProductName(event.target.value));
+                    }}
+                    placeholder="introduce-un-slug"
+                    className="h-auto border-0 bg-transparent p-0 shadow-none focus-visible:ring-0"
                   />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="product-variants">Variants</Label>
-                  <Textarea
-                    id="product-variants"
-                    value={form.variantsText}
-                    onChange={(event) => updateField("variantsText", event.target.value)}
-                    placeholder={"Una variante por linea\nRojo\nAzul"}
-                    className="min-h-[100px] rounded-2xl"
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-4">
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <div>
-                    <h3 className="text-lg font-semibold text-foreground">Custom fields</h3>
-                    <p className="text-sm text-muted-foreground">
-                      Agrega atributos propios para ventas, fulfillment o marketing.
-                    </p>
-                  </div>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="rounded-2xl"
-                    onClick={addCustomField}
-                  >
-                    <Plus className="h-4 w-4" />
-                    Agregar campo
-                  </Button>
-                </div>
-
-                <div className="space-y-3">
-                  {form.customFields.map((field) => (
-                    <div
-                      key={field.id}
-                      className="grid gap-3 rounded-3xl border border-border/80 bg-secondary/20 p-4 md:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)_auto]"
-                    >
-                      <div className="space-y-2">
-                        <Label htmlFor={`${field.id}-key`}>Campo</Label>
-                        <Input
-                          id={`${field.id}-key`}
-                          value={field.key}
-                          onChange={(event) =>
-                            handleCustomFieldChange(field.id, "key", event.target.value)
-                          }
-                          placeholder="Origen"
-                          className="rounded-2xl"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor={`${field.id}-value`}>Valor</Label>
-                        <Input
-                          id={`${field.id}-value`}
-                          value={field.value}
-                          onChange={(event) =>
-                            handleCustomFieldChange(field.id, "value", event.target.value)
-                          }
-                          placeholder="Corea"
-                          className="rounded-2xl"
-                        />
-                      </div>
-                      <div className="flex items-end">
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          className="rounded-2xl"
-                          onClick={() => removeCustomField(field.id)}
-                          aria-label="Eliminar campo"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
                 </div>
               </div>
             </div>
@@ -507,164 +530,43 @@ export default function ProductCreatePage() {
           <section className="rounded-[2rem] border border-border/80 bg-card/90 p-6">
             <div className="mb-5 space-y-1">
               <p className="text-xs font-semibold uppercase tracking-[0.22em] text-primary">
-                Incrementos de pedido
+                Configuracion del producto
               </p>
-              <h2 className="text-2xl font-semibold text-foreground">Order bump y upsell</h2>
+              <h2 className="text-2xl font-semibold text-foreground">Resumen</h2>
             </div>
 
-            <div className="grid gap-4 lg:grid-cols-2">
-              <div className="rounded-3xl border border-border/80 bg-secondary/20 p-4">
-                <div className="flex items-center justify-between gap-4">
-                  <div>
-                    <p className="font-semibold text-foreground">Order bump</p>
-                    <p className="text-sm text-muted-foreground">
-                      Oferta adicional en el checkout.
-                    </p>
-                  </div>
-                  <Switch
-                    checked={form.orderBumpEnabled}
-                    onCheckedChange={(checked) => updateField("orderBumpEnabled", checked)}
-                    aria-label="Activar order bump"
-                  />
-                </div>
-
-                {form.orderBumpEnabled ? (
-                  <div className="mt-4 grid gap-3">
-                    <Input
-                      value={form.orderBumpName}
-                      onChange={(event) => updateField("orderBumpName", event.target.value)}
-                      placeholder="Nombre del order bump"
-                      className="rounded-2xl"
-                    />
-                    <Textarea
-                      value={form.orderBumpDescription}
-                      onChange={(event) =>
-                        updateField("orderBumpDescription", event.target.value)
-                      }
-                      placeholder="Descripcion corta"
-                      className="min-h-[90px] rounded-2xl"
-                    />
-                    <Input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      value={form.orderBumpPrice}
-                      onChange={(event) => updateField("orderBumpPrice", event.target.value)}
-                      placeholder="Precio"
-                      className="rounded-2xl"
-                    />
-                  </div>
-                ) : null}
-              </div>
-
-              <div className="rounded-3xl border border-border/80 bg-secondary/20 p-4">
-                <div className="flex items-center justify-between gap-4">
-                  <div>
-                    <p className="font-semibold text-foreground">Upsell</p>
-                    <p className="text-sm text-muted-foreground">
-                      Oferta posterior para aumentar el ticket promedio.
-                    </p>
-                  </div>
-                  <Switch
-                    checked={form.upsellEnabled}
-                    onCheckedChange={(checked) => updateField("upsellEnabled", checked)}
-                    aria-label="Activar upsell"
-                  />
-                </div>
-
-                {form.upsellEnabled ? (
-                  <div className="mt-4 grid gap-3">
-                    <Input
-                      value={form.upsellName}
-                      onChange={(event) => updateField("upsellName", event.target.value)}
-                      placeholder="Nombre del upsell"
-                      className="rounded-2xl"
-                    />
-                    <Textarea
-                      value={form.upsellDescription}
-                      onChange={(event) => updateField("upsellDescription", event.target.value)}
-                      placeholder="Descripcion corta"
-                      className="min-h-[90px] rounded-2xl"
-                    />
-                    <Input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      value={form.upsellPrice}
-                      onChange={(event) => updateField("upsellPrice", event.target.value)}
-                      placeholder="Precio"
-                      className="rounded-2xl"
-                    />
-                  </div>
-                ) : null}
-              </div>
-            </div>
-          </section>
-        </div>
-
-        <aside className="space-y-6">
-          <section className="rounded-[2rem] border border-border/80 bg-card/90 p-6 xl:sticky xl:top-28">
-            <div className="flex items-center gap-3">
-              <span className="flex h-12 w-12 items-center justify-center rounded-3xl border border-primary/20 bg-primary/10 text-primary">
-                <Sparkles className="h-5 w-5" />
-              </span>
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-                  Preview rapido
-                </p>
-                <p className="text-lg font-semibold text-foreground">
-                  {form.name.trim() || "Nuevo producto"}
-                </p>
-              </div>
-            </div>
-
-            <div className="mt-6 space-y-4">
-              <div className="rounded-3xl border border-border/80 bg-secondary/20 p-4">
+            <div className="space-y-4">
+              <div className="rounded-2xl border border-border/80 bg-secondary/20 p-4">
                 <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                  Precio
+                  Precio final
                 </p>
                 <p className="mt-2 text-2xl font-semibold text-foreground">
-                  ${Number(form.price || 0).toFixed(2)}
+                  {formatCurrency(Number(form.price) || 0)}
                 </p>
                 {Number(form.comparePrice) > Number(form.price) ? (
                   <p className="mt-1 text-sm text-muted-foreground line-through">
-                    ${Number(form.comparePrice).toFixed(2)}
+                    {formatCurrency(Number(form.comparePrice))}
                   </p>
                 ) : null}
               </div>
 
-              <div className="rounded-3xl border border-border/80 bg-secondary/20 p-4">
+              <div className="rounded-2xl border border-border/80 bg-secondary/20 p-4">
                 <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                  Metadata
-                </p>
-                <div className="mt-3 space-y-2 text-sm text-secondary-foreground">
-                  <p>SKU: {form.sku.trim() || "Pendiente"}</p>
-                  <p>Slug: /{form.slug.trim() || "pendiente"}</p>
-                  <p>Inventario: {form.inventoryTracking ? form.inventory : "No rastreado"}</p>
-                </div>
-              </div>
-
-              <div className="rounded-3xl border border-border/80 bg-secondary/20 p-4">
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                  Resumen
+                  Metrics
                 </p>
                 <div className="mt-3 grid gap-2 text-sm text-secondary-foreground">
                   <p>Imagenes: {summaryImages.length}</p>
                   <p>Variantes: {summaryVariants.length}</p>
                   <p>Tags: {summaryTags.length}</p>
-                  <p>Custom fields: {form.customFields.filter((field) => field.key || field.value).length}</p>
+                  <p>Envio: {form.shipping ? "Activo" : "Sin envio"}</p>
                 </div>
               </div>
 
               {validationError ? (
-                <div className="rounded-3xl border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">
+                <div className="rounded-2xl border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">
                   {validationError}
                 </div>
               ) : null}
-
-              <Button type="submit" className="w-full rounded-2xl" disabled={isSaving}>
-                {isSaving ? "Guardando..." : "Guardar producto"}
-              </Button>
             </div>
           </section>
         </aside>

@@ -65,7 +65,7 @@
 - Pedidos: `/orders` lista pedidos reales que entran desde el checkout COD y permite actualizar su estado
 - Analiticas: `/analytics` consolida KPIs en tiempo real usando pedidos, contactos, productos, funnels y tiendas persistidos localmente
 - Contactos: `/contacts` guarda los clientes capturados por el formulario COD y su historial comercial
-- Ofertas: `/offers` permite crear bundles y descuentos persistidos localmente
+- Ofertas: `/offers` permite crear bundles, descuentos, upsells por producto y order bumps por cantidad con vista previa de precio, todo persistido localmente
 - Aplicaciones: `/apps` muestra un estado de "Proximamente" para el marketplace de integraciones
 - Configuracion: `/settings` ahora concentra secciones reales para cuenta, envio, miembros, facturacion, dominios, productos digitales, legal, correos, seguridad, pasarelas, seguimiento y webhooks, incluyendo la contrasena temporal protegida por modal de metodo de pago
 - Configuracion: el campo de subdominio en `General` usa como sufijo de referencia `.shop-cod.vercel.app` para alinear el entorno de produccion en Vercel
@@ -99,7 +99,7 @@
 - `src/pages/dashboard/OrdersPage.tsx` renderiza el flujo operativo de pedidos reales.
 - `src/pages/dashboard/AnalyticsPage.tsx` renderiza KPIs y tendencias comerciales en tiempo real.
 - `src/pages/dashboard/ContactsPage.tsx` renderiza la base de clientes y leads capturados.
-- `src/pages/dashboard/OffersPage.tsx` renderiza la gestion de bundles y descuentos.
+- `src/pages/dashboard/OffersPage.tsx` renderiza la gestion de bundles, descuentos, upsells y order bumps por cantidad.
 - `src/pages/dashboard/AppsPage.tsx` renderiza el estado de proximas integraciones.
 - `src/pages/dashboard/SettingsPage.tsx` renderiza el hub completo de configuracion del workspace con formularios, listas y modales operativos por seccion.
 - `src/pages/SuperAdminPage.tsx` renderiza el panel root para activar, desactivar, cambiar de plan con un clic y eliminar clientes reales visibles, hidratando desde Firestore cuando esta disponible y manteniendo protegida la cuenta superadmin.

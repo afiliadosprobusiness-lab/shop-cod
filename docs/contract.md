@@ -104,9 +104,9 @@ All routes below are protected by Firebase auth state and render inside the shar
 - Components: `DashboardLayout` + `ProductCreatePage`.
 - Includes:
   - product information section
-  - details section
-  - configuration section
-  - order bump and upsell controls
+  - inventory and variants sections
+  - custom CMS fields section
+  - right-side pricing and configuration summary
 
 ### `GET /funnels`
 
@@ -157,6 +157,12 @@ All routes below are protected by Firebase auth state and render inside the shar
 
 - Renders the offers module.
 - Components: `DashboardLayout` + `OffersPage`.
+- Includes:
+  - bundle creation
+  - discount creation
+  - upsell creation from existing catalog products
+  - quantity-based order bump creation
+  - empty-state CTA to create products when catalog is empty
 
 ### `GET /apps`
 
@@ -293,7 +299,27 @@ interface PlatformEvent {
   createdAt: string;
 }
 
-type PlatformOffer = BundleOffer | DiscountOffer;
+interface UpsellOffer {
+  id: string;
+  type: "upsell";
+  productId: string;
+  name: string;
+  description: string;
+  price: number;
+}
+
+interface OrderBumpOffer {
+  id: string;
+  type: "order-bump";
+  productId: string;
+  name: string;
+  description: string;
+  quantity: number;
+  discountPercentage: number;
+  price: number;
+}
+
+type PlatformOffer = BundleOffer | DiscountOffer | UpsellOffer | OrderBumpOffer;
 
 interface SuperAdminClient {
   id: string;
@@ -729,6 +755,7 @@ The following are breaking changes and must be versioned or coordinated before i
 - 2026-03-04 | El panel agrega pedidos, analiticas, contactos, ofertas y configuracion funcionales con storage local reactivo | non-breaking | Convierte modulos placeholder en flujos operativos del producto sin cambiar rutas protegidas
 - 2026-03-04 | El panel agrega tracking real de visitas/conversion y sincronizacion remota opcional con Firestore para datos operativos | non-breaking | Mantiene fallback local mientras habilita KPIs y datos compartidos entre dispositivos
 - 2026-03-04 | `GET /settings` evoluciona a un hub multi-seccion con miembros, pagos, seguridad y webhooks, y se alinean las rutas reales del dashboard operativo | non-breaking | Actualiza el contrato al comportamiento ya implementado sin romper rutas ni persistencia local
+- 2026-03-04 | `GET /offers` agrega upsells por producto y order bumps por cantidad, y `GET /products/new` separa incrementos fuera del creador | non-breaking | Mantiene rutas y storage existentes mientras reubica la configuracion comercial de incrementos
 - 2026-03-04 | Se agrega `GET /superadmin` con acceso root por email y gestion local de clientes protegidos | non-breaking | Amplia el panel con un flujo de superadmin sin romper el dashboard existente
 - 2026-03-04 | Se agrega `GET /register` y el login deja de autocrear cuentas silenciosamente | non-breaking | Se separan registro e inicio de sesion sin romper rutas existentes
 - 2026-03-04 | Se actualiza la landing publica de ShopCOD y cambian los precios publicos de `Pro` y `Scale` | non-breaking | Ajusta el mensaje comercial y los planes sin alterar rutas ni contratos internos

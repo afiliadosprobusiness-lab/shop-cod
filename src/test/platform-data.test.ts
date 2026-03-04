@@ -9,7 +9,9 @@ import {
   saveBundleOffer,
   saveCodOrder,
   saveDiscountOffer,
+  saveOrderBumpOffer,
   savePlatformSettings,
+  saveUpsellOffer,
 } from "@/lib/platform-data";
 
 describe("platform data", () => {
@@ -50,12 +52,24 @@ describe("platform data", () => {
       value: 10,
     });
 
-    expect(loadOffers()).toHaveLength(2);
+    const upsell = saveUpsellOffer({
+      productId: "prod-101",
+      customPrice: 29900,
+    });
+    const orderBump = saveOrderBumpOffer({
+      productId: "prod-102",
+      quantity: 3,
+      discountPercentage: 15,
+    });
+
+    expect(loadOffers()).toHaveLength(4);
 
     const nextOffers = deleteOffer(bundle.id);
 
     expect(nextOffers.some((offer) => offer.id === bundle.id)).toBe(false);
     expect(nextOffers.some((offer) => offer.id === discount.id)).toBe(true);
+    expect(nextOffers.some((offer) => offer.id === upsell.id)).toBe(true);
+    expect(nextOffers.some((offer) => offer.id === orderBump.id)).toBe(true);
   });
 
   it("persists settings and builds live analytics from orders", () => {

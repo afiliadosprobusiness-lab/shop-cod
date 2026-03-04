@@ -1,6 +1,12 @@
 import { firebaseApp, hasFirebaseConfig } from "@/lib/firebase";
 import { loadFunnels } from "@/lib/funnels";
 import { emitShopcodDataUpdated } from "@/lib/live-sync";
+import {
+  buildQuantityOrderBumpOffer,
+  buildUpsellOfferFromProduct,
+  normalizeDiscountPercentage,
+  normalizeOrderBumpQuantity,
+} from "@/lib/product-offers";
 import { consumeProductInventory, loadProducts } from "@/lib/products";
 import { loadStores } from "@/lib/stores";
 
@@ -88,7 +94,33 @@ export interface DiscountOffer {
   updatedAt: string;
 }
 
-export type PlatformOffer = BundleOffer | DiscountOffer;
+export interface UpsellOffer {
+  id: string;
+  type: "upsell";
+  name: string;
+  description: string;
+  productId: string;
+  price: number;
+  active: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface OrderBumpOffer {
+  id: string;
+  type: "order-bump";
+  name: string;
+  description: string;
+  productId: string;
+  quantity: number;
+  discountPercentage: number;
+  price: number;
+  active: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type PlatformOffer = BundleOffer | DiscountOffer | UpsellOffer | OrderBumpOffer;
 
 export interface PlatformSettings {
   accountName: string;
@@ -280,6 +312,17 @@ export interface SaveDiscountOfferInput {
   description: string;
   discountType: "percentage" | "fixed";
   value: number;
+}
+
+export interface SaveUpsellOfferInput {
+  productId: string;
+  customPrice?: number;
+}
+
+export interface SaveOrderBumpOfferInput {
+  productId: string;
+  quantity: number;
+  discountPercentage: number;
 }
 
 const ORDERS_STORAGE_KEY = "shopcod-orders-v1";
@@ -744,6 +787,48 @@ function normalizeOffer(candidate: unknown): PlatformOffer | null {
       value:
         typeof offer.value === "number" && Number.isFinite(offer.value)
           ? Math.max(0, offer.value)
+          : 0,
+      active: offer.active !== false,
+      createdAt: typeof offer.createdAt === "string" ? offer.createdAt : now,
+      updatedAt: typeof offer.updatedAt === "string" ? offer.updatedAt : now,
+    };
+  }
+
+  if (offer.type === "upsell") {
+    return {
+      id: typeof offer.id === "string" ? offer.id : createEntityId("offer"),
+      type: "upsell",
+      name: typeof offer.name === "string" ? offer.name : "Nuevo upsell",
+      description: typeof offer.description === "string" ? offer.description : "",
+      productId: typeof offer.productId === "string" ? offer.productId : "",
+      price:
+        typeof offer.price === "number" && Number.isFinite(offer.price)
+          ? Math.max(0, offer.price)
+          : 0,
+      active: offer.active !== false,
+      createdAt: typeof offer.createdAt === "string" ? offer.createdAt : now,
+      updatedAt: typeof offer.updatedAt === "string" ? offer.updatedAt : now,
+    };
+  }
+
+  if (offer.type === "order-bump") {
+    return {
+      id: typeof offer.id === "string" ? offer.id : createEntityId("offer"),
+      type: "order-bump",
+      name: typeof offer.name === "string" ? offer.name : "Nuevo order bump",
+      description: typeof offer.description === "string" ? offer.description : "",
+      productId: typeof offer.productId === "string" ? offer.productId : "",
+      quantity:
+        typeof offer.quantity === "number" && Number.isFinite(offer.quantity)
+          ? normalizeOrderBumpQuantity(offer.quantity)
+          : 2,
+      discountPercentage:
+        typeof offer.discountPercentage === "number" && Number.isFinite(offer.discountPercentage)
+          ? normalizeDiscountPercentage(offer.discountPercentage)
+          : 0,
+      price:
+        typeof offer.price === "number" && Number.isFinite(offer.price)
+          ? Math.max(0, offer.price)
           : 0,
       active: offer.active !== false,
       createdAt: typeof offer.createdAt === "string" ? offer.createdAt : now,
@@ -1484,6 +1569,84 @@ export function saveDiscountOffer(input: SaveDiscountOfferInput) {
     description: input.description.trim(),
     discountType: input.discountType,
     value: Math.max(0, input.value),
+    active: true,
+    createdAt: now,
+    updatedAt: now,
+  };
+
+  writeStorage(OFFERS_STORAGE_KEY, [offer, ...offers]);
+  return offer;
+}
+
+export function saveUpsellOffer(input: SaveUpsellOfferInput) {
+  const products = loadProducts();
+  const selectedProduct = products.find((product) => product.id === input.productId);
+
+  if (!selectedProduct) {
+    throw new Error("No se encontro el producto seleccionado para upsell.");
+  }
+
+  const offers = loadOffers();
+  const now = new Date().toISOString();
+  const builtOffer = buildUpsellOfferFromProduct({
+    enabled: true,
+    selectedProduct,
+    customPrice: input.customPrice,
+  });
+
+  if (!builtOffer) {
+    throw new Error("No se pudo construir la oferta de upsell.");
+  }
+
+  const offer: UpsellOffer = {
+    id: createEntityId("offer"),
+    type: "upsell",
+    name: builtOffer.name,
+    description: builtOffer.description,
+    productId: selectedProduct.id,
+    price: builtOffer.price,
+    active: true,
+    createdAt: now,
+    updatedAt: now,
+  };
+
+  writeStorage(OFFERS_STORAGE_KEY, [offer, ...offers]);
+  return offer;
+}
+
+export function saveOrderBumpOffer(input: SaveOrderBumpOfferInput) {
+  const products = loadProducts();
+  const selectedProduct = products.find((product) => product.id === input.productId);
+
+  if (!selectedProduct) {
+    throw new Error("No se encontro el producto seleccionado para order bump.");
+  }
+
+  const offers = loadOffers();
+  const now = new Date().toISOString();
+  const quantity = normalizeOrderBumpQuantity(input.quantity);
+  const discountPercentage = normalizeDiscountPercentage(input.discountPercentage);
+  const builtOffer = buildQuantityOrderBumpOffer({
+    enabled: true,
+    baseProductName: selectedProduct.name,
+    baseProductUnitPrice: selectedProduct.price,
+    quantity,
+    discountPercentage,
+  });
+
+  if (!builtOffer) {
+    throw new Error("No se pudo construir la oferta de order bump.");
+  }
+
+  const offer: OrderBumpOffer = {
+    id: createEntityId("offer"),
+    type: "order-bump",
+    name: builtOffer.name,
+    description: builtOffer.description,
+    productId: selectedProduct.id,
+    quantity,
+    discountPercentage,
+    price: builtOffer.price,
     active: true,
     createdAt: now,
     updatedAt: now,

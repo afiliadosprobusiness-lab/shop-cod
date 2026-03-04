@@ -192,11 +192,28 @@ ShopCOD is a frontend SPA for COD-focused funnel selling. It uses Firebase Authe
 4. User opens `/products/new`.
 5. The creation screen renders a structured form with:
   - product information
-  - details
-  - configuration
-  - order bump and upsell controls
+  - inventory and variants
+  - custom CMS fields
+  - right-side pricing and configuration summary
 6. On save, the product is normalized and stored in browser `localStorage`.
 7. The app navigates back to `/products` and the new row appears in the listing.
+
+### Offers Flow
+
+1. User opens `/offers`.
+2. The offers module now renders four creation blocks:
+  - bundles
+  - discounts
+  - upsells
+  - order bumps
+3. Upsell creation requires selecting an existing catalog product and optionally overriding the offer price.
+4. If the catalog is empty, the upsell/order-bump forms render a CTA button to create a product first.
+5. Order bump creation is quantity-based:
+  - select base product
+  - define quantity (`>=2`)
+  - define discount percentage (`0-100`)
+  - preview computed final price
+6. Saved offers are persisted in browser `localStorage` and listed in the offers catalog.
 
 ### Funnels Flow
 
@@ -340,7 +357,7 @@ ShopCOD is a frontend SPA for COD-focused funnel selling. It uses Firebase Authe
 - `src/pages/dashboard/OrdersPage.tsx` renders real COD orders and operational status updates.
 - `src/pages/dashboard/AnalyticsPage.tsx` renders real-time KPI snapshots from persisted platform data.
 - `src/pages/dashboard/ContactsPage.tsx` renders the persisted buyers/leads base from COD submissions.
-- `src/pages/dashboard/OffersPage.tsx` renders bundle and discount creation.
+- `src/pages/dashboard/OffersPage.tsx` renders bundle, discount, upsell, and quantity-based order bump creation.
 - `src/pages/dashboard/AppsPage.tsx` renders the "coming soon" integrations state.
 - `src/pages/dashboard/SettingsPage.tsx` renders a multi-section settings hub for general account data, shipping, members, billing, domains, digital files, legal copy, abandoned-cart email recovery, security, payment gateways, tracking, webhooks, and the temporary store password payment modal.
 - In `SettingsPage -> General`, the subdomain suffix reference is aligned to `.shop-cod.vercel.app` (production Vercel host).
