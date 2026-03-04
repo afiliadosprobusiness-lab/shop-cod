@@ -167,6 +167,7 @@ ShopCOD is a frontend SPA for COD-focused funnel selling. It uses Firebase Authe
 3. `DashboardLayout` renders the shared shell:
   - left sidebar
   - topbar with global search, workspace selector, notifications, and avatar
+  - contextual plan-upgrade promo card in sidebar for `Starter` and `Pro`
   - central dynamic content area via `Outlet`
 4. Sidebar links switch between `/dashboard`, `/products`, `/funnels`, `/stores`, `/orders`, `/analytics`, `/contacts`, `/offers`, `/apps`, and `/settings`.
 5. The home screen at `/dashboard` shows two primary cards:
@@ -326,6 +327,7 @@ ShopCOD is a frontend SPA for COD-focused funnel selling. It uses Firebase Authe
 - `src/layouts/DashboardLayout.tsx` provides the shared protected shell for dashboard modules.
 - `src/components/dashboard/navigation.ts` defines the internal module map and metadata.
 - `src/components/dashboard/Sidebar.tsx` renders the left navigation and mobile drawer behavior.
+- `Sidebar` now shows dynamic upgrade promotion copy by active plan (`Starter` -> `Pro`, `Pro` -> `Scale`) with one-click local upgrade CTA.
 - `src/components/dashboard/Topbar.tsx` renders global search, workspace switching, notifications, and the user avatar.
 - `src/components/dashboard/MainContent.tsx` standardizes the content header and responsive inner container.
 - `src/pages/dashboard/DashboardHomePage.tsx` renders the dashboard landing view.

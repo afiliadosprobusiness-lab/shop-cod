@@ -20,6 +20,7 @@ import { getPlanDefinition, resolvePlanId, type ShopPlanId } from "@/lib/plans";
 import {
   bootstrapSuperAdminClientsFromCloud,
   deleteSuperAdminClient,
+  getSuperAdminCloudSyncState,
   loadSuperAdminClients,
   toggleSuperAdminClientStatus,
   updateSuperAdminClientPlan,
@@ -63,10 +64,12 @@ export default function SuperAdminPage() {
   const [clients, setClients] = useState<SuperAdminClient[]>(() => loadSuperAdminClients());
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive">("all");
+  const [cloudState, setCloudState] = useState(() => getSuperAdminCloudSyncState());
 
   useEffect(() => {
     return subscribeToShopcodData(() => {
       setClients(loadSuperAdminClients());
+      setCloudState(getSuperAdminCloudSyncState());
     });
   }, []);
 
@@ -80,6 +83,7 @@ export default function SuperAdminPage() {
         }
 
         setClients(nextClients);
+        setCloudState(getSuperAdminCloudSyncState());
       });
     };
 
@@ -245,6 +249,12 @@ export default function SuperAdminPage() {
             </div>
 
             <div className="mt-6 grid gap-4">
+              {!cloudState.enabled ? (
+                <div className="rounded-2xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
+                  Registro compartido desactivado: {cloudState.reason || "Firestore no disponible."}{" "}
+                  El panel sigue funcionando con datos locales del navegador actual.
+                </div>
+              ) : null}
               {filteredClients.length ? (
                 filteredClients.map((client) => (
                   <div

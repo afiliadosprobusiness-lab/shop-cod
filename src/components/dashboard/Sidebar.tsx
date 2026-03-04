@@ -1,8 +1,13 @@
+import { useEffect, useMemo, useState } from "react";
 import { Link, NavLink } from "react-router-dom";
-import { LogOut, X, Zap } from "lucide-react";
+import { CheckCheck, LogOut, X, Zap } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { dashboardNavItems } from "@/components/dashboard/navigation";
+import { subscribeToShopcodData } from "@/lib/live-sync";
+import { applyPlanToSettings, getPlanDefinition, resolvePlanId, type ShopPlanId } from "@/lib/plans";
+import { loadPlatformSettings } from "@/lib/platform-data";
 
 interface SidebarProps {
   isMobileOpen: boolean;
@@ -49,6 +54,50 @@ function SidebarContent({
   onCloseMobile?: () => void;
   onLogout: () => void | Promise<void>;
 }) {
+  const [planId, setPlanId] = useState<ShopPlanId>(() =>
+    resolvePlanId(loadPlatformSettings().billing.planName),
+  );
+
+  useEffect(
+    () =>
+      subscribeToShopcodData(() => {
+        setPlanId(resolvePlanId(loadPlatformSettings().billing.planName));
+      }),
+    [],
+  );
+
+  const promo = useMemo(() => {
+    if (planId === "starter") {
+      return {
+        title: "¡Activa tu tienda!",
+        description: "Obten el plan Pro y desbloquea todas las funcionalidades de la tienda.",
+        cta: "Activar ahora",
+        nextPlanId: "pro" as const,
+      };
+    }
+
+    if (planId === "pro") {
+      return {
+        title: "Escala sin limites",
+        description: "Sube a Scale para activar multi-usuario, tiendas ilimitadas y soporte prioritario.",
+        cta: "Subir a Scale",
+        nextPlanId: "scale" as const,
+      };
+    }
+
+    return null;
+  }, [planId]);
+
+  const handlePromoUpgrade = () => {
+    if (!promo) {
+      return;
+    }
+
+    applyPlanToSettings(loadPlatformSettings(), promo.nextPlanId);
+    const nextPlan = getPlanDefinition(promo.nextPlanId);
+    toast.success(`Plan actualizado a ${nextPlan.name}.`);
+  };
+
   return (
     <>
       <div className="flex items-center justify-between gap-3">
@@ -83,14 +132,34 @@ function SidebarContent({
       </div>
 
       <div className="mt-8 flex flex-1 flex-col gap-6">
-        <div className="rounded-3xl border border-border bg-secondary/70 p-4">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">
-            Control comercial
-          </p>
-          <p className="mt-3 text-sm text-secondary-foreground">
-            Gestiona ventas, pedidos, clientes y ofertas desde un solo lugar.
-          </p>
-        </div>
+        {promo ? (
+          <div className="rounded-3xl border border-primary/20 bg-gradient-to-b from-primary/15 to-primary/5 p-4 shadow-sm">
+            <div className="inline-flex items-center gap-2 rounded-full bg-emerald-500/15 px-2 py-1 text-emerald-300">
+              <CheckCheck className="h-3.5 w-3.5" />
+              <span className="text-[11px] font-semibold uppercase tracking-[0.2em]">
+                Upgrade
+              </span>
+            </div>
+            <p className="mt-3 text-base font-semibold text-foreground">{promo.title}</p>
+            <p className="mt-2 text-sm text-muted-foreground">{promo.description}</p>
+            <Button
+              type="button"
+              className="mt-4 h-10 w-full rounded-xl bg-gradient-to-r from-violet-500 to-purple-500 text-white hover:opacity-95"
+              onClick={handlePromoUpgrade}
+            >
+              {promo.cta}
+            </Button>
+          </div>
+        ) : (
+          <div className="rounded-3xl border border-border bg-secondary/70 p-4">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">
+              Control comercial
+            </p>
+            <p className="mt-3 text-sm text-secondary-foreground">
+              Gestiona ventas, pedidos, clientes y ofertas desde un solo lugar.
+            </p>
+          </div>
+        )}
 
         <SidebarLinks onNavigate={onCloseMobile} />
       </div>

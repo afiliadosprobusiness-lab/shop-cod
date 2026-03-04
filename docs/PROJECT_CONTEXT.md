@@ -52,6 +52,7 @@
 - Planes: el workspace ahora bloquea acciones segun el plan activo y muestra un modal de upgrade para subir localmente a `Pro` o `Scale` cuando corresponde
 - Rutas privadas: redirigen a `/login` si no hay sesion
 - Shell del panel: `DashboardLayout` monta sidebar izquierda, topbar superior y contenido dinamico con `Outlet`
+- Sidebar: muestra un bloque promocional dinamico de upgrade cuando el workspace esta en `Starter` o `Pro`, con CTA de upgrade en un clic
 - Home del panel: `/dashboard` muestra dos tarjetas principales (`Crear tienda online` y `Crear funnel`) con CTA `Comenzar`
 - Navegacion entre modulos: el sidebar enlaza `Inicio`, `Productos`, `Funnels`, `Tiendas`, `Pedidos`, `Analiticas`, `Contactos`, `Ofertas`, `Aplicaciones` y `Configuracion`
 - Topbar: mantiene buscador global, selector de workspace, notificaciones y avatar del usuario en todos los modulos
@@ -91,6 +92,7 @@
 - Las envs publicas de Firebase ya fueron cargadas en Vercel para `Production` y `Preview`.
 - El shell del dashboard vive en `src/layouts/DashboardLayout.tsx`.
 - Los componentes del shell viven en `src/components/dashboard/*` (`Sidebar`, `Topbar`, `MainContent` y `navigation`).
+- `Sidebar` incorpora mensajes de promotion de upgrade por plan activo (`Starter` y `Pro`) para impulsar la subida de plan.
 - El home del panel vive en `src/pages/dashboard/DashboardHomePage.tsx`.
 - `src/pages/dashboard/OrdersPage.tsx` renderiza el flujo operativo de pedidos reales.
 - `src/pages/dashboard/AnalyticsPage.tsx` renderiza KPIs y tendencias comerciales en tiempo real.

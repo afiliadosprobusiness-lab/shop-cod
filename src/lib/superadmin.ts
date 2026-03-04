@@ -50,6 +50,8 @@ const LEGACY_DEMO_WORKSPACES = new Set([
   "Latam Widget House",
 ]);
 const isTestEnvironment = import.meta.env.MODE === "test";
+let cloudSyncDisabledForSession = false;
+let cloudSyncDisabledReason = "";
 
 let cloudBootstrapPromise: Promise<SuperAdminClient[]> | null = null;
 
@@ -286,8 +288,38 @@ function mergeClientsByRecency(localClients: SuperAdminClient[], remoteClients: 
   return normalizeClients([...merged.values()]);
 }
 
+function disableCloudSync(reason: string) {
+  cloudSyncDisabledForSession = true;
+  cloudSyncDisabledReason = reason;
+}
+
+function canUseCloudSync() {
+  return hasFirebaseConfig() && !isTestEnvironment && !cloudSyncDisabledForSession;
+}
+
+function readCloudSyncErrorMessage(error: unknown) {
+  const normalizedError = error as { code?: string; message?: string };
+  const code = normalizedError?.code || "";
+  const message = normalizedError?.message || "";
+  const text = `${code} ${message}`.toLowerCase();
+
+  if (text.includes("not-found")) {
+    return "Firestore (default) no existe en el proyecto Firebase.";
+  }
+
+  if (text.includes("permission-denied")) {
+    return "Reglas de Firestore bloquean el registro compartido del superadmin.";
+  }
+
+  if (text.includes("blocked_by_client") || text.includes("failed to fetch")) {
+    return "El navegador o una extension esta bloqueando conexiones a Firestore.";
+  }
+
+  return "No se pudo conectar con Firestore para el registro compartido del superadmin.";
+}
+
 async function getCloudCollectionTools() {
-  if (!hasFirebaseConfig() || isTestEnvironment) {
+  if (!canUseCloudSync()) {
     return null;
   }
 
@@ -305,7 +337,8 @@ async function getCloudCollectionTools() {
       getDocs,
       setDoc,
     };
-  } catch {
+  } catch (error) {
+    disableCloudSync(readCloudSyncErrorMessage(error));
     return null;
   }
 }
@@ -324,7 +357,8 @@ async function pushClientToCloud(client: SuperAdminClient) {
   try {
     const clientRef = tools.doc(tools.clientsCollection, client.id);
     await tools.setDoc(clientRef, client, { merge: true });
-  } catch {
+  } catch (error) {
+    disableCloudSync(readCloudSyncErrorMessage(error));
     // Keep local storage as fallback when Firestore is unavailable or denied.
   }
 }
@@ -339,7 +373,8 @@ async function removeClientFromCloud(clientId: string) {
   try {
     const clientRef = tools.doc(tools.clientsCollection, clientId);
     await tools.deleteDoc(clientRef);
-  } catch {
+  } catch (error) {
+    disableCloudSync(readCloudSyncErrorMessage(error));
     // Keep local storage as fallback when Firestore is unavailable or denied.
   }
 }
@@ -368,6 +403,13 @@ export function loadSuperAdminClients() {
   return normalizeClients(stored);
 }
 
+export function getSuperAdminCloudSyncState() {
+  return {
+    enabled: canUseCloudSync(),
+    reason: cloudSyncDisabledReason,
+  };
+}
+
 export async function bootstrapSuperAdminClientsFromCloud() {
   if (cloudBootstrapPromise) {
     return cloudBootstrapPromise;
@@ -387,7 +429,8 @@ export async function bootstrapSuperAdminClientsFromCloud() {
         .filter((client): client is SuperAdminClient => Boolean(client));
       const merged = mergeClientsByRecency(loadSuperAdminClients(), remoteClients);
       return persistClients(merged);
-    } catch {
+    } catch (error) {
+      disableCloudSync(readCloudSyncErrorMessage(error));
       return loadSuperAdminClients();
     }
   })().finally(() => {

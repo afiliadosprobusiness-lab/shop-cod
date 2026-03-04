@@ -74,6 +74,7 @@ All routes below are protected by Firebase auth state and render inside the shar
 
 - left sidebar navigation
 - topbar with global search, workspace selector, notifications, and avatar
+- contextual upgrade promotion block in sidebar for `Starter` and `Pro` plans
 - a central dynamic content area via React Router `Outlet`
 
 ### `GET /dashboard`
@@ -726,3 +727,4 @@ The following are breaking changes and must be versioned or coordinated before i
 - 2026-03-04 | El registro de clientes del superadmin pasa a hidratarse y sincronizarse con Firestore cuando esta disponible | non-breaking | Mantiene fallback local mientras permite visibilidad compartida entre sesiones y dispositivos
 - 2026-03-04 | Se fuerza el registro inmediato de workspaces autenticados y el panel superadmin agrega refresco periodico/focus para captar cuentas nuevas | non-breaking | Mejora visibilidad de cuentas sin cambiar rutas ni modelos base
 - 2026-03-04 | `GET /settings` alinea el sufijo de subdominio con `.shop-cod.vercel.app` | non-breaking | Ajusta la referencia visual al entorno de produccion en Vercel
+- 2026-03-04 | El sidebar del dashboard agrega mensajes promocionales de upgrade para `Starter` y `Pro` con CTA de upgrade en un clic | non-breaking | Mejora conversion a planes superiores sin romper rutas ni contratos de datos
