@@ -39,23 +39,102 @@ There is still no custom backend API implemented in this codebase.
 - Renders the post-checkout confirmation screen.
 - Component: `OrderConfirmedPage`.
 
+### Protected Dashboard Shell Routes
+
+All routes below are protected by Firebase auth state and render inside the shared `DashboardLayout`, which includes:
+
+- left sidebar navigation
+- topbar with global search, workspace selector, notifications, and avatar
+- a central dynamic content area via React Router `Outlet`
+
 ### `GET /dashboard`
 
-- Renders the authenticated dashboard.
-- Component: `DashboardPage`.
-- Access: protected by Firebase auth state.
+- Renders the dashboard home.
+- Components: `DashboardLayout` + `DashboardHomePage`.
 - Includes:
-  - existing mock stores
-  - locally created stores from browser storage
-  - modal-based store creation
-  - modal-based quick actions and settings
-  - local-store delete action for user-created drafts
+  - a primary card for `Crear tienda online`
+  - a primary card for `Crear funnel`
+  - internal navigation entrypoint for the protected modules
+
+### `GET /products`
+
+- Renders the products management module.
+- Components: `DashboardLayout` + `ProductsPage`.
+- Includes:
+  - searchable product table
+  - inventory and type filters
+  - `Nuevo Producto` CTA
+  - row actions for duplicate and slug copy
+
+### `GET /products/new`
+
+- Renders the product creation workflow.
+- Components: `DashboardLayout` + `ProductCreatePage`.
+- Includes:
+  - product information section
+  - details section
+  - configuration section
+  - order bump and upsell controls
+
+### `GET /funnels`
+
+- Renders the funnels management module.
+- Components: `DashboardLayout` + `FunnelsPage`.
+- Includes:
+  - a funnel list with preview image area, name, conversion, and visits
+  - `Nuevo Funnel` CTA
+  - a 3-step creation wizard inside the same route
+
+### `GET /stores`
+
+- Renders the stores management module.
+- Components: `DashboardLayout` + `StoresPage`.
+- Includes:
+  - a store list with template preview, payment method, and page count
+  - `Nueva tienda` CTA
+  - a 3-step creation wizard inside the same route
+
+### `GET /stores/:storeId`
+
+- Renders the internal dashboard for a specific store.
+- Components: `DashboardLayout` + `StoreDashboardPage`.
+- Route param:
+  - `storeId: string`
+- Includes:
+  - internal section navigation for `Resumen`, `Productos`, `Colecciones`, `Pedidos`, `Pages`, `Idiomas`, and `Configuracion`
+  - summary metric cards for visitors, orders, sales, and conversion rate
+  - summary tables for top products and traffic sources
+  - local operational views derived from the current store draft
 
 ### `GET /orders`
 
-- Renders the authenticated order dashboard with mock orders.
-- Component: `AdminDashboard`.
-- Access: protected by Firebase auth state.
+- Renders the orders module shell.
+- Components: `DashboardLayout` + `DashboardModulePage`.
+
+### `GET /analytics`
+
+- Renders the analytics module shell.
+- Components: `DashboardLayout` + `DashboardModulePage`.
+
+### `GET /contacts`
+
+- Renders the contacts module shell.
+- Components: `DashboardLayout` + `DashboardModulePage`.
+
+### `GET /offers`
+
+- Renders the offers module shell.
+- Components: `DashboardLayout` + `DashboardModulePage`.
+
+### `GET /apps`
+
+- Renders the apps module shell.
+- Components: `DashboardLayout` + `DashboardModulePage`.
+
+### `GET /settings`
+
+- Renders the settings module shell.
+- Components: `DashboardLayout` + `DashboardModulePage`.
 
 ### `GET /editor/:storeId`
 
@@ -69,10 +148,10 @@ There is still no custom backend API implemented in this codebase.
   - edits both funnel blocks and base commercial profile
   - new drafts open with a full starter funnel (hero, problem, benefits, reviews, FAQ, checkout, and CTA)
   - exposes a drag-and-drop funnel workspace with block library, funnel map, quick insertion, and conversion guidance
-  - now includes builder modes for store setup, funnel ordering, and page refinement within the same route
-  - store setup now uses a dedicated store builder for products, bundles, collections, checkout order bumps, multi-currency, and multi-domain configuration
-  - page refinement uses a visual page builder with sidebar tabs, top bar controls, nested containers, and inline editing without full reloads
-  - funnel ordering now also supports a node-based flow editor with pan, zoom, node connections, analytics badges, and page-level routing per node
+  - includes builder modes for store setup, funnel ordering, and page refinement within the same route
+  - store setup uses a dedicated store builder for products, bundles, collections, checkout order bumps, multi-currency, and multi-domain configuration
+  - page refinement uses a visual page builder with sidebar tabs (`Elements`, `Layers`, `Styles`, `Settings`), top bar controls, nested containers, duplicate/resize controls, and inline editing without full reloads
+  - funnel ordering supports a node-based flow editor with pan, zoom, drag, node duplication/deletion, visible page previews, node connections, analytics badges, and page-level routing per node
 
 ### `GET /preview/:storeId`
 
@@ -155,7 +234,9 @@ type PageBuilderBlockType =
   | "product"
   | "form"
   | "countdown"
-  | "testimonial";
+  | "testimonial"
+  | "section"
+  | "divider";
 
 interface PageBuilderBlock {
   id: string;
@@ -166,14 +247,27 @@ interface PageBuilderBlock {
     textColor: string;
     align: "left" | "center" | "right";
     padding: "compact" | "comfortable" | "spacious";
+    margin: "none" | "sm" | "md" | "lg";
     radius: "soft" | "rounded" | "pill";
+    fontFamily: "sans" | "serif" | "mono";
+    fontSize: "sm" | "base" | "lg" | "xl";
+    borderStyle: "none" | "solid" | "dashed";
+    borderWidth: "none" | "thin" | "medium";
+    borderColor: string;
   };
   layout: {
     width: "full" | "wide" | "narrow";
     gap: "tight" | "normal" | "loose";
     columns: number;
+    minHeight: "auto" | "sm" | "md" | "lg";
   };
   children: PageBuilderBlock[];
+}
+
+interface PageBuilderDocument {
+  id: string;
+  title: string;
+  blocks: PageBuilderBlock[];
 }
 ```
 
@@ -188,12 +282,16 @@ type FunnelNodeType =
   | "checkout"
   | "upsell"
   | "downsell"
-  | "thankyou";
+  | "thankyou"
+  | "leadCapture"
+  | "article"
+  | "blank";
 
 interface FunnelGraph {
   id: string;
   name: string;
   nodes: FunnelNode[];
+  pages: FunnelPage[];
   connections: FunnelConnection[];
 }
 
@@ -207,6 +305,13 @@ interface FunnelNode {
     clicks: number;
     conversionRate: number;
   };
+}
+
+interface FunnelPage {
+  id: string;
+  funnelId: string;
+  type: FunnelNodeType;
+  contentJson: string;
 }
 
 interface FunnelConnection {
@@ -251,6 +356,50 @@ interface StoreOrderBump {
 }
 ```
 
+### Product Catalog Model
+
+Defined in `src/lib/products.ts`.
+
+```ts
+interface Product {
+  id: string;
+  name: string;
+  description: string;
+  price: number;
+  comparePrice: number;
+  images: string[];
+  variants: string[];
+  inventory: number;
+  sku: string;
+  slug: string;
+  tags: string[];
+  createdAt: string;
+  inventoryTracking: boolean;
+  shipping: boolean;
+  customFields: ProductCustomField[];
+  orderBump: ProductOffer | null;
+  upsell: ProductOffer | null;
+}
+```
+
+### Funnel Catalog Model
+
+Defined in `src/lib/funnels.ts`.
+
+```ts
+interface Funnel {
+  id: string;
+  name: string;
+  slug: string;
+  currency: "USD" | "EUR" | "PEN";
+  pages: FunnelPage[];
+  templateId: "blank" | "ai" | "preset";
+  conversion: number;
+  visits: number;
+  createdAt: string;
+}
+```
+
 Rules:
 
 - `id` must be unique within the in-memory editor session.
@@ -260,10 +409,90 @@ Rules:
 - The store catalog is a browser-side index for user-created drafts.
 - `pageBuilder` stores the visual page layout as nested JSON blocks.
 - `pageBuilderPages` stores page-builder layouts keyed by `pageId`.
-- Only `container` and `columns` may hold nested `children`.
-- `funnelBuilder` stores the visual funnel graph and node connections.
+- Only `section`, `container`, and `columns` may hold nested `children`.
+- `funnelBuilder` stores the visual funnel graph, node connections, and `pages[]` records.
+- The funnel builder must support page add, delete, duplicate, and connection actions on the visual graph.
+- Each `FunnelPage.contentJson` stores the serialized page document for that funnel page and acts as the frontend mirror of the persisted `content_json` field.
 - `storeBuilder` stores products, bundles, collections, checkout domains, currencies, and order bumps.
 - `src/builders/shared/components/blocks/renderBlock.tsx` provides the shared `renderBlock(block)` engine used by Page Builder, Funnel Builder, and Store Builder UI.
+- The page builder exposes a serializable `PageBuilderDocument` (`page_json`) for storage/export of the current page state.
+- `Product.slug` must remain unique within the browser-side catalog.
+- `/products` and `/products/new` use browser local persistence only.
+- `Funnel.slug` must remain unique within the browser-side catalog.
+- `/funnels` uses browser local persistence only and must initialize a compatible `/editor/:storeId` draft when creating a new funnel.
+
+### Store Catalog Model
+
+Defined in `src/lib/stores.ts`.
+
+```ts
+type StorePaymentMethod = "separateCheckout" | "productPagePayment";
+
+interface StorePage {
+  id: string;
+  name: string;
+  type: "home" | "catalog" | "product" | "checkout" | "thankyou";
+}
+
+interface Store {
+  id: string;
+  name: string;
+  slug: string;
+  currency: "USD" | "EUR" | "PEN";
+  pages: StorePage[];
+  paymentMethod: StorePaymentMethod;
+  templateId: "singleProduct" | "catalog" | "flashSale";
+  createdAt: string;
+  updatedAt: string;
+}
+```
+
+Rules:
+
+- `Store.slug` must remain unique within the browser-side catalog.
+- `Store.pages` changes based on the selected payment method:
+  - `separateCheckout` keeps a dedicated checkout page
+  - `productPagePayment` removes the dedicated checkout page and embeds payment in the product page
+- `/stores` uses browser local persistence only and must initialize a compatible `/editor/:storeId` draft when creating a new store.
+
+### Store Dashboard Snapshot Model
+
+Defined in `src/lib/stores.ts`.
+
+```ts
+interface StoreDashboardSnapshot {
+  store: Store;
+  metrics: {
+    visitors: number;
+    orders: number;
+    sales: number;
+    conversionRate: number;
+  };
+  topProducts: Array<{
+    id: string;
+    name: string;
+    unitsSold: number;
+    revenue: number;
+    stock: number;
+  }>;
+  trafficSources: Array<{
+    source: string;
+    visitors: number;
+    orders: number;
+    conversionRate: number;
+  }>;
+  languages: Array<{
+    code: string;
+    label: string;
+    status: "principal" | "activo" | "borrador";
+  }>;
+}
+```
+
+Rules:
+
+- `/stores/:storeId` derives the dashboard snapshot client-side from the local store and local draft.
+- Dashboard analytics remain browser-only and are not backed by a server API.
 
 ## Auth Contract
 
@@ -277,11 +506,15 @@ Rules:
 ## State And Persistence Contract
 
 - Editor changes are stored in `localStorage`.
+- Product catalog changes are stored in `localStorage`.
+- Funnel catalog changes are stored in `localStorage`.
+- Store catalog changes for `/stores` are stored in `localStorage`.
 - `Guardar` writes a local draft with blocks and profile.
 - `Publicar` stores a local published timestamp and marks the local catalog item as active.
-- The dashboard reads user-created stores from the local catalog in browser storage.
-- Dashboard and order metrics still include mock fixtures for the base demo.
-- Local user-created stores can be removed from browser storage from the dashboard action modal.
+- The browser can still read user-created stores from the local catalog for editor-adjacent flows.
+- The products module seeds demo products until a browser-local product catalog is written.
+- The funnels module seeds demo funnels until a browser-local funnel catalog is written.
+- The stores module seeds demo stores until a browser-local store catalog is written.
 - No custom backend persistence exists yet.
 
 ## Environment Contract
@@ -307,12 +540,17 @@ These are public client configuration values, not server secrets.
 The following are breaking changes and must be versioned or coordinated before implementation:
 
 - Removing or renaming existing public routes.
+- Removing or renaming any of the protected dashboard shell routes.
+- Removing or renaming `/products/new` after exposing it publicly.
 - Changing the `:storeId` route param shape.
 - Renaming or removing any supported `BlockType`.
 - Changing `FunnelBlock.data` away from a string map without updating all consumers.
 - Renaming or removing any supported `PageBuilderBlockType`.
 - Renaming or removing any supported `FunnelNodeType`.
 - Removing required `StoreProduct` fields or changing `StoreBuilderState` shape without updating persistence and editor flows together.
+- Removing required `Product` fields without updating the products table and creation flow together.
+- Removing required `Funnel` fields without updating the funnels list, wizard, and editor bootstrap flow together.
+- Removing required `Store` fields without updating the stores list, wizard, and editor bootstrap flow together.
 - Removing `StoreProfile` fields without updating dashboard, editor, and preview flows together.
 - Replacing Firebase auth without updating the login and protected-route flow.
 
@@ -328,3 +566,11 @@ The following are breaking changes and must be versioned or coordinated before i
 - 2026-03-04 | El funnel builder agrega un flow editor con nodos, conexiones, analytics y layouts por pageId | non-breaking | Amplia la edicion visual del editor sin romper el contrato del funnel legacy
 - 2026-03-04 | El store builder agrega catalogo, bundles, order bumps, monedas y dominios persistidos en el draft | non-breaking | Amplia la configuracion comercial sin romper rutas ni contratos previos
 - 2026-03-04 | Se centralizan modelos y renderer de Page, Funnel y Store builders en `src/builders/shared` | non-breaking | Mantiene shapes publicos y unifica la arquitectura interna de los builders
+- 2026-03-04 | Se reemplaza el panel privado por un shell SaaS con layout compartido y rutas modulares internas | non-breaking | Mantiene las rutas protegidas y agrega la nueva arquitectura base del dashboard
+- 2026-03-04 | Se implementa gestion de productos con listado, alta y modelo frontend persistido en navegador | non-breaking | Agrega `GET /products/new` y vuelve operativo el modulo de productos sin romper rutas existentes
+- 2026-03-04 | Se implementa gestion de funnels con wizard, templates y modelo frontend persistido en navegador | non-breaking | Vuelve operativo `GET /funnels` y redirige nuevos funnels al editor sin romper rutas existentes
+- 2026-03-04 | Se implementa gestion de tiendas con wizard, selector de pagos y modelo frontend persistido en navegador | non-breaking | Vuelve operativo `GET /stores` sin cambiar la ruta protegida existente
+- 2026-03-04 | Se agrega `GET /stores/:storeId` con panel interno, analytics basicos y navegacion por secciones | non-breaking | Amplia el modulo de tiendas sin romper la ruta base ni el creador existente
+- 2026-03-04 | El page builder adopta `block-engine` y `state-manager`, suma `section` y `divider`, y expone `page_json` serializable | non-breaking | Amplia el editor visual sin romper el contrato base de `PageBuilderBlock`
+- 2026-03-04 | El funnel builder agrega tipos de pagina extendidos y acciones visibles de editar, duplicar, eliminar y conectar | non-breaking | Refuerza el editor visual sin cambiar rutas ni romper el modelo persistido
+- 2026-03-04 | Cada pagina del funnel ahora persiste `contentJson` dentro de `funnelBuilder.pages[]` y abre el Page Builder dedicado | non-breaking | Conecta el Funnel Builder con el Page Builder sin romper el draft existente

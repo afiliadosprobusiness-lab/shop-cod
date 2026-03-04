@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { useDroppable } from "@dnd-kit/core";
 import {
   SortableContext,
@@ -5,7 +6,7 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { GripVertical, Layers3, Trash2 } from "lucide-react";
+import { Copy, GripVertical, Layers3, StretchHorizontal, Trash2 } from "lucide-react";
 import { BuilderBlockCard, BuilderCanvas } from "@/builders/shared";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -13,7 +14,7 @@ import {
   canAcceptChildren,
   type PageBuilderBlock,
   type PageBuilderDevice,
-} from "../blocks/schema";
+} from "../block-engine/schema";
 import { renderBlock } from "../renderer/renderBlock";
 
 interface PageBuilderCanvasProps {
@@ -22,6 +23,8 @@ interface PageBuilderCanvasProps {
   device: PageBuilderDevice;
   onSelect: (id: string) => void;
   onDelete: (id: string) => void;
+  onDuplicate: (id: string) => void;
+  onResize: (id: string) => void;
   onInlineChange: (id: string, field: string, value: string) => void;
 }
 
@@ -76,6 +79,8 @@ function SortablePageBuilderBlock({
   device,
   onSelect,
   onDelete,
+  onDuplicate,
+  onResize,
   onInlineChange,
 }: {
   block: PageBuilderBlock;
@@ -83,21 +88,22 @@ function SortablePageBuilderBlock({
   device: PageBuilderDevice;
   onSelect: (id: string) => void;
   onDelete: (id: string) => void;
+  onDuplicate: (id: string) => void;
+  onResize: (id: string) => void;
   onInlineChange: (id: string, field: string, value: string) => void;
 }) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
-    useSortable({
-      id: block.id,
-      data: {
-        kind: "block",
-        blockId: block.id,
-      },
-    });
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: block.id,
+    data: {
+      kind: "block",
+      blockId: block.id,
+    },
+  });
 
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
-    opacity: isDragging ? 0.4 : 1,
+    opacity: isDragging ? 0.45 : 1,
   };
 
   const isSelected = selectedId === block.id;
@@ -107,9 +113,14 @@ function SortablePageBuilderBlock({
       <BuilderBlockCard
         selected={isSelected}
         interactive={!isSelected}
-        className="group bg-slate-900/70 p-4 shadow-[0_20px_45px_rgba(2,6,23,0.28)]"
+        className={cn(
+          "group border bg-slate-900/70 p-4 shadow-[0_20px_45px_rgba(2,6,23,0.28)] transition-colors",
+          isSelected
+            ? "border-sky-400/50"
+            : "border-white/10 hover:border-sky-400/30",
+        )}
       >
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+        <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
           <div className="flex items-center gap-2">
             <button
               type="button"
@@ -130,23 +141,41 @@ function SortablePageBuilderBlock({
             </button>
           </div>
 
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={() => onDelete(block.id)}
-            className="h-9 rounded-2xl border border-transparent px-3 text-slate-300 hover:border-white/10 hover:bg-white/5 hover:text-white"
-          >
-            <Trash2 className="h-4 w-4" />
-            Eliminar
-          </Button>
+          <div className="flex flex-wrap gap-2 opacity-100 transition-opacity xl:opacity-0 xl:group-hover:opacity-100">
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => onResize(block.id)}
+              className="h-9 rounded-2xl border border-transparent px-3 text-slate-300 hover:border-white/10 hover:bg-white/5 hover:text-white"
+            >
+              <StretchHorizontal className="h-4 w-4" />
+              Resize
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => onDuplicate(block.id)}
+              className="h-9 rounded-2xl border border-transparent px-3 text-slate-300 hover:border-white/10 hover:bg-white/5 hover:text-white"
+            >
+              <Copy className="h-4 w-4" />
+              Duplicar
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => onDelete(block.id)}
+              className="h-9 rounded-2xl border border-transparent px-3 text-slate-300 hover:border-white/10 hover:bg-white/5 hover:text-white"
+            >
+              <Trash2 className="h-4 w-4" />
+              Eliminar
+            </Button>
+          </div>
         </div>
 
-        <button
-          type="button"
-          onClick={() => onSelect(block.id)}
-          className="block w-full text-left"
-        >
+        <button type="button" onClick={() => onSelect(block.id)} className="block w-full text-left">
           {renderBlock(block, {
             isSelected,
             device,
@@ -168,6 +197,8 @@ function SortablePageBuilderBlock({
               device={device}
               onSelect={onSelect}
               onDelete={onDelete}
+              onDuplicate={onDuplicate}
+              onResize={onResize}
               onInlineChange={onInlineChange}
               nested
             />
@@ -178,6 +209,8 @@ function SortablePageBuilderBlock({
   );
 }
 
+const MemoizedSortablePageBuilderBlock = memo(SortablePageBuilderBlock);
+
 function PageBuilderBlockList({
   blocks,
   parentId,
@@ -185,6 +218,8 @@ function PageBuilderBlockList({
   device,
   onSelect,
   onDelete,
+  onDuplicate,
+  onResize,
   onInlineChange,
   nested = false,
 }: {
@@ -194,14 +229,13 @@ function PageBuilderBlockList({
   device: PageBuilderDevice;
   onSelect: (id: string) => void;
   onDelete: (id: string) => void;
+  onDuplicate: (id: string) => void;
+  onResize: (id: string) => void;
   onInlineChange: (id: string, field: string, value: string) => void;
   nested?: boolean;
 }) {
   return (
-    <SortableContext
-      items={blocks.map((block) => block.id)}
-      strategy={verticalListSortingStrategy}
-    >
+    <SortableContext items={blocks.map((block) => block.id)} strategy={verticalListSortingStrategy}>
       <div
         className={cn(
           "space-y-3",
@@ -215,19 +249,17 @@ function PageBuilderBlockList({
         />
         {blocks.map((block, index) => (
           <div key={block.id} className="space-y-3">
-            <SortablePageBuilderBlock
+            <MemoizedSortablePageBuilderBlock
               block={block}
               selectedId={selectedId}
               device={device}
               onSelect={onSelect}
               onDelete={onDelete}
+              onDuplicate={onDuplicate}
+              onResize={onResize}
               onInlineChange={onInlineChange}
             />
-            <DropSlot
-              parentId={parentId}
-              index={index + 1}
-              label="Insertar aqui"
-            />
+            <DropSlot parentId={parentId} index={index + 1} label="Insertar aqui" />
           </div>
         ))}
       </div>
@@ -241,13 +273,15 @@ export function PageBuilderCanvas({
   device,
   onSelect,
   onDelete,
+  onDuplicate,
+  onResize,
   onInlineChange,
 }: PageBuilderCanvasProps) {
   return (
     <BuilderCanvas
       eyebrow="Canvas"
-      title="Drag, drop, reorder y edicion inline"
-      description="Cada cambio actualiza solo el arbol afectado del builder."
+      title="Drag, drop, move, resize y nesting sin recarga completa"
+      description="Cada actualizacion afecta solo el bloque modificado dentro del arbol JSON."
       className="flex-1"
       bodyClassName="overflow-x-hidden"
       headerBadge={
@@ -265,6 +299,8 @@ export function PageBuilderCanvas({
             device={device}
             onSelect={onSelect}
             onDelete={onDelete}
+            onDuplicate={onDuplicate}
+            onResize={onResize}
             onInlineChange={onInlineChange}
           />
         </div>

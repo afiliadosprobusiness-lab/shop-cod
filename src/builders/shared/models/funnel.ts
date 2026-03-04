@@ -1,3 +1,8 @@
+import {
+  createDefaultPageBuilderBlocks,
+  serializePageBuilderDocument,
+} from "./page";
+
 export const funnelNodeTypes = [
   "landing",
   "product",
@@ -5,6 +10,9 @@ export const funnelNodeTypes = [
   "upsell",
   "downsell",
   "thankyou",
+  "leadCapture",
+  "article",
+  "blank",
 ] as const;
 
 export type FunnelNodeType = (typeof funnelNodeTypes)[number];
@@ -28,6 +36,13 @@ export interface FunnelNode {
   analytics: FunnelNodeAnalytics;
 }
 
+export interface FunnelPage {
+  id: string;
+  funnelId: string;
+  type: FunnelNodeType;
+  contentJson: string;
+}
+
 export interface FunnelConnection {
   from: string;
   to: string;
@@ -37,6 +52,7 @@ export interface FunnelGraph {
   id: string;
   name: string;
   nodes: FunnelNode[];
+  pages: FunnelPage[];
   connections: FunnelConnection[];
 }
 
@@ -52,6 +68,9 @@ function createAnalytics(type: FunnelNodeType): FunnelNodeAnalytics {
     upsell: 440,
     downsell: 220,
     thankyou: 165,
+    leadCapture: 1450,
+    article: 980,
+    blank: 120,
   };
 
   const baseClicks: Record<FunnelNodeType, number> = {
@@ -61,6 +80,9 @@ function createAnalytics(type: FunnelNodeType): FunnelNodeAnalytics {
     upsell: 88,
     downsell: 42,
     thankyou: 165,
+    leadCapture: 420,
+    article: 170,
+    blank: 16,
   };
 
   const visits = baseVisits[type];
@@ -93,7 +115,83 @@ export function createFunnelNode(
   };
 }
 
+function getPageTitle(type: FunnelNodeType) {
+  const labels: Record<FunnelNodeType, string> = {
+    landing: "Landing page",
+    product: "Product page",
+    checkout: "Checkout page",
+    upsell: "Upsell page",
+    downsell: "Downsell page",
+    thankyou: "Thank you page",
+    leadCapture: "Lead capture page",
+    article: "Article page",
+    blank: "Blank page",
+  };
+
+  return labels[type];
+}
+
+export function createFunnelPage(
+  node: FunnelNode,
+  funnelId: string,
+): FunnelPage {
+  return {
+    id: node.pageId,
+    funnelId,
+    type: node.type,
+    contentJson: serializePageBuilderDocument(createDefaultPageBuilderBlocks(), {
+      id: node.pageId,
+      title: getPageTitle(node.type),
+    }),
+  };
+}
+
+export function getFunnelPage(graph: FunnelGraph, pageId: string) {
+  return graph.pages.find((page) => page.id === pageId) ?? null;
+}
+
+export function syncFunnelPagesFromNodes(graph: FunnelGraph) {
+  const nextPages = graph.nodes.map((node) => {
+    const existingPage = graph.pages.find((page) => page.id === node.pageId);
+
+    if (existingPage) {
+      return {
+        ...existingPage,
+        funnelId: graph.id,
+        type: node.type,
+      };
+    }
+
+    return createFunnelPage(node, graph.id);
+  });
+
+  return {
+    ...graph,
+    pages: nextPages,
+  };
+}
+
+export function upsertFunnelPageContent(
+  graph: FunnelGraph,
+  pageId: string,
+  contentJson: string,
+) {
+  const page = graph.pages.find((candidate) => candidate.id === pageId);
+
+  if (!page) {
+    return graph;
+  }
+
+  return {
+    ...graph,
+    pages: graph.pages.map((candidate) =>
+      candidate.id === pageId ? { ...candidate, contentJson } : candidate,
+    ),
+  };
+}
+
 export function createDefaultFunnelGraph(name = "Main Funnel"): FunnelGraph {
+  const funnelId = createId("funnel");
   const landing = createFunnelNode("landing", { x: 120, y: 180 });
   const product = createFunnelNode("product", { x: 470, y: 180 });
   const checkout = createFunnelNode("checkout", { x: 820, y: 180 });
@@ -102,9 +200,17 @@ export function createDefaultFunnelGraph(name = "Main Funnel"): FunnelGraph {
   const thankyou = createFunnelNode("thankyou", { x: 1520, y: 180 });
 
   return {
-    id: createId("funnel"),
+    id: funnelId,
     name,
     nodes: [landing, product, checkout, upsell, downsell, thankyou],
+    pages: [
+      createFunnelPage(landing, funnelId),
+      createFunnelPage(product, funnelId),
+      createFunnelPage(checkout, funnelId),
+      createFunnelPage(upsell, funnelId),
+      createFunnelPage(downsell, funnelId),
+      createFunnelPage(thankyou, funnelId),
+    ],
     connections: [
       { from: landing.id, to: product.id },
       { from: product.id, to: checkout.id },
@@ -127,19 +233,35 @@ export function addNode(
     graph: {
       ...graph,
       nodes: [...graph.nodes, node],
+      pages: [...graph.pages, createFunnelPage(node, graph.id)],
     },
     node,
   };
 }
 
+export function addPage(
+  graph: FunnelGraph,
+  type: FunnelNodeType,
+  position: FunnelNodePosition,
+) {
+  return addNode(graph, type, position);
+}
+
 export function deleteNode(graph: FunnelGraph, nodeId: string) {
+  const node = graph.nodes.find((candidate) => candidate.id === nodeId);
+
   return {
     ...graph,
     nodes: graph.nodes.filter((node) => node.id !== nodeId),
+    pages: node ? graph.pages.filter((page) => page.id !== node.pageId) : graph.pages,
     connections: graph.connections.filter(
       (connection) => connection.from !== nodeId && connection.to !== nodeId,
     ),
   };
+}
+
+export function deletePage(graph: FunnelGraph, nodeId: string) {
+  return deleteNode(graph, nodeId);
 }
 
 export function connectNodes(graph: FunnelGraph, from: string, to: string) {
@@ -168,12 +290,47 @@ export function connectNodes(graph: FunnelGraph, from: string, to: string) {
   };
 }
 
+export function connectPages(graph: FunnelGraph, from: string, to: string) {
+  return connectNodes(graph, from, to);
+}
+
 export function disconnectNodes(graph: FunnelGraph, from: string, to: string) {
   return {
     ...graph,
     connections: graph.connections.filter(
       (connection) => !(connection.from === from && connection.to === to),
     ),
+  };
+}
+
+export function duplicatePage(
+  graph: FunnelGraph,
+  nodeId: string,
+  offset: FunnelNodePosition = { x: 120, y: 120 },
+) {
+  const source = graph.nodes.find((node) => node.id === nodeId);
+
+  if (!source) {
+    return {
+      graph,
+      node: null,
+    };
+  }
+
+  const duplicate = createFunnelNode(source.type, {
+    x: source.position.x + offset.x,
+    y: source.position.y + offset.y,
+  });
+
+  const nextGraph: FunnelGraph = {
+    ...graph,
+    nodes: [...graph.nodes, duplicate],
+    pages: [...graph.pages, createFunnelPage(duplicate, graph.id)],
+  };
+
+  return {
+    graph: nextGraph,
+    node: duplicate,
   };
 }
 

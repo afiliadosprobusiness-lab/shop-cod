@@ -5,9 +5,11 @@ import {
 import {
   createDefaultFunnelGraph,
   isFunnelNodeType,
+  syncFunnelPagesFromNodes,
   type FunnelConnection as VisualFunnelConnection,
   type FunnelGraph as VisualFunnelGraph,
   type FunnelNode as VisualFunnelNode,
+  type FunnelPage as VisualFunnelPage,
 } from "@/builders/funnel-builder";
 import {
   createDefaultStoreBuilderState,
@@ -211,12 +213,48 @@ function normalizePageBuilderBlock(candidate: unknown): PageBuilderBlock | null 
         block.style.padding === "comfortable"
           ? block.style.padding
           : "comfortable",
+      margin:
+        block.style.margin === "none" ||
+        block.style.margin === "sm" ||
+        block.style.margin === "md" ||
+        block.style.margin === "lg"
+          ? block.style.margin
+          : "sm",
       radius:
         block.style.radius === "soft" ||
         block.style.radius === "pill" ||
         block.style.radius === "rounded"
           ? block.style.radius
           : "rounded",
+      fontFamily:
+        block.style.fontFamily === "sans" ||
+        block.style.fontFamily === "serif" ||
+        block.style.fontFamily === "mono"
+          ? block.style.fontFamily
+          : "sans",
+      fontSize:
+        block.style.fontSize === "sm" ||
+        block.style.fontSize === "base" ||
+        block.style.fontSize === "lg" ||
+        block.style.fontSize === "xl"
+          ? block.style.fontSize
+          : "base",
+      borderStyle:
+        block.style.borderStyle === "none" ||
+        block.style.borderStyle === "solid" ||
+        block.style.borderStyle === "dashed"
+          ? block.style.borderStyle
+          : "solid",
+      borderWidth:
+        block.style.borderWidth === "none" ||
+        block.style.borderWidth === "thin" ||
+        block.style.borderWidth === "medium"
+          ? block.style.borderWidth
+          : "thin",
+      borderColor:
+        typeof block.style.borderColor === "string"
+          ? block.style.borderColor
+          : "rgba(255,255,255,0.12)",
     },
     layout: {
       width:
@@ -235,6 +273,13 @@ function normalizePageBuilderBlock(candidate: unknown): PageBuilderBlock | null 
         typeof block.layout.columns === "number" && Number.isFinite(block.layout.columns)
           ? Math.max(2, Math.trunc(block.layout.columns))
           : 2,
+      minHeight:
+        block.layout.minHeight === "auto" ||
+        block.layout.minHeight === "sm" ||
+        block.layout.minHeight === "md" ||
+        block.layout.minHeight === "lg"
+          ? block.layout.minHeight
+          : "auto",
     },
     children: normalizedChildren,
   };
@@ -330,6 +375,30 @@ function normalizeFunnelConnection(
   };
 }
 
+function normalizeFunnelPage(candidate: unknown): VisualFunnelPage | null {
+  if (!candidate || typeof candidate !== "object") {
+    return null;
+  }
+
+  const page = candidate as Partial<VisualFunnelPage>;
+
+  if (
+    typeof page.id !== "string" ||
+    typeof page.funnelId !== "string" ||
+    typeof page.type !== "string" ||
+    !isFunnelNodeType(page.type)
+  ) {
+    return null;
+  }
+
+  return {
+    id: page.id,
+    funnelId: page.funnelId,
+    type: page.type,
+    contentJson: typeof page.contentJson === "string" ? page.contentJson : "",
+  };
+}
+
 function normalizeFunnelBuilder(candidate: unknown) {
   if (!candidate || typeof candidate !== "object") {
     return null;
@@ -358,13 +427,23 @@ function normalizeFunnelBuilder(candidate: unknown) {
         nodeIds.has(connection.from) &&
         nodeIds.has(connection.to),
     );
+  const nodePageIds = new Set(nodes.map((node) => node.pageId));
+  const pages = Array.isArray(graph.pages)
+    ? graph.pages
+        .map((page) => normalizeFunnelPage(page))
+        .filter(
+          (page): page is VisualFunnelPage =>
+            Boolean(page) && nodePageIds.has(page.id),
+        )
+    : [];
 
-  return {
+  return syncFunnelPagesFromNodes({
     id: graph.id,
     name: graph.name,
     nodes,
+    pages,
     connections,
-  } satisfies VisualFunnelGraph;
+  } satisfies VisualFunnelGraph);
 }
 
 function normalizeStoreBuilder(candidate: unknown) {

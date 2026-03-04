@@ -1,9 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
+  createPageBuilderDocument,
   createDefaultPageBuilderBlocks,
   createPageBuilderBlock,
+  serializePageBuilderDocument,
 } from "@/builders/page-builder/blocks/schema";
 import {
+  duplicatePageBuilderBlock,
   findPageBuilderBlock,
   insertPageBuilderBlock,
   movePageBuilderBlock,
@@ -19,9 +22,10 @@ describe("page builder schema", () => {
     });
 
     expect(blocks).toHaveLength(3);
+    expect(blocks[0]?.type).toBe("section");
     expect(blocks[0]?.children.length).toBeGreaterThan(0);
-    expect(blocks[1]?.children.length).toBeGreaterThan(1);
-    expect(blocks[0]?.children[1]?.content.label).toBe("Pedir hoy");
+    expect(blocks[0]?.children[0]?.children[1]?.content.label).toBe("Pedir hoy");
+    expect(blocks[2]?.children[0]?.children[0]?.type).toBe("divider");
   });
 
   it("moves blocks between root and nested containers", () => {
@@ -55,5 +59,27 @@ describe("page builder schema", () => {
 
     expect(removed.removed?.id).toBe(text.id);
     expect(findPageBuilderBlock(removed.blocks, text.id)).toBeNull();
+  });
+
+  it("duplicates a block and serializes page json", () => {
+    const section = createPageBuilderBlock("section");
+    const text = createPageBuilderBlock("text");
+    const tree = insertPageBuilderBlock([section], section.id, 0, text);
+
+    const duplicated = duplicatePageBuilderBlock(tree, text.id);
+    const page = createPageBuilderDocument(duplicated.blocks, {
+      id: "page-1",
+      title: "Landing principal",
+    });
+    const serialized = serializePageBuilderDocument(duplicated.blocks, {
+      id: "page-1",
+      title: "Landing principal",
+    });
+
+    expect(duplicated.duplicated).not.toBeNull();
+    expect(findPageBuilderBlock(duplicated.blocks, section.id)?.children).toHaveLength(2);
+    expect(page.title).toBe("Landing principal");
+    expect(serialized).toContain('"title": "Landing principal"');
+    expect(serialized).toContain('"type": "text"');
   });
 });

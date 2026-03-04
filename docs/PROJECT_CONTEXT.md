@@ -4,7 +4,7 @@
 
 - Proyecto: ShopCOD
 - Tipo: frontend SPA
-- Estado funcional: frontend navegable con auth en Firebase, creador guiado de tiendas y persistencia local de drafts
+- Estado funcional: frontend navegable con auth en Firebase, shell SaaS protegido y flujos visuales legacy para editor/preview
 
 ## Stack
 
@@ -26,8 +26,18 @@
 - `/store/demo` -> landing demo de producto
 - `/checkout` -> checkout demo
 - `/order-confirmed` -> confirmacion de compra
-- `/dashboard` -> dashboard protegido
-- `/orders` -> dashboard de pedidos protegido
+- `/dashboard` -> home del panel SaaS protegido
+- `/products` -> modulo protegido de productos
+- `/products/new` -> alta protegida de producto
+- `/funnels` -> modulo protegido de funnels
+- `/stores` -> modulo protegido de tiendas
+- `/stores/:storeId` -> panel interno protegido de cada tienda
+- `/orders` -> modulo protegido de pedidos
+- `/analytics` -> modulo protegido de analiticas
+- `/contacts` -> modulo protegido de contactos
+- `/offers` -> modulo protegido de ofertas
+- `/apps` -> modulo protegido de aplicaciones
+- `/settings` -> modulo protegido de configuracion
 - `/editor/:storeId` -> editor visual protegido
 - `/preview/:storeId` -> preview protegido
 - `*` -> 404
@@ -36,14 +46,17 @@
 
 - Inicio de sesion: `/login` con email/password o Google
 - Rutas privadas: redirigen a `/login` si no hay sesion
-- Crear tienda: dashboard abre modal, crea draft local con funnel completo (hero, problema, beneficios, reviews, FAQ, checkout y CTA) y navega a `/editor/:storeId`
-- Editor: mismo `/editor/:storeId` ahora incluye `Store builder`, `Funnel builder` y `Page builder`; el store builder configura catalogo, bundles, checkout, order bumps, monedas y dominios; el funnel builder usa canvas con pan/zoom, nodos conectables y analytics
-- Shared engine: los tres builders ahora comparten `src/builders/shared` para modelos canonicos, `renderBlock(block)` y shells UI (`canvas`, `toolbar`, `sidebar`, `blocks`, `editor`)
-- Guardar: editor guarda bloques + perfil comercial + layout JSON del page builder + layouts por `pageId` + grafo del funnel + estado del store builder en `localStorage`
-- Aplicar al funnel: sincroniza el perfil comercial con el contenido del funnel
-- Preview: usa el perfil guardado para poblar hero, CTA y checkout
-- Publicar: guarda `publishedAt` local y marca la tienda como activa en el catalogo local
-- Dashboard: las tiendas locales tambien pueden eliminarse desde el modal de acciones
+- Shell del panel: `DashboardLayout` monta sidebar izquierda, topbar superior y contenido dinamico con `Outlet`
+- Home del panel: `/dashboard` muestra dos tarjetas principales (`Crear tienda online` y `Crear funnel`) con CTA `Comenzar`
+- Navegacion entre modulos: el sidebar enlaza `Inicio`, `Productos`, `Funnels`, `Tiendas`, `Pedidos`, `Analiticas`, `Contactos`, `Ofertas`, `Aplicaciones` y `Configuracion`
+- Topbar: mantiene buscador global, selector de workspace, notificaciones y avatar del usuario en todos los modulos
+- Modulos internos: `/products`, `/funnels`, `/stores`, `/orders`, `/analytics`, `/contacts`, `/offers`, `/apps` y `/settings` reutilizan el mismo layout compartido
+- Productos: `/products` ahora muestra tabla con buscador, filtros y acciones; `/products/new` crea productos con formulario dividido en informacion, detalles, configuracion e incrementos de pedido
+- Funnels: `/funnels` ahora muestra listado con preview, conversion y visitas, e incluye wizard de 3 pasos para crear funnels y redirigir al editor
+- Tiendas: `/stores` ahora muestra listado con preview, metodo de pago y cantidad de paginas, e incluye wizard de 3 pasos para crear tiendas con plantilla, pagos y configuracion
+- Dashboard interno de tienda: `/stores/:storeId` muestra navegacion interna por secciones y un resumen con metricas, top productos y fuentes de trafico derivadas del estado local
+- Editor: el flujo visual existente sigue disponible en `/editor/:storeId` con `Store builder`, `Funnel builder` y `Page builder`; cada nodo/pagina del funnel abre su propia vista del Page Builder
+- Preview: sigue disponible en `/preview/:storeId` para revisar drafts por `storeId`
 
 ## Integraciones
 
@@ -64,10 +77,25 @@
 ## Notas Operativas
 
 - Las envs publicas de Firebase ya fueron cargadas en Vercel para `Production` y `Preview`.
-- El dashboard mezcla tiendas demo con tiendas creadas localmente en el navegador.
+- El shell del dashboard vive en `src/layouts/DashboardLayout.tsx`.
+- Los componentes del shell viven en `src/components/dashboard/*` (`Sidebar`, `Topbar`, `MainContent` y `navigation`).
+- El home del panel vive en `src/pages/dashboard/DashboardHomePage.tsx`.
+- Los modulos genericos (`/orders`, `/analytics`, `/contacts`, `/offers`, `/apps`, `/settings`) comparten `src/pages/dashboard/DashboardModulePage.tsx`.
+- El modulo real de productos vive en `src/pages/dashboard/ProductsPage.tsx`.
+- El alta de productos vive en `src/pages/dashboard/ProductCreatePage.tsx`.
+- El modelo y almacenamiento local de productos viven en `src/lib/products.ts`.
+- El modulo real de funnels vive en `src/pages/dashboard/FunnelsPage.tsx`.
+- El modelo, templates y almacenamiento local de funnels viven en `src/lib/funnels.ts`.
+- El modulo real de tiendas vive en `src/pages/dashboard/StoresPage.tsx`.
+- El panel interno por tienda vive en `src/pages/dashboard/StoreDashboardPage.tsx`.
+- El modelo, templates, selector de pagos, almacenamiento local y analytics derivados de tiendas viven en `src/lib/stores.ts`.
+- El editor visual y el preview legacy siguen operativos por ruta directa.
 - El creador actual no depende de backend; los drafts viven en `localStorage`.
-- El modulo visual del page builder vive en `src/builders/page-builder` y persiste su arbol de bloques dentro del mismo draft del editor.
-- El modulo visual del funnel builder vive en `src/builders/funnel-builder` y persiste nodos/conexiones junto con los layouts por `pageId`.
+- El modulo visual del page builder vive en `src/builders/page-builder` y persiste su arbol de bloques dentro del mismo draft del editor, sincronizado por pagina del funnel.
+- El page builder ahora se organiza en `canvas`, `sidebar`, `topbar`, `renderer`, `block-engine` y `state-manager`.
+- El page builder ya soporta drag/drop desde sidebar, reordenamiento, duplicado, resize por bloque, nesting, tabs `Elements/Layers/Styles/Settings` y serializacion `page_json`.
+- El modulo visual del funnel builder vive en `src/builders/funnel-builder` y persiste nodos/conexiones junto con `pages[]` (id, funnelId, type, contentJson) y los layouts por `pageId`.
+- El funnel builder ahora soporta canvas infinito con zoom/pan/drag, nodos duplicables/eliminables, conexion visual y tipos de pagina extendidos (`product`, `checkout`, `upsell`, `downsell`, `thankyou`, `leadCapture`, `article`, `blank`).
 - El modulo visual del store builder vive en `src/builders/store-builder` y persiste productos, bundles, order bumps, colecciones y checkout dentro del mismo draft.
 - Los tres builders delegan modelos, renderer y shells reutilizables a `src/builders/shared`.
 - Este archivo resume `docs/context.md` y debe mantenerse alineado con esa fuente de verdad.

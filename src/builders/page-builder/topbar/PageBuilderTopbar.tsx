@@ -46,8 +46,8 @@ export function PageBuilderTopbar({
   return (
     <BuilderToolbar
       eyebrow="Top bar"
-      title="Undo, preview y publish sin salir del editor"
-      description="El layout se actualiza en caliente, sin recargar toda la pagina."
+      title="Undo, redo, preview, save y publish sin salir del editor"
+      description="El layout y el JSON se actualizan en caliente, sin recargar toda la pagina."
       actions={
         <>
           <Button
@@ -73,7 +73,10 @@ export function PageBuilderTopbar({
             Redo
           </Button>
 
-          <div className="flex items-center gap-1 rounded-2xl border border-white/10 bg-white/[0.03] p-1">
+          <div className="flex items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.03] px-2 py-1">
+            <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">
+              Responsive
+            </span>
             {devices.map((item) => {
               const Icon = item.icon;
 

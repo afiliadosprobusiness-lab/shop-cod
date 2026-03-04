@@ -49,13 +49,18 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   PageBuilderEditor,
   createDefaultPageBuilderBlocks,
+  serializePageBuilderDocument,
   type PageBuilderBlock,
 } from "@/builders/page-builder";
 import {
   FunnelBuilderEditor,
   createDefaultFunnelGraph,
+  getFunnelPage,
+  syncFunnelPagesFromNodes,
   type FunnelGraph,
   type FunnelNode,
+  type FunnelNodeType,
+  upsertFunnelPageContent,
 } from "@/builders/funnel-builder";
 import {
   StoreBuilderEditor,
@@ -164,6 +169,56 @@ function createDefaultProfile(): StoreProfile {
     ctaText: "Comprar ahora",
     category: "General",
   };
+}
+
+function getPageTitleByType(type?: FunnelNodeType | null) {
+  const labels: Record<FunnelNodeType, string> = {
+    landing: "Landing page",
+    product: "Product page",
+    checkout: "Checkout page",
+    upsell: "Upsell page",
+    downsell: "Downsell page",
+    thankyou: "Thank you page",
+    leadCapture: "Lead capture page",
+    article: "Article page",
+    blank: "Blank page",
+  };
+
+  if (!type) {
+    return "Nueva pagina";
+  }
+
+  return labels[type];
+}
+
+function parsePageBuilderBlocksFromContentJson(
+  contentJson: string | undefined,
+  profile: StoreProfile,
+) {
+  if (!contentJson?.trim()) {
+    return createDefaultPageBuilderBlocks(profile);
+  }
+
+  try {
+    const parsed = JSON.parse(contentJson) as unknown;
+
+    if (Array.isArray(parsed)) {
+      return parsed as PageBuilderBlock[];
+    }
+
+    if (
+      parsed &&
+      typeof parsed === "object" &&
+      "blocks" in parsed &&
+      Array.isArray((parsed as { blocks: unknown }).blocks)
+    ) {
+      return (parsed as { blocks: PageBuilderBlock[] }).blocks;
+    }
+  } catch {
+    return createDefaultPageBuilderBlocks(profile);
+  }
+
+  return createDefaultPageBuilderBlocks(profile);
 }
 
 function createBlockId() {
@@ -1039,7 +1094,9 @@ export default function EditorPage() {
       storedState?.storeBuilder || createDefaultStoreBuilderState(resolvedProfile),
     );
 
-    const nextFunnelGraph = storedState?.funnelBuilder || createDefaultFunnelGraph();
+    const nextFunnelGraph = syncFunnelPagesFromNodes(
+      storedState?.funnelBuilder || createDefaultFunnelGraph(),
+    );
     setFunnelGraph(nextFunnelGraph);
 
     const fallbackPageBlocks =
@@ -1047,13 +1104,28 @@ export default function EditorPage() {
         ? storedState.pageBuilder
         : createDefaultPageBuilderBlocks(resolvedProfile);
     const nextActivePageId = nextFunnelGraph.nodes[0]?.pageId || "default";
-    const nextPageBuilderPages = {
-      default: fallbackPageBlocks,
-      ...(storedState?.pageBuilderPages || {}),
-    };
+    const nextPageBuilderPages = nextFunnelGraph.pages.reduce<Record<string, PageBuilderBlock[]>>(
+      (accumulator, page) => {
+        const storedBlocks = storedState?.pageBuilderPages?.[page.id];
+
+        accumulator[page.id] =
+          storedBlocks?.length
+            ? storedBlocks
+            : parsePageBuilderBlocksFromContentJson(page.contentJson, resolvedProfile);
+
+        return accumulator;
+      },
+      {
+        default: fallbackPageBlocks,
+        ...(storedState?.pageBuilderPages || {}),
+      },
+    );
 
     if (!nextPageBuilderPages[nextActivePageId]) {
-      nextPageBuilderPages[nextActivePageId] = createDefaultPageBuilderBlocks(resolvedProfile);
+      const page = getFunnelPage(nextFunnelGraph, nextActivePageId);
+      nextPageBuilderPages[nextActivePageId] = page
+        ? parsePageBuilderBlocksFromContentJson(page.contentJson, resolvedProfile)
+        : createDefaultPageBuilderBlocks(resolvedProfile);
     }
 
     setPageBuilderPages(nextPageBuilderPages);
@@ -1226,9 +1298,99 @@ export default function EditorPage() {
     }));
   };
 
+  const createFunnelPageContentJson = (
+    targetGraph: FunnelGraph,
+    pageId: string,
+    nextBlocks: PageBuilderBlock[],
+  ) => {
+    const page = getFunnelPage(targetGraph, pageId);
+
+    return serializePageBuilderDocument(nextBlocks, {
+      id: pageId,
+      title: getPageTitleByType(page?.type),
+    });
+  };
+
+  const syncFunnelPageContent = (
+    targetGraph: FunnelGraph,
+    pageId: string,
+    nextBlocks: PageBuilderBlock[],
+  ) => {
+    return upsertFunnelPageContent(
+      targetGraph,
+      pageId,
+      createFunnelPageContentJson(targetGraph, pageId, nextBlocks),
+    );
+  };
+
+  const syncActivePageBuilderDraft = (nextPageBuilderBlocks: PageBuilderBlock[]) => {
+    const nextFunnelGraph = syncFunnelPageContent(
+      funnelGraph,
+      activePageId,
+      nextPageBuilderBlocks,
+    );
+    const nextPageBuilderPages = buildNextPageBuilderPages(nextFunnelGraph, {
+      ...pageBuilderPages,
+      [activePageId]: nextPageBuilderBlocks,
+      default: nextPageBuilderBlocks,
+    });
+
+    setFunnelGraph(nextFunnelGraph);
+    setPageBuilderBlocks(nextPageBuilderBlocks);
+    setPageBuilderPages(nextPageBuilderPages);
+
+    return {
+      nextFunnelGraph,
+      nextPageBuilderPages,
+    };
+  };
+
+  const buildNextPageBuilderPages = (
+    targetGraph: FunnelGraph,
+    nextBlocksByPageId: Record<string, PageBuilderBlock[]>,
+  ) => {
+    return targetGraph.pages.reduce<Record<string, PageBuilderBlock[]>>(
+      (accumulator, page) => {
+        accumulator[page.id] =
+          nextBlocksByPageId[page.id] ||
+          parsePageBuilderBlocksFromContentJson(page.contentJson, storeProfile);
+
+        return accumulator;
+      },
+      {
+        default:
+          nextBlocksByPageId[activePageId] ||
+          pageBuilderBlocks ||
+          createDefaultPageBuilderBlocks(storeProfile),
+        ...nextBlocksByPageId,
+      },
+    );
+  };
+
+  const handleFunnelGraphChange = (nextGraph: FunnelGraph) => {
+    const normalizedGraph = syncFunnelPagesFromNodes(nextGraph);
+    setFunnelGraph(normalizedGraph);
+    setPageBuilderPages((previous) => buildNextPageBuilderPages(normalizedGraph, previous));
+
+    const hasActivePage = normalizedGraph.pages.some((page) => page.id === activePageId);
+
+    if (!hasActivePage) {
+      const fallbackPageId = normalizedGraph.nodes[0]?.pageId || "default";
+      const fallbackBlocks =
+        normalizedGraph.pages[0]
+          ? parsePageBuilderBlocksFromContentJson(normalizedGraph.pages[0].contentJson, storeProfile)
+          : createDefaultPageBuilderBlocks(storeProfile);
+
+      setActivePageId(fallbackPageId);
+      setPageBuilderBlocks(fallbackBlocks);
+    }
+  };
+
   const openFunnelNodePage = (node: FunnelNode) => {
+    const page = getFunnelPage(funnelGraph, node.pageId);
     const nextBlocks =
-      pageBuilderPages[node.pageId] || createDefaultPageBuilderBlocks(storeProfile);
+      pageBuilderPages[node.pageId] ||
+      parsePageBuilderBlocksFromContentJson(page?.contentJson, storeProfile);
 
     syncPageBuilderPage(node.pageId, nextBlocks);
     setBuilderMode("page");
@@ -1278,7 +1440,9 @@ export default function EditorPage() {
   };
 
   const persistPageBuilderDraft = (nextPageBuilderBlocks: PageBuilderBlock[]) => {
-    syncPageBuilderPage(activePageId, nextPageBuilderBlocks);
+    const { nextFunnelGraph, nextPageBuilderPages } = syncActivePageBuilderDraft(
+      nextPageBuilderBlocks,
+    );
     const nextBlocks = applyProfileToBlocks(blocks, storeProfile);
     setBlocks(nextBlocks);
 
@@ -1287,12 +1451,8 @@ export default function EditorPage() {
       nextBlocks,
       storeProfile,
       nextPageBuilderBlocks,
-      {
-        ...pageBuilderPages,
-        [activePageId]: nextPageBuilderBlocks,
-        default: nextPageBuilderBlocks,
-      },
-      funnelGraph,
+      nextPageBuilderPages,
+      nextFunnelGraph,
       storeBuilderState,
     );
 
@@ -1317,19 +1477,17 @@ export default function EditorPage() {
   };
 
   const openPageBuilderPreview = (nextPageBuilderBlocks: PageBuilderBlock[]) => {
-    syncPageBuilderPage(activePageId, nextPageBuilderBlocks);
+    const { nextFunnelGraph, nextPageBuilderPages } = syncActivePageBuilderDraft(
+      nextPageBuilderBlocks,
+    );
     const nextBlocks = applyProfileToBlocks(blocks, storeProfile);
     saveEditorState(
       resolvedStoreId,
       nextBlocks,
       storeProfile,
       nextPageBuilderBlocks,
-      {
-        ...pageBuilderPages,
-        [activePageId]: nextPageBuilderBlocks,
-        default: nextPageBuilderBlocks,
-      },
-      funnelGraph,
+      nextPageBuilderPages,
+      nextFunnelGraph,
       storeBuilderState,
     );
     setBlocks(nextBlocks);
@@ -1361,7 +1519,9 @@ export default function EditorPage() {
   };
 
   const handlePageBuilderPublish = (nextPageBuilderBlocks: PageBuilderBlock[]) => {
-    syncPageBuilderPage(activePageId, nextPageBuilderBlocks);
+    const { nextFunnelGraph, nextPageBuilderPages } = syncActivePageBuilderDraft(
+      nextPageBuilderBlocks,
+    );
     const nextBlocks = applyProfileToBlocks(blocks, storeProfile);
     setBlocks(nextBlocks);
 
@@ -1370,12 +1530,8 @@ export default function EditorPage() {
       nextBlocks,
       storeProfile,
       nextPageBuilderBlocks,
-      {
-        ...pageBuilderPages,
-        [activePageId]: nextPageBuilderBlocks,
-        default: nextPageBuilderBlocks,
-      },
-      funnelGraph,
+      nextPageBuilderPages,
+      nextFunnelGraph,
       storeBuilderState,
     );
 
@@ -1535,6 +1691,7 @@ export default function EditorPage() {
                 editorKey={`${resolvedStoreId}:${activePageId}`}
                 initialBlocks={pageBuilderBlocks}
                 seed={storeProfile}
+                pageTitle={getPageTitleByType(activeFunnelNode?.type)}
                 onBlocksChange={(nextBlocks) => syncPageBuilderPage(activePageId, nextBlocks)}
                 onSave={persistPageBuilderDraft}
                 onPreview={openPageBuilderPreview}
@@ -1549,7 +1706,7 @@ export default function EditorPage() {
               <BuilderShowcaseCard mode={builderMode} />
               <FunnelBuilderEditor
                 graph={funnelGraph}
-                onGraphChange={setFunnelGraph}
+                onGraphChange={handleFunnelGraphChange}
                 onOpenPage={openFunnelNodePage}
               />
             </div>

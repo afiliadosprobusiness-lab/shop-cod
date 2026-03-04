@@ -79,6 +79,22 @@ function getPaddingClass(padding: PageBuilderBlock["style"]["padding"]) {
   return "p-6";
 }
 
+function getMarginClass(margin: PageBuilderBlock["style"]["margin"]) {
+  if (margin === "none") {
+    return "my-0";
+  }
+
+  if (margin === "sm") {
+    return "my-2";
+  }
+
+  if (margin === "lg") {
+    return "my-8";
+  }
+
+  return "my-4";
+}
+
 function getRadiusClass(radius: PageBuilderBlock["style"]["radius"]) {
   if (radius === "soft") {
     return "rounded-2xl";
@@ -103,6 +119,34 @@ function getAlignClass(align: PageBuilderBlock["style"]["align"]) {
   return "text-left";
 }
 
+function getFontFamilyClass(fontFamily: PageBuilderBlock["style"]["fontFamily"]) {
+  if (fontFamily === "serif") {
+    return "font-serif";
+  }
+
+  if (fontFamily === "mono") {
+    return "font-mono";
+  }
+
+  return "font-sans";
+}
+
+function getFontSizeClass(fontSize: PageBuilderBlock["style"]["fontSize"]) {
+  if (fontSize === "sm") {
+    return "text-sm";
+  }
+
+  if (fontSize === "lg") {
+    return "text-lg";
+  }
+
+  if (fontSize === "xl") {
+    return "text-xl";
+  }
+
+  return "text-base";
+}
+
 function getWidthClass(
   width: PageBuilderBlock["layout"]["width"],
   device: PageBuilderDevice,
@@ -120,6 +164,34 @@ function getWidthClass(
   }
 
   return "max-w-full";
+}
+
+function getMinHeightClass(minHeight: PageBuilderBlock["layout"]["minHeight"]) {
+  if (minHeight === "sm") {
+    return "min-h-24";
+  }
+
+  if (minHeight === "md") {
+    return "min-h-40";
+  }
+
+  if (minHeight === "lg") {
+    return "min-h-64";
+  }
+
+  return "min-h-0";
+}
+
+function getBorderWidthValue(borderWidth: PageBuilderBlock["style"]["borderWidth"]) {
+  if (borderWidth === "medium") {
+    return "2px";
+  }
+
+  if (borderWidth === "none") {
+    return "0px";
+  }
+
+  return "1px";
 }
 
 function EditableField({
@@ -169,16 +241,23 @@ function EditableField({
 function renderPageBlock(block: PageBuilderBlock, options?: RenderBlockOptions) {
   const device = options?.device || "desktop";
   const wrapperClass = [
-    "mx-auto overflow-hidden border border-white/10 bg-slate-950/70 shadow-[0_20px_50px_rgba(15,23,42,0.22)]",
+    "mx-auto overflow-hidden border bg-slate-950/70 shadow-[0_20px_50px_rgba(15,23,42,0.22)]",
     getPaddingClass(block.style.padding),
+    getMarginClass(block.style.margin),
     getRadiusClass(block.style.radius),
     getAlignClass(block.style.align),
+    getFontFamilyClass(block.style.fontFamily),
+    getFontSizeClass(block.style.fontSize),
     getWidthClass(block.layout.width, device),
+    getMinHeightClass(block.layout.minHeight),
   ].join(" ");
 
   const inlineStyle = {
     backgroundColor: block.style.backgroundColor,
     color: block.style.textColor,
+    borderColor: block.style.borderColor,
+    borderStyle: block.style.borderStyle,
+    borderWidth: getBorderWidthValue(block.style.borderWidth),
   };
 
   switch (block.type) {
@@ -292,6 +371,46 @@ function renderPageBlock(block: PageBuilderBlock, options?: RenderBlockOptions) 
         </section>
       );
 
+    case "section":
+      return (
+        <section className={wrapperClass} style={inlineStyle}>
+          <div className="space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="inline-flex rounded-full border border-white/15 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] opacity-70">
+                Section
+              </div>
+              <div className="rounded-full bg-white/5 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] opacity-70">
+                Layout zone
+              </div>
+            </div>
+            <div>
+              <h3 className="text-xl font-bold">
+                <EditableField
+                  block={block}
+                  field="title"
+                  fallback="Section"
+                  options={options}
+                />
+              </h3>
+              <p className="mt-2 text-sm opacity-80">
+                <EditableField
+                  block={block}
+                  field="subtitle"
+                  fallback="Organiza una seccion completa antes de agregar elementos internos."
+                  multiline
+                  options={options}
+                />
+              </p>
+            </div>
+            {!block.children.length ? (
+              <div className="rounded-2xl border border-dashed border-white/20 px-4 py-6 text-sm opacity-70">
+                Suelta contenedores, columnas o cualquier elemento dentro de esta section.
+              </div>
+            ) : null}
+          </div>
+        </section>
+      );
+
     case "columns":
       return (
         <section className={wrapperClass} style={inlineStyle}>
@@ -328,6 +447,25 @@ function renderPageBlock(block: PageBuilderBlock, options?: RenderBlockOptions) 
                 </div>
               ))}
             </div>
+          </div>
+        </section>
+      );
+
+    case "divider":
+      return (
+        <section className={wrapperClass} style={inlineStyle}>
+          <div className="flex items-center gap-3">
+            <div className="h-px flex-1 bg-white/20" />
+            <span className="text-[11px] font-semibold uppercase tracking-[0.16em] opacity-60">
+              <EditableField
+                block={block}
+                field="label"
+                fallback="Separador"
+                options={options}
+                className="h-8 min-w-24 border-white/20 bg-white/10 text-center text-xs text-white"
+              />
+            </span>
+            <div className="h-px flex-1 bg-white/20" />
           </div>
         </section>
       );
@@ -547,6 +685,24 @@ function renderFunnelNode(block: FunnelNode, options?: RenderBlockOptions) {
             CR
           </p>
           <p className="mt-1 text-sm font-semibold text-white">{block.analytics.conversionRate}%</p>
+        </div>
+      </div>
+
+      <div className="overflow-hidden rounded-3xl border border-white/10 bg-slate-900/70">
+        <div
+          className={cn(
+            "h-20 bg-gradient-to-r opacity-90",
+            meta ? meta.accent : "from-sky-400 to-cyan-300",
+          )}
+        />
+        <div className="space-y-3 p-4">
+          <div className="h-2.5 w-2/3 rounded-full bg-white/20" />
+          <div className="h-2 w-full rounded-full bg-white/10" />
+          <div className="h-2 w-5/6 rounded-full bg-white/10" />
+          <div className="grid grid-cols-2 gap-2">
+            <div className="h-9 rounded-2xl bg-white/10" />
+            <div className="h-9 rounded-2xl bg-white/5" />
+          </div>
         </div>
       </div>
 

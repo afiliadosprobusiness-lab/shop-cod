@@ -13,7 +13,12 @@ describe("funnel builder schema", () => {
 
     expect(graph.name).toBe("ShopCOD Funnel");
     expect(graph.nodes.length).toBeGreaterThanOrEqual(6);
+    expect(graph.pages).toHaveLength(graph.nodes.length);
     expect(graph.connections.length).toBeGreaterThanOrEqual(5);
+    expect(graph.pages.every((page) => page.funnelId === graph.id)).toBe(true);
+    expect(
+      graph.nodes.every((node) => graph.pages.some((page) => page.id === node.pageId)),
+    ).toBe(true);
   });
 
   it("adds nodes and connects them without duplicates", () => {
@@ -23,6 +28,7 @@ describe("funnel builder schema", () => {
     const duplicateGraph = connectNodes(nextGraph, graphWithNode.nodes[0]!.id, node.id);
 
     expect(graphWithNode.nodes.some((candidate) => candidate.id === node.id)).toBe(true);
+    expect(graphWithNode.pages.some((page) => page.id === node.pageId)).toBe(true);
     expect(nextGraph.connections.some((connection) => connection.to === node.id)).toBe(true);
     expect(duplicateGraph.connections).toHaveLength(nextGraph.connections.length);
   });
@@ -42,6 +48,7 @@ describe("funnel builder schema", () => {
     const deleted = deleteNode(graph, graph.nodes[0]!.id);
 
     expect(deleted.nodes.some((node) => node.id === graph.nodes[0]!.id)).toBe(false);
+    expect(deleted.pages.some((page) => page.id === graph.nodes[0]!.pageId)).toBe(false);
     expect(
       deleted.connections.some(
         (connection) =>

@@ -9,6 +9,8 @@ export const pageBuilderBlockTypes = [
   "form",
   "countdown",
   "testimonial",
+  "section",
+  "divider",
 ] as const;
 
 export type PageBuilderBlockType = (typeof pageBuilderBlockTypes)[number];
@@ -28,13 +30,20 @@ export interface PageBuilderBlockStyle {
   textColor: string;
   align: "left" | "center" | "right";
   padding: "compact" | "comfortable" | "spacious";
+  margin: "none" | "sm" | "md" | "lg";
   radius: "soft" | "rounded" | "pill";
+  fontFamily: "sans" | "serif" | "mono";
+  fontSize: "sm" | "base" | "lg" | "xl";
+  borderStyle: "none" | "solid" | "dashed";
+  borderWidth: "none" | "thin" | "medium";
+  borderColor: string;
 }
 
 export interface PageBuilderBlockLayout {
   width: "full" | "wide" | "narrow";
   gap: "tight" | "normal" | "loose";
   columns: number;
+  minHeight: "auto" | "sm" | "md" | "lg";
 }
 
 export interface PageBuilderBlock {
@@ -46,7 +55,13 @@ export interface PageBuilderBlock {
   children: PageBuilderBlock[];
 }
 
-const nestableTypes = new Set<PageBuilderBlockType>(["container", "columns"]);
+export interface PageBuilderDocument {
+  id: string;
+  title: string;
+  blocks: PageBuilderBlock[];
+}
+
+const nestableTypes = new Set<PageBuilderBlockType>(["section", "container", "columns"]);
 
 function createBlockId(prefix: string) {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
@@ -58,7 +73,13 @@ function getDefaultStyle(): PageBuilderBlockStyle {
     textColor: "#f8fafc",
     align: "left",
     padding: "comfortable",
+    margin: "sm",
     radius: "rounded",
+    fontFamily: "sans",
+    fontSize: "base",
+    borderStyle: "solid",
+    borderWidth: "thin",
+    borderColor: "rgba(255,255,255,0.12)",
   };
 }
 
@@ -67,6 +88,7 @@ function getDefaultLayout(): PageBuilderBlockLayout {
     width: "full",
     gap: "normal",
     columns: 2,
+    minHeight: "auto",
   };
 }
 
@@ -130,12 +152,32 @@ export function createPageBuilderBlock(
         },
       };
 
+    case "section":
+      return {
+        ...base,
+        type,
+        style: {
+          ...base.style,
+          backgroundColor: "#111827",
+          borderColor: "rgba(59,130,246,0.18)",
+          margin: "md",
+        },
+        layout: {
+          ...base.layout,
+          minHeight: "md",
+        },
+        content: {
+          title: "Section",
+          subtitle: "Agrupa bloques y define el ritmo general de la pagina.",
+        },
+      };
+
     case "container":
       return {
         ...base,
         type,
         content: {
-          title: "Contenedor",
+          title: "Container",
           subtitle: "Agrupa bloques y ordena una seccion completa.",
         },
       };
@@ -145,7 +187,7 @@ export function createPageBuilderBlock(
         ...base,
         type,
         content: {
-          title: "Columnas",
+          title: "Columns",
           subtitle: "Comparacion, beneficios o grids de confianza.",
         },
       };
@@ -206,34 +248,82 @@ export function createPageBuilderBlock(
           role: "Comprador verificado",
         },
       };
+
+    case "divider":
+      return {
+        ...base,
+        type,
+        style: {
+          ...base.style,
+          backgroundColor: "transparent",
+          borderStyle: "none",
+          borderWidth: "none",
+        },
+        layout: {
+          ...base.layout,
+          minHeight: "sm",
+        },
+        content: {
+          label: "Separador",
+        },
+      };
   }
 }
 
 export function createDefaultPageBuilderBlocks(seed?: PageBuilderSeed) {
+  const heroSection = createPageBuilderBlock("section", seed);
+  heroSection.content.title = "Hero premium";
+  heroSection.content.subtitle = "Titular, visual y CTA en una misma seccion.";
+
   const heroContainer = createPageBuilderBlock("container", seed);
-  heroContainer.content.title = "Hero premium";
-  heroContainer.content.subtitle = "Titular, visual y CTA en una misma seccion.";
+  heroContainer.content.title = "Contenedor principal";
+  heroContainer.content.subtitle = "Titulo, subtitulo y CTA.";
   heroContainer.children = [
     createPageBuilderBlock("text", seed),
     createPageBuilderBlock("button", seed),
   ];
+  heroSection.children = [heroContainer];
 
-  const socialProof = createPageBuilderBlock("columns", seed);
-  socialProof.content.title = "Confianza";
-  socialProof.content.subtitle = "Prueba social, producto y urgencia.";
-  socialProof.children = [
+  const socialSection = createPageBuilderBlock("section", seed);
+  socialSection.content.title = "Prueba social";
+  socialSection.content.subtitle = "Combina testimonio, producto y urgencia.";
+  const socialColumns = createPageBuilderBlock("columns", seed);
+  socialColumns.layout.columns = 3;
+  socialColumns.children = [
     createPageBuilderBlock("testimonial", seed),
     createPageBuilderBlock("product", seed),
     createPageBuilderBlock("countdown", seed),
   ];
+  socialSection.children = [socialColumns];
 
-  const closingSection = createPageBuilderBlock("container", seed);
+  const closingSection = createPageBuilderBlock("section", seed);
   closingSection.content.title = "Cierre";
-  closingSection.content.subtitle = "Formulario y refuerzo final.";
-  closingSection.children = [
+  closingSection.content.subtitle = "Formulario, video y separacion visual.";
+  const closingContainer = createPageBuilderBlock("container", seed);
+  closingContainer.children = [
+    createPageBuilderBlock("divider", seed),
     createPageBuilderBlock("form", seed),
     createPageBuilderBlock("video", seed),
   ];
+  closingSection.children = [closingContainer];
 
-  return [heroContainer, socialProof, closingSection];
+  return [heroSection, socialSection, closingSection];
+}
+
+export function createPageBuilderDocument(
+  blocks: PageBuilderBlock[],
+  options?: { id?: string; title?: string },
+): PageBuilderDocument {
+  return {
+    id: options?.id || createBlockId("page"),
+    title: options?.title?.trim() || "Nueva pagina",
+    blocks,
+  };
+}
+
+export function serializePageBuilderDocument(
+  blocks: PageBuilderBlock[],
+  options?: { id?: string; title?: string },
+) {
+  return JSON.stringify(createPageBuilderDocument(blocks, options), null, 2);
 }

@@ -1,11 +1,13 @@
 import { useMemo, useRef, useState } from "react";
 import {
   ArrowRight,
+  Copy,
   Link2,
-  Minus,
   MousePointer2,
   Move,
+  PencilLine,
   Plus,
+  Trash2,
   Unlink2,
   ZoomIn,
   ZoomOut,
@@ -21,13 +23,13 @@ import {
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import {
-  addNode,
-  connectNodes,
-  deleteNode,
+  addPage,
+  connectPages,
+  deletePage,
+  duplicatePage,
   disconnectNodes,
   funnelNodeTypes,
   updateNodePosition,
-  type FunnelConnection,
   type FunnelGraph,
   type FunnelNode,
   type FunnelNodeType,
@@ -76,6 +78,21 @@ const nodeMeta: Record<
     label: "Thank you",
     accent: "from-slate-300 to-slate-100",
     badge: "Confirmation",
+  },
+  leadCapture: {
+    label: "Lead capture",
+    accent: "from-lime-300 to-emerald-300",
+    badge: "Lead collection",
+  },
+  article: {
+    label: "Article",
+    accent: "from-fuchsia-300 to-violet-300",
+    badge: "Content path",
+  },
+  blank: {
+    label: "Blank page",
+    accent: "from-zinc-300 to-zinc-100",
+    badge: "Empty canvas",
   },
 };
 
@@ -144,12 +161,14 @@ function FunnelNodeCard({
   isConnecting,
   onOpenPage,
   onDelete,
+  onDuplicate,
   onStartConnection,
 }: {
   node: FunnelNode;
   isConnecting: boolean;
   onOpenPage: (node: FunnelNode) => void;
   onDelete: (nodeId: string) => void;
+  onDuplicate: (nodeId: string) => void;
   onStartConnection: (nodeId: string) => void;
 }) {
   const meta = nodeMeta[node.type];
@@ -160,19 +179,26 @@ function FunnelNodeCard({
         {renderBlock(node, { funnelMeta: meta })}
       </button>
 
-      <div className="mt-4 flex items-center justify-between gap-2">
+      <div className="mt-4 grid gap-2 sm:grid-cols-3">
+        <Button
+          type="button"
+          variant="secondary"
+          size="sm"
+          onClick={() => onOpenPage(node)}
+          className="bg-white text-slate-950 hover:bg-slate-100"
+        >
+          <PencilLine className="h-4 w-4" />
+          Editar
+        </Button>
         <Button
           type="button"
           variant="outline"
           size="sm"
-          onClick={() => onStartConnection(node.id)}
-          className={cn(
-            "border-white/10 bg-white/[0.03] text-white hover:bg-white/[0.06]",
-            isConnecting ? "border-sky-300/50 bg-sky-500/10" : "",
-          )}
+          onClick={() => onDuplicate(node.id)}
+          className="border-white/10 bg-white/[0.03] text-white hover:bg-white/[0.06]"
         >
-          <Link2 className="h-4 w-4" />
-          {isConnecting ? "Conectando" : "Conectar"}
+          <Copy className="h-4 w-4" />
+          Duplicar
         </Button>
         <Button
           type="button"
@@ -181,8 +207,24 @@ function FunnelNodeCard({
           onClick={() => onDelete(node.id)}
           className="text-slate-300 hover:bg-white/[0.05] hover:text-white"
         >
-          <Minus className="h-4 w-4" />
-          Quitar
+          <Trash2 className="h-4 w-4" />
+          Eliminar
+        </Button>
+      </div>
+
+      <div className="mt-2">
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() => onStartConnection(node.id)}
+          className={cn(
+            "w-full border-white/10 bg-white/[0.03] text-white hover:bg-white/[0.06]",
+            isConnecting ? "border-sky-300/50 bg-sky-500/10" : "",
+          )}
+        >
+          <Link2 className="h-4 w-4" />
+          {isConnecting ? "Conectando pagina..." : "Conectar pagina"}
         </Button>
       </div>
     </BuilderBlockCard>
@@ -215,7 +257,7 @@ export function FunnelBuilderEditor({
   );
 
   const handleAddNode = (type: FunnelNodeType) => {
-    const { graph: nextGraph, node } = addNode(graph, type, {
+    const { graph: nextGraph, node } = addPage(graph, type, {
       x: 240 - viewport.x + graph.nodes.length * 40,
       y: 160 - viewport.y + graph.nodes.length * 28,
     });
@@ -311,7 +353,7 @@ export function FunnelBuilderEditor({
       return;
     }
 
-    onGraphChange(connectNodes(graph, connectionStartId, targetNode.id));
+    onGraphChange(connectPages(graph, connectionStartId, targetNode.id));
     setConnectionStartId(null);
   };
 
@@ -321,7 +363,7 @@ export function FunnelBuilderEditor({
         <BuilderToolbar
           eyebrow="Funnel builder"
           title="Canvas infinito para conectar paginas"
-          description="Pan, zoom, drag de nodos y conexiones sin recargar el editor. Click en un nodo abre su Page Builder."
+          description="Pan, zoom, drag, duplicado de paginas y conexiones sin recargar el editor. Click en un nodo abre su Page Builder."
           accentClassName="text-amber-200"
           actions={
             <>
@@ -386,7 +428,7 @@ export function FunnelBuilderEditor({
         <BuilderCanvas
           eyebrow="Canvas"
           title="Nodos, conexiones y analytics"
-          description="Todos los builders comparten el mismo shell de canvas y cards visuales."
+          description="Sistema visual de nodos con preview, metricas y acciones por pagina."
           accentClassName="text-amber-200"
           className="min-h-[720px] overflow-hidden p-0"
           bodyClassName="pt-0"
@@ -458,9 +500,17 @@ export function FunnelBuilderEditor({
                       isConnecting={connectionStartId === node.id}
                       onOpenPage={(targetNode) => handleConnect(targetNode)}
                       onDelete={(nodeId) => {
-                        onGraphChange(deleteNode(graph, nodeId));
+                        onGraphChange(deletePage(graph, nodeId));
                         if (connectionStartId === nodeId) {
                           setConnectionStartId(null);
+                        }
+                      }}
+                      onDuplicate={(nodeId) => {
+                        const { graph: nextGraph, node: duplicatedNode } = duplicatePage(graph, nodeId);
+                        onGraphChange(nextGraph);
+
+                        if (duplicatedNode) {
+                          setConnectionStartId(duplicatedNode.id);
                         }
                       }}
                       onStartConnection={(nodeId) =>

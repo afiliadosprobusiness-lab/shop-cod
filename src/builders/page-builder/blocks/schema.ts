@@ -1,1 +1,1 @@
-export * from "@/builders/shared/models/page";
+export * from "../block-engine/schema";
