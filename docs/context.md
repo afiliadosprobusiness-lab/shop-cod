@@ -2,7 +2,7 @@
 
 ## Resumen
 
-ShopCOD is a frontend SPA for COD-focused funnel selling. It now includes Firebase Authentication for access control and is configured to run on Vercel with SPA rewrites.
+ShopCOD is a frontend SPA for COD-focused funnel selling. It uses Firebase Authentication for access control, runs on Vercel with SPA rewrites, and now includes a guided local store creation flow backed by browser persistence.
 
 ## Stack Tecnologico
 
@@ -22,19 +22,13 @@ ShopCOD is a frontend SPA for COD-focused funnel selling. It now includes Fireba
 
 ### Firebase
 
-- Firebase project created for auth: `shopcod-auth-20260304`
+- Firebase project for auth: `shopcod-auth-20260304`
 - Web app: `shopcod-web`
 - Usage scope:
   - Firebase Authentication only
 - Current auth methods wired in the frontend:
   - Email/password
   - Google popup
-
-Operational note:
-
-- Firebase CLI does not directly finish sign-in method toggles in this repo workflow.
-- Email/Password and Google must be enabled in Firebase Console.
-- Add `shop-cod.vercel.app` and any custom domain to Firebase Authorized Domains.
 
 ### Vercel
 
@@ -95,33 +89,37 @@ Operational note:
 3. User signs in with email/password or Google through Firebase Auth.
 4. Protected routes become accessible.
 
-### Protected Access Flow
-
-1. User navigates to `/dashboard`, `/orders`, `/editor/:storeId`, or `/preview/:storeId`.
-2. `ProtectedRoute` checks Firebase auth state.
-3. If unauthenticated, app redirects to `/login`.
-4. After success, user returns to the intended route.
-
-### Store Creation Flow
+### Guided Store Creation Flow
 
 1. User opens `/dashboard`.
-2. User clicks `Nueva Tienda`.
-3. App navigates to `/editor/new`.
-4. Editor boots with default blocks and can save locally.
+2. User clicks `Nueva Tienda` or the creation card.
+3. A modal collects store name, product, category, pricing, CTA, and base headline.
+4. The app creates a local draft with a unique `storeId`.
+5. The app navigates to `/editor/:storeId` with a prefilled funnel that includes hero, problem, benefits, reviews, FAQ, checkout, and closing CTA.
 
-### Editor Persistence Flow
+### Editor Flow
 
 1. User edits blocks in `/editor/:storeId`.
-2. `Guardar` stores the draft in `localStorage`.
-3. `Preview` saves the current draft and opens `/preview/:storeId`.
-4. `Publicar` stores a local `publishedAt` timestamp.
+2. User also edits the store commercial profile in the guided setup panel.
+3. `Aplicar al funnel` syncs the profile into hero, CTA, FAQ, benefits, and checkout copy.
+4. `Guardar` stores blocks and profile in browser storage.
 
-### Demo Commerce Flow
+### Preview Flow
 
-1. User opens `/store/demo`.
-2. CTA navigates to `/checkout`.
-3. Checkout validates fields locally.
-4. App navigates to `/order-confirmed`.
+1. User opens `/preview/:storeId`.
+2. Preview reads the saved draft profile when present.
+3. The hero, CTA, and checkout copy reflect the saved store data.
+4. `Publicar` marks the local draft as active.
+
+### Dashboard Management Flow
+
+1. Dashboard merges base demo stores with locally created stores from browser storage.
+2. Store action modal supports:
+  - open editor
+  - open preview
+  - go to orders
+  - duplicate draft
+  - pause local store
 
 ## Arquitectura
 
@@ -131,15 +129,20 @@ Operational note:
 - `src/lib/auth.tsx` exposes auth context and Firebase-backed session methods.
 - `src/components/auth/ProtectedRoute.tsx` gates private routes.
 
+### Store Builder Layer
+
+- `src/lib/editor.ts` centralizes:
+  - block types
+  - store profile model
+  - local draft persistence
+  - local store catalog persistence
+- `src/components/editor/BlockPreview.tsx` renders editor block previews and default templates.
+
 ### Page Layer
 
-- `src/pages/*` contains route-level views.
-- The previously disconnected pages are now wired into the router where relevant.
-
-### Editor Layer
-
-- `src/lib/editor.ts` centralizes block types and draft persistence.
-- `src/components/editor/BlockPreview.tsx` renders block previews and defaults.
+- `src/pages/DashboardPage.tsx` manages store creation and local catalog UX.
+- `src/pages/EditorPage.tsx` manages the guided builder and block composition.
+- `src/pages/PreviewPage.tsx` renders the saved commercial profile into the storefront preview.
 
 ### UI Layer
 
@@ -148,8 +151,13 @@ Operational note:
 ## Datos Y Persistencia
 
 - Auth session persistence is handled by Firebase browser local persistence.
-- Editor drafts and publish timestamps are stored in browser `localStorage`.
-- Dashboard and orders still use mock in-memory fixtures.
+- Store drafts are stored in browser `localStorage`.
+- Each draft stores:
+  - funnel blocks
+  - store commercial profile
+  - timestamps
+- A browser-side store catalog is also stored in `localStorage` for dashboard listing.
+- Dashboard and orders still include mock fixture metrics for the base demo.
 - No custom backend or database persistence exists yet.
 
 ## Variables De Entorno
@@ -165,12 +173,12 @@ Required:
 
 ## Restricciones Y Riesgos
 
-- Login success depends on Firebase sign-in methods being enabled in Firebase Console.
-- Google popup on deployed domains requires Authorized Domains to include the Vercel domain.
+- Browser storage powers the creator; drafts are local to the current browser/session context.
+- Google popup on deployed domains still depends on the Firebase authorized domain configuration.
 - The build currently produces a large JS chunk and may benefit from later code-splitting.
 - There is still no backend API for stores, orders, or publishing.
 
 ## Convenciones Para Cambios Futuros
 
 - Treat this file as the architectural source of truth.
-- If routes, auth flow, integrations, dependencies, hosting, or env vars change, update this file in the same commit.
+- If routes, auth flow, integrations, dependencies, hosting, or persistence behavior change, update this file in the same commit.

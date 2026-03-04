@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
@@ -15,7 +15,7 @@ import {
   ChevronDown,
 } from "lucide-react";
 import heroProduct from "@/assets/hero-product.png";
-import { publishEditorState } from "@/lib/editor";
+import { loadEditorState, publishEditorState } from "@/lib/editor";
 import { toast } from "sonner";
 
 export default function PreviewPage() {
@@ -23,6 +23,25 @@ export default function PreviewPage() {
   const { storeId } = useParams();
   const resolvedStoreId = storeId || "new";
   const [openFaq, setOpenFaq] = useState<number | null>(null);
+
+  const editorState = useMemo(() => loadEditorState(resolvedStoreId), [resolvedStoreId]);
+  const profile = editorState?.profile;
+  const heroBlock = editorState?.blocks.find((block) => block.type === "hero");
+  const checkoutBlock = editorState?.blocks.find((block) => block.type === "checkout");
+
+  const heroTitle = heroBlock?.data.title || profile?.headline || "Tu producto estrella";
+  const heroSubtitle =
+    heroBlock?.data.subtitle ||
+    profile?.subheadline ||
+    "Una oferta lista para vender desde hoy.";
+  const heroPrice = heroBlock?.data.price || profile?.price || "$49.900";
+  const heroOriginalPrice =
+    heroBlock?.data.originalPrice || profile?.originalPrice || "$89.900";
+  const ctaText = heroBlock?.data.ctaText || profile?.ctaText || "Comprar ahora";
+  const storeName = profile?.storeName || "ShopCOD Store";
+  const productName = profile?.productName || "Producto principal";
+  const checkoutTitle =
+    checkoutBlock?.data.title || `Pide ${productName} con entrega contra pago`;
 
   const faqs = [
     {
@@ -40,7 +59,11 @@ export default function PreviewPage() {
   ];
 
   const handlePublish = () => {
-    const publishedState = publishEditorState(resolvedStoreId);
+    const publishedState = publishEditorState(
+      resolvedStoreId,
+      editorState?.blocks,
+      editorState?.profile,
+    );
 
     if (!publishedState) {
       toast.error("Primero guarda el funnel desde el editor.");
@@ -66,7 +89,7 @@ export default function PreviewPage() {
             <ArrowLeft className="h-4 w-4" /> Volver al editor
           </button>
           <span className="hidden text-xs text-muted-foreground sm:block">
-            Vista previa - Modo desktop
+            Vista previa de {storeName}
           </span>
           <Button variant="cta" size="sm" className="h-7 text-xs" onClick={handlePublish}>
             Publicar
@@ -82,19 +105,19 @@ export default function PreviewPage() {
             className="space-y-6"
           >
             <div className="inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-4 py-1.5 text-sm text-primary">
-              <Zap className="h-4 w-4" /> Oferta por tiempo limitado
+              <Zap className="h-4 w-4" /> Oferta principal de {storeName}
             </div>
             <h1 className="text-4xl font-bold leading-tight sm:text-5xl">
-              Auriculares Bluetooth <span className="text-gradient-gold">Pro Max</span>
+              {heroTitle}
             </h1>
-            <p className="text-lg text-muted-foreground">
-              Sonido premium, cancelacion de ruido activa y 40 horas de bateria.
-            </p>
+            <p className="text-lg text-muted-foreground">{heroSubtitle}</p>
             <div className="flex items-baseline gap-3">
-              <span className="text-4xl font-bold text-gradient-gold">$49.900</span>
-              <span className="text-xl text-muted-foreground line-through">$89.900</span>
+              <span className="text-4xl font-bold text-gradient-gold">{heroPrice}</span>
+              <span className="text-xl text-muted-foreground line-through">
+                {heroOriginalPrice}
+              </span>
               <span className="rounded bg-primary/20 px-2 py-0.5 text-sm font-semibold text-primary">
-                -44%
+                Oferta
               </span>
             </div>
             <Button
@@ -103,7 +126,7 @@ export default function PreviewPage() {
               className="w-full sm:w-auto"
               onClick={() => navigate("/checkout")}
             >
-              Comprar Ahora - Pago Contraentrega
+              {ctaText}
             </Button>
             <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
               <span className="flex items-center gap-1.5">
@@ -125,7 +148,7 @@ export default function PreviewPage() {
           >
             <img
               src={heroProduct}
-              alt="Producto"
+              alt={productName}
               className="mx-auto w-full max-w-md rounded-2xl shadow-gold-lg"
             />
           </motion.div>
@@ -135,24 +158,24 @@ export default function PreviewPage() {
       <section className="bg-secondary/20 py-16">
         <div className="container">
           <h2 className="mb-10 text-center text-3xl font-bold">
-            Por que <span className="text-gradient-gold">elegirnos</span>?
+            Por que <span className="text-gradient-gold">elegir {productName}</span>?
           </h2>
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {[
               {
                 icon: <Award className="h-7 w-7" />,
                 title: "Calidad Premium",
-                desc: "Materiales de primera linea",
+                desc: `${productName} esta pensado para vender con confianza.`,
               },
               {
                 icon: <Truck className="h-7 w-7" />,
                 title: "Envio Express",
-                desc: "2 a 5 dias habiles",
+                desc: "Despacho rapido para no perder impulso comercial.",
               },
               {
                 icon: <Heart className="h-7 w-7" />,
                 title: "Garantia Total",
-                desc: "30 dias de garantia",
+                desc: "Mensajes de confianza listos para convertir mejor.",
               },
             ].map((benefit) => (
               <div
@@ -171,7 +194,8 @@ export default function PreviewPage() {
       <section className="py-16">
         <div className="container">
           <h2 className="mb-2 text-center text-3xl font-bold">
-            Lo que dicen nuestros <span className="text-gradient-gold">clientes</span>
+            Lo que dicen quienes compraron{" "}
+            <span className="text-gradient-gold">{productName}</span>
           </h2>
           <div className="mb-8 flex justify-center gap-1">
             {Array.from({ length: 5 }).map((_, index) => (
@@ -180,9 +204,9 @@ export default function PreviewPage() {
           </div>
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {[
-              { name: "Maria G.", city: "Bogota", text: "Increible calidad y sonido." },
-              { name: "Carlos R.", city: "CDMX", text: "La mejor compra del ano." },
-              { name: "Ana L.", city: "Lima", text: "Pague al recibir y todo salio bien." },
+              { name: "Maria G.", city: "Bogota", text: "La oferta se entiende rapido." },
+              { name: "Carlos R.", city: "CDMX", text: "Me dio confianza desde el primer scroll." },
+              { name: "Ana L.", city: "Lima", text: "El checkout se siente claro y directo." },
             ].map((review) => (
               <div
                 key={review.name}
@@ -235,9 +259,7 @@ export default function PreviewPage() {
       <section className="py-16">
         <div className="container max-w-lg">
           <div className="space-y-4 rounded-xl border border-primary/20 bg-card p-6">
-            <h2 className="text-center text-2xl font-bold">
-              Finalizar <span className="text-gradient-gold">Pedido</span>
-            </h2>
+            <h2 className="text-center text-2xl font-bold">{checkoutTitle}</h2>
             <div className="flex items-center gap-2 rounded-lg border border-primary/20 bg-primary/10 p-3 text-sm">
               <Phone className="h-4 w-4 text-primary" />
               <span className="font-semibold text-primary">Pago Contraentrega</span> - Pagas
@@ -265,7 +287,7 @@ export default function PreviewPage() {
               className="w-full"
               onClick={() => navigate("/checkout")}
             >
-              Confirmar Pedido - $49.900
+              {ctaText}
             </Button>
             <div className="flex justify-center gap-4 text-xs text-muted-foreground">
               <span className="flex items-center gap-1">

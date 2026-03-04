@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
@@ -33,24 +33,130 @@ import {
   Smartphone,
   Monitor,
   Save,
+  Sparkles,
 } from "lucide-react";
-import { BlockPreview, blockMeta, defaultBlockData } from "@/components/editor/BlockPreview";
+import { BlockPreview } from "@/components/editor/BlockPreview";
+import { blockMeta, defaultBlockData } from "@/components/editor/block-config";
 import {
   loadEditorState,
   publishEditorState,
   saveEditorState,
   type BlockType,
   type FunnelBlock,
+  type StoreProfile,
 } from "@/lib/editor";
 import { toast } from "sonner";
 
-function createDefaultBlocks(isNew: boolean) {
+function createDefaultProfile(): StoreProfile {
+  return {
+    storeName: "Nueva tienda",
+    productName: "Producto principal",
+    headline: "Tu producto estrella para vender mas",
+    subheadline: "Oferta lista para lanzar en minutos con checkout COD.",
+    price: "$49.900",
+    originalPrice: "$89.900",
+    ctaText: "Comprar ahora",
+    category: "General",
+  };
+}
+
+function createBlockDataForType(type: BlockType, profile: StoreProfile) {
+  if (type === "hero") {
+    return {
+      ...defaultBlockData.hero,
+      title: profile.headline,
+      subtitle: profile.subheadline,
+      price: profile.price,
+      originalPrice: profile.originalPrice,
+      ctaText: profile.ctaText,
+    };
+  }
+
+  if (type === "problem") {
+    return {
+      ...defaultBlockData.problem,
+      title: `Lo que ${profile.productName} resuelve en segundos`,
+    };
+  }
+
+  if (type === "benefits") {
+    return {
+      ...defaultBlockData.benefits,
+      title: `Por que elegir ${profile.productName}?`,
+    };
+  }
+
+  if (type === "reviews") {
+    return {
+      ...defaultBlockData.reviews,
+      title: `Clientes que compraron ${profile.productName}`,
+    };
+  }
+
+  if (type === "faq") {
+    return {
+      ...defaultBlockData.faq,
+      title: `Preguntas sobre ${profile.productName}`,
+    };
+  }
+
+  if (type === "checkout") {
+    return {
+      ...defaultBlockData.checkout,
+      title: `Pide ${profile.productName} ahora`,
+    };
+  }
+
+  if (type === "cta") {
+    return {
+      ...defaultBlockData.cta,
+      title: `Lanza ${profile.storeName} hoy`,
+      subtitle: "Tu siguiente venta puede llegar hoy mismo.",
+      ctaText: profile.ctaText,
+    };
+  }
+
+  return { ...defaultBlockData[type] };
+}
+
+function createDefaultBlocks(profile: StoreProfile, isNew: boolean) {
   if (isNew) {
     return [
-      { id: "b1", type: "hero", data: { ...defaultBlockData.hero } },
-      { id: "b2", type: "benefits", data: { ...defaultBlockData.benefits } },
-      { id: "b3", type: "reviews", data: { ...defaultBlockData.reviews } },
-      { id: "b4", type: "checkout", data: { ...defaultBlockData.checkout } },
+      {
+        id: "b1",
+        type: "hero",
+        data: createBlockDataForType("hero", profile),
+      },
+      {
+        id: "b2",
+        type: "problem",
+        data: createBlockDataForType("problem", profile),
+      },
+      {
+        id: "b3",
+        type: "benefits",
+        data: createBlockDataForType("benefits", profile),
+      },
+      {
+        id: "b4",
+        type: "reviews",
+        data: createBlockDataForType("reviews", profile),
+      },
+      {
+        id: "b5",
+        type: "faq",
+        data: createBlockDataForType("faq", profile),
+      },
+      {
+        id: "b6",
+        type: "checkout",
+        data: createBlockDataForType("checkout", profile),
+      },
+      {
+        id: "b7",
+        type: "cta",
+        data: createBlockDataForType("cta", profile),
+      },
     ] satisfies FunnelBlock[];
   }
 
@@ -58,7 +164,10 @@ function createDefaultBlocks(isNew: boolean) {
     {
       id: "b1",
       type: "hero",
-      data: { ...defaultBlockData.hero, title: "Auriculares Bluetooth Pro" },
+      data: {
+        ...defaultBlockData.hero,
+        title: "Auriculares Bluetooth Pro",
+      },
     },
     { id: "b2", type: "problem", data: { ...defaultBlockData.problem } },
     { id: "b3", type: "benefits", data: { ...defaultBlockData.benefits } },
@@ -67,6 +176,88 @@ function createDefaultBlocks(isNew: boolean) {
     { id: "b6", type: "cta", data: { ...defaultBlockData.cta } },
     { id: "b7", type: "checkout", data: { ...defaultBlockData.checkout } },
   ] satisfies FunnelBlock[];
+}
+
+function applyProfileToBlocks(blocks: FunnelBlock[], profile: StoreProfile) {
+  return blocks.map((block) => {
+    if (block.type === "hero") {
+      return {
+        ...block,
+        data: {
+          ...block.data,
+          title: profile.headline,
+          subtitle: profile.subheadline,
+          price: profile.price,
+          originalPrice: profile.originalPrice,
+          ctaText: profile.ctaText,
+        },
+      };
+    }
+
+    if (block.type === "benefits") {
+      return {
+        ...block,
+        data: {
+          ...block.data,
+          title: `Por que elegir ${profile.productName}?`,
+        },
+      };
+    }
+
+    if (block.type === "problem") {
+      return {
+        ...block,
+        data: {
+          ...block.data,
+          title: `Lo que ${profile.productName} resuelve en segundos`,
+        },
+      };
+    }
+
+    if (block.type === "reviews") {
+      return {
+        ...block,
+        data: {
+          ...block.data,
+          title: `Clientes que compraron ${profile.productName}`,
+        },
+      };
+    }
+
+    if (block.type === "faq") {
+      return {
+        ...block,
+        data: {
+          ...block.data,
+          title: `Preguntas sobre ${profile.productName}`,
+        },
+      };
+    }
+
+    if (block.type === "checkout") {
+      return {
+        ...block,
+        data: {
+          ...block.data,
+          title: `Pide ${profile.productName} ahora`,
+        },
+      };
+    }
+
+    if (block.type === "cta") {
+      return {
+        ...block,
+        data: {
+          ...block.data,
+          title: `Lanza ${profile.storeName} hoy`,
+          subtitle: "Tu siguiente venta puede llegar hoy mismo.",
+          ctaText: profile.ctaText,
+        },
+      };
+    }
+
+    return block;
+  });
 }
 
 function SortableBlock({
@@ -169,13 +360,128 @@ function PropertiesPanel({
   );
 }
 
+function CreatorSetupPanel({
+  profile,
+  onProfileChange,
+  onApply,
+  onSave,
+  isNewStore,
+}: {
+  profile: StoreProfile;
+  onProfileChange: (field: keyof StoreProfile, value: string) => void;
+  onApply: () => void;
+  onSave: () => void;
+  isNewStore: boolean;
+}) {
+  return (
+    <section className="mb-6 rounded-3xl border border-primary/20 bg-gradient-card p-5">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+        <div className="space-y-2">
+          <div className="inline-flex items-center gap-2 rounded-full border border-primary/25 bg-primary/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-primary">
+            <Sparkles className="h-3.5 w-3.5" />
+            {isNewStore ? "Creador guiado" : "Datos base de la tienda"}
+          </div>
+          <h2 className="text-xl font-bold">
+            {isNewStore
+              ? "Configura tu tienda antes de editar"
+              : "Ajusta el posicionamiento de tu oferta"}
+          </h2>
+          <p className="max-w-2xl text-sm text-muted-foreground">
+            Estos datos alimentan el hero, el CTA final y el checkout para que el
+            funnel tenga una base coherente desde el inicio.
+          </p>
+        </div>
+
+        <div className="flex flex-col gap-3 sm:flex-row">
+          <Button variant="outline" onClick={onApply}>
+            Aplicar al funnel
+          </Button>
+          <Button variant="cta" onClick={onSave}>
+            Guardar base comercial
+          </Button>
+        </div>
+      </div>
+
+      <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <div className="space-y-2">
+          <Label htmlFor="profile-store-name">Tienda</Label>
+          <Input
+            id="profile-store-name"
+            value={profile.storeName}
+            onChange={(event) => onProfileChange("storeName", event.target.value)}
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="profile-product-name">Producto</Label>
+          <Input
+            id="profile-product-name"
+            value={profile.productName}
+            onChange={(event) => onProfileChange("productName", event.target.value)}
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="profile-category">Categoria</Label>
+          <Input
+            id="profile-category"
+            value={profile.category}
+            onChange={(event) => onProfileChange("category", event.target.value)}
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="profile-cta">CTA</Label>
+          <Input
+            id="profile-cta"
+            value={profile.ctaText}
+            onChange={(event) => onProfileChange("ctaText", event.target.value)}
+          />
+        </div>
+        <div className="space-y-2 md:col-span-2 xl:col-span-2">
+          <Label htmlFor="profile-headline">Headline</Label>
+          <Input
+            id="profile-headline"
+            value={profile.headline}
+            onChange={(event) => onProfileChange("headline", event.target.value)}
+          />
+        </div>
+        <div className="space-y-2 md:col-span-2 xl:col-span-2">
+          <Label htmlFor="profile-subheadline">Subheadline</Label>
+          <Input
+            id="profile-subheadline"
+            value={profile.subheadline}
+            onChange={(event) => onProfileChange("subheadline", event.target.value)}
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="profile-price">Precio</Label>
+          <Input
+            id="profile-price"
+            value={profile.price}
+            onChange={(event) => onProfileChange("price", event.target.value)}
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="profile-original-price">Precio anterior</Label>
+          <Input
+            id="profile-original-price"
+            value={profile.originalPrice}
+            onChange={(event) => onProfileChange("originalPrice", event.target.value)}
+          />
+        </div>
+      </div>
+    </section>
+  );
+}
+
 export default function EditorPage() {
   const navigate = useNavigate();
   const { storeId } = useParams();
   const resolvedStoreId = storeId || "new";
   const isNew = resolvedStoreId === "new";
 
-  const [blocks, setBlocks] = useState<FunnelBlock[]>(() => createDefaultBlocks(isNew));
+  const [storeProfile, setStoreProfile] = useState<StoreProfile>(createDefaultProfile);
+  const [blocks, setBlocks] = useState<FunnelBlock[]>(() =>
+    createDefaultBlocks(createDefaultProfile(), isNew),
+  );
   const [selectedId, setSelectedId] = useState<string | null>(blocks[0]?.id || null);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [previewMode, setPreviewMode] = useState<"desktop" | "mobile">("desktop");
@@ -183,13 +489,23 @@ export default function EditorPage() {
   useEffect(() => {
     const storedState = loadEditorState(resolvedStoreId);
 
+    if (storedState?.profile) {
+      setStoreProfile(storedState.profile);
+    }
+
     if (!storedState?.blocks.length) {
+      if (isNew) {
+        const baseProfile = storedState?.profile || createDefaultProfile();
+        const nextBlocks = createDefaultBlocks(baseProfile, true);
+        setBlocks(nextBlocks);
+        setSelectedId(nextBlocks[0]?.id || null);
+      }
       return;
     }
 
     setBlocks(storedState.blocks);
     setSelectedId(storedState.blocks[0]?.id || null);
-  }, [resolvedStoreId]);
+  }, [resolvedStoreId, isNew]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -222,7 +538,7 @@ export default function EditorPage() {
     const newBlock: FunnelBlock = {
       id: `b${Date.now()}`,
       type,
-      data: { ...defaultBlockData[type] },
+      data: createBlockDataForType(type, storeProfile),
     };
 
     setBlocks((previous) => [...previous, newBlock]);
@@ -249,8 +565,20 @@ export default function EditorPage() {
     );
   }, []);
 
+  const updateProfileField = (field: keyof StoreProfile, value: string) => {
+    setStoreProfile((previous) => ({ ...previous, [field]: value }));
+  };
+
+  const applyProfile = () => {
+    setBlocks((previous) => applyProfileToBlocks(previous, storeProfile));
+    toast.success("Base comercial aplicada al funnel.");
+  };
+
   const persistDraft = () => {
-    const storedState = saveEditorState(resolvedStoreId, blocks);
+    const nextBlocks = applyProfileToBlocks(blocks, storeProfile);
+    setBlocks(nextBlocks);
+
+    const storedState = saveEditorState(resolvedStoreId, nextBlocks, storeProfile);
 
     toast.success("Cambios guardados.", {
       description: `Ultima actualizacion: ${new Date(storedState.updatedAt).toLocaleString()}`,
@@ -258,12 +586,17 @@ export default function EditorPage() {
   };
 
   const openPreview = () => {
-    saveEditorState(resolvedStoreId, blocks);
+    const nextBlocks = applyProfileToBlocks(blocks, storeProfile);
+    saveEditorState(resolvedStoreId, nextBlocks, storeProfile);
+    setBlocks(nextBlocks);
     navigate(`/preview/${resolvedStoreId}`);
   };
 
   const handlePublish = () => {
-    const publishedState = publishEditorState(resolvedStoreId, blocks);
+    const nextBlocks = applyProfileToBlocks(blocks, storeProfile);
+    setBlocks(nextBlocks);
+
+    const publishedState = publishEditorState(resolvedStoreId, nextBlocks, storeProfile);
 
     if (!publishedState) {
       toast.error("No hay contenido para publicar.");
@@ -275,7 +608,10 @@ export default function EditorPage() {
     });
   };
 
-  const activeBlock = blocks.find((block) => block.id === activeId);
+  const activeBlock = useMemo(
+    () => blocks.find((block) => block.id === activeId),
+    [activeId, blocks],
+  );
 
   return (
     <div className="flex h-screen flex-col overflow-hidden bg-background">
@@ -292,7 +628,7 @@ export default function EditorPage() {
           <div className="flex items-center gap-1.5">
             <Zap className="h-4 w-4 text-primary" />
             <span className="font-display text-sm font-bold">
-              {isNew ? "Nueva Tienda" : "Tienda en edicion"}
+              {storeProfile.storeName || (isNew ? "Nueva Tienda" : "Tienda en edicion")}
             </span>
           </div>
         </div>
@@ -357,9 +693,17 @@ export default function EditorPage() {
         <div className="flex-1 overflow-y-auto bg-background p-4 lg:p-8">
           <div
             className={`mx-auto transition-all duration-300 ${
-              previewMode === "mobile" ? "max-w-sm" : "max-w-2xl"
+              previewMode === "mobile" ? "max-w-sm" : "max-w-4xl"
             }`}
           >
+            <CreatorSetupPanel
+              profile={storeProfile}
+              onProfileChange={updateProfileField}
+              onApply={applyProfile}
+              onSave={persistDraft}
+              isNewStore={isNew}
+            />
+
             <div className="mb-4 flex gap-2 overflow-x-auto pb-2 md:hidden">
               {(Object.keys(blockMeta) as BlockType[]).map((type) => (
                 <button

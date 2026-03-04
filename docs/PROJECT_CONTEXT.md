@@ -4,7 +4,7 @@
 
 - Proyecto: ShopCOD
 - Tipo: frontend SPA
-- Estado funcional: frontend navegable con auth en Firebase, persistencia local del editor y despliegue objetivo en Vercel
+- Estado funcional: frontend navegable con auth en Firebase, creador guiado de tiendas y persistencia local de drafts
 
 ## Stack
 
@@ -35,11 +35,11 @@
 
 - Inicio de sesion: `/login` con email/password o Google
 - Rutas privadas: redirigen a `/login` si no hay sesion
-- Crear tienda: dashboard -> `/editor/new`
-- Guardar: editor -> `localStorage`
-- Preview: editor -> `/preview/:storeId`
-- Publicar: guarda `publishedAt` local
-- Demo e-commerce: `/store/demo` -> `/checkout` -> `/order-confirmed`
+- Crear tienda: dashboard abre modal, crea draft local con funnel completo (hero, problema, beneficios, reviews, FAQ, checkout y CTA) y navega a `/editor/:storeId`
+- Guardar: editor guarda bloques + perfil comercial en `localStorage`
+- Aplicar al funnel: sincroniza el perfil comercial con el contenido del funnel
+- Preview: usa el perfil guardado para poblar hero, CTA y checkout
+- Publicar: guarda `publishedAt` local y marca la tienda como activa en el catalogo local
 
 ## Integraciones
 
@@ -60,6 +60,6 @@
 ## Notas Operativas
 
 - Las envs publicas de Firebase ya fueron cargadas en Vercel para `Production` y `Preview`.
-- Falta habilitar en Firebase Console los metodos Email/Password y Google.
-- Falta agregar `shop-cod.vercel.app` y cualquier dominio custom a Authorized Domains en Firebase Auth.
+- El dashboard mezcla tiendas demo con tiendas creadas localmente en el navegador.
+- El creador actual no depende de backend; los drafts viven en `localStorage`.
 - Este archivo resume `docs/context.md` y debe mantenerse alineado con esa fuente de verdad.

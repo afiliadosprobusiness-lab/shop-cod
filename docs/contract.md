@@ -4,7 +4,7 @@
 
 This repository is a frontend SPA built with Vite, React, TypeScript, Tailwind CSS, shadcn-ui, and React Router.
 
-Firebase is now used only for authentication.
+Firebase is used only for authentication.
 Vercel is the target hosting platform for the frontend build and routing.
 
 There is still no custom backend API implemented in this codebase.
@@ -41,9 +41,14 @@ There is still no custom backend API implemented in this codebase.
 
 ### `GET /dashboard`
 
-- Renders the authenticated dashboard with mock stores.
+- Renders the authenticated dashboard.
 - Component: `DashboardPage`.
 - Access: protected by Firebase auth state.
+- Includes:
+  - existing mock stores
+  - locally created stores from browser storage
+  - modal-based store creation
+  - modal-based quick actions and settings
 
 ### `GET /orders`
 
@@ -58,6 +63,10 @@ There is still no custom backend API implemented in this codebase.
 - Access: protected by Firebase auth state.
 - Route param:
   - `storeId: string`
+- Behavior:
+  - loads local draft state when available
+  - edits both funnel blocks and base commercial profile
+  - new drafts open with a full starter funnel (hero, problem, benefits, reviews, FAQ, checkout, and CTA)
 
 ### `GET /preview/:storeId`
 
@@ -66,6 +75,8 @@ There is still no custom backend API implemented in this codebase.
 - Access: protected by Firebase auth state.
 - Route param:
   - `storeId: string`
+- Behavior:
+  - uses saved draft/profile data when available
 
 ### `GET *`
 
@@ -87,8 +98,33 @@ interface FunnelBlock {
   data: Record<string, string>;
 }
 
+interface StoreProfile {
+  storeName: string;
+  productName: string;
+  headline: string;
+  subheadline: string;
+  price: string;
+  originalPrice: string;
+  ctaText: string;
+  category: string;
+}
+
+interface StoreCatalogItem {
+  id: string;
+  name: string;
+  product: string;
+  category: string;
+  status: "activa" | "borrador" | "pausada";
+  orders: number;
+  revenue: number;
+  createdAt: string;
+  updatedAt: string;
+  publishedAt: string | null;
+}
+
 interface StoredEditorState {
   blocks: FunnelBlock[];
+  profile: StoreProfile | null;
   updatedAt: string;
   publishedAt: string | null;
 }
@@ -99,7 +135,8 @@ Rules:
 - `id` must be unique within the in-memory editor session.
 - `type` must be one of the supported block types above.
 - `data` remains a string map compatible with `BlockPreview`.
-- Editor drafts are persisted in browser `localStorage`.
+- `profile` stores the commercial base used to hydrate the funnel.
+- The store catalog is a browser-side index for user-created drafts.
 
 ## Auth Contract
 
@@ -110,17 +147,13 @@ Rules:
 - Protected routes redirect unauthenticated users to `/login`.
 - Session persistence uses Firebase browser local persistence.
 
-Current operational requirement:
-
-- Email/Password and Google providers must be enabled in Firebase Authentication.
-- The deployed Vercel domain must be added to Firebase Authorized Domains.
-
 ## State And Persistence Contract
 
 - Editor changes are stored in `localStorage`.
-- `Guardar` writes a local draft.
-- `Publicar` stores a local published timestamp.
-- Dashboard and order metrics remain mock fixtures.
+- `Guardar` writes a local draft with blocks and profile.
+- `Publicar` stores a local published timestamp and marks the local catalog item as active.
+- The dashboard reads user-created stores from the local catalog in browser storage.
+- Dashboard and order metrics still include mock fixtures for the base demo.
 - No custom backend persistence exists yet.
 
 ## Environment Contract
@@ -149,9 +182,12 @@ The following are breaking changes and must be versioned or coordinated before i
 - Changing the `:storeId` route param shape.
 - Renaming or removing any supported `BlockType`.
 - Changing `FunnelBlock.data` away from a string map without updating all consumers.
+- Removing `StoreProfile` fields without updating dashboard, editor, and preview flows together.
 - Replacing Firebase auth without updating the login and protected-route flow.
 
 ## Changelog del Contrato
 
 - 2026-03-04 | Creacion inicial del contrato del frontend SPA actual | non-breaking | Documenta el comportamiento existente sin cambiar runtime
 - 2026-03-04 | Se agregan login con Firebase, rutas protegidas, persistencia local del editor y hosting en Vercel | non-breaking | Amplia el contrato publico sin romper rutas previas activas
+- 2026-03-04 | Se agrega creador guiado, catalogo local de tiendas y preview alimentado por perfil comercial | non-breaking | Mejora el flujo de creacion sin cambiar las rutas publicas
+- 2026-03-04 | Los nuevos borradores se inicializan con un funnel completo y el dashboard usa un creador guiado mas robusto | non-breaking | Refuerza el flujo de creacion sin alterar rutas ni shapes compartidos
