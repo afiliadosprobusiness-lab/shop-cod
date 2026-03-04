@@ -135,7 +135,7 @@ ShopCOD is a frontend SPA for COD-focused funnel selling. It uses Firebase Authe
 1. Root opens `/superadmin`.
 2. The panel always keeps the protected root account visible.
 3. The client list only renders real accounts; legacy demo seed rows are filtered out and no new demo rows are generated.
-4. Non-root sessions auto-register and refresh their workspace client record after authentication.
+4. Non-root sessions auto-register and refresh their workspace client record after authentication, and refresh it again when workspace settings are saved.
 5. The panel hydrates from Firestore when available, while preserving immediate local fallback.
 6. Each non-root account can be activated, deactivated, deleted, or switched between `Starter`, `Pro`, and `Scale` in one click.
 7. When the visible account maps to the local workspace client id, changing its plan also syncs `PlatformSettings.billing`.
@@ -317,10 +317,10 @@ ShopCOD is a frontend SPA for COD-focused funnel selling. It uses Firebase Authe
 ### Auth Layer
 
 - `src/lib/firebase.ts` initializes Firebase app and auth.
-- `src/lib/auth.tsx` exposes auth context, Firebase-backed session methods, and workspace registration into the superadmin registry for non-root users.
+- `src/lib/auth.tsx` exposes auth context, Firebase-backed session methods, and workspace registration into the superadmin registry for non-root users using stable Firebase `uid`.
 - `src/components/auth/ProtectedRoute.tsx` gates private routes.
 - `src/components/auth/SuperAdminRoute.tsx` gates the root-only superadmin route.
-- `src/lib/superadmin.ts` defines the frontend-only superadmin client registry, filters legacy demo rows, registers authenticated workspaces, hydrates/synchronizes with Firestore when available, enforces the protected root account rule, and syncs one-click plan changes.
+- `src/lib/superadmin.ts` defines the frontend-only superadmin client registry, filters legacy demo rows, registers authenticated workspaces, hydrates/synchronizes with Firestore when available, enforces the protected root account rule, retries cloud sync after temporary failures, and syncs one-click plan changes.
 - `src/lib/plans.ts` defines plan tiers, feature gates, and local upgrade helpers for Starter / Pro / Scale.
 
 ### Dashboard Shell Layer

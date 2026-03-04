@@ -282,7 +282,7 @@ export default function SuperAdminPage() {
                           ) : null}
                         </div>
                         <p className="mt-1 text-sm text-muted-foreground">
-                          {client.companyName} · {client.ownerName}
+                          {client.companyName} - {client.ownerName}
                         </p>
                         <p className="mt-1 text-sm text-muted-foreground">
                           {client.ownerEmail}

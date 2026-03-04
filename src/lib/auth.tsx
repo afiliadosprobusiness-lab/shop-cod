@@ -19,6 +19,7 @@ import { firebaseAuth } from "@/lib/firebase";
 import { registerAuthenticatedWorkspaceClient } from "@/lib/superadmin";
 
 export interface AuthUser {
+  uid: string;
   email: string;
   name: string;
   provider: "password" | "google";
@@ -51,6 +52,7 @@ function mapFirebaseUser() {
   const providerId = currentUser.providerData[0]?.providerId;
 
   return {
+    uid: currentUser.uid,
     email: currentUser.email,
     name: currentUser.displayName || currentUser.email.split("@")[0] || "ShopCOD User",
     provider: providerId === "google.com" ? "google" : "password",
@@ -87,6 +89,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     void registerAuthenticatedWorkspaceClient({
+      uid: user.uid,
       email: user.email,
       name: user.name,
     });
@@ -109,6 +112,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     await registerAuthenticatedWorkspaceClient({
+      uid: nextUser.uid,
       email: nextUser.email,
       name: nextUser.name,
     });
@@ -134,6 +138,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     await registerAuthenticatedWorkspaceClient({
+      uid: nextUser.uid,
       email: nextUser.email,
       name: nextUser.name,
     });
@@ -155,6 +160,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     await registerAuthenticatedWorkspaceClient({
+      uid: nextUser.uid,
       email: nextUser.email,
       name: nextUser.name,
     });

@@ -7,7 +7,7 @@ import {
   toggleSuperAdminClientStatus,
   updateSuperAdminClientPlan,
 } from "@/lib/superadmin";
-import { loadPlatformSettings } from "@/lib/platform-data";
+import { loadPlatformSettings, savePlatformSettings } from "@/lib/platform-data";
 
 describe("superadmin data", () => {
   beforeEach(() => {
@@ -66,12 +66,14 @@ describe("superadmin data", () => {
     window.localStorage.setItem("shopcod-settings-v1", JSON.stringify(loadPlatformSettings()));
 
     const clients = await registerAuthenticatedWorkspaceClient({
+      uid: "uid-acme-owner",
       email: "owner@acme.com",
       name: "Acme Owner",
     });
     const regularClient = clients.find((client) => !client.isProtected);
 
     expect(regularClient).toBeTruthy();
+    expect(regularClient?.id).toBe("workspace-uid-acme-owner");
     expect(regularClient?.ownerEmail).toBe("owner@acme.com");
     expect(regularClient?.planName).toBe("Starter");
 
@@ -86,13 +88,20 @@ describe("superadmin data", () => {
     expect(repricedClient?.planName).toBe("Scale");
     expect(loadPlatformSettings().billing.planName).toBe("Scale");
 
+    savePlatformSettings({
+      ...loadPlatformSettings(),
+      accountName: "Burn Account",
+    });
+
     const rehydrated = await registerAuthenticatedWorkspaceClient({
+      uid: "uid-acme-owner",
       email: "owner@acme.com",
       name: "Acme Owner",
     });
     const syncedClient = rehydrated.find((client) => client.id === regularClient!.id);
 
     expect(syncedClient?.planName).toBe("Scale");
+    expect(syncedClient?.workspaceName).toBe("Burn Account");
 
     const afterDelete = deleteSuperAdminClient(regularClient!.id);
 

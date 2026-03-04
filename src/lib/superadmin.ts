@@ -30,6 +30,7 @@ export interface SuperAdminClient {
 }
 
 interface SuperAdminSessionUser {
+  uid?: string;
   email: string;
   name: string;
 }
@@ -50,7 +51,8 @@ const LEGACY_DEMO_WORKSPACES = new Set([
   "Latam Widget House",
 ]);
 const isTestEnvironment = import.meta.env.MODE === "test";
-let cloudSyncDisabledForSession = false;
+const CLOUD_SYNC_RETRY_DELAY_MS = 12_000;
+let cloudSyncBlockedUntil = 0;
 let cloudSyncDisabledReason = "";
 
 let cloudBootstrapPromise: Promise<SuperAdminClient[]> | null = null;
@@ -116,10 +118,14 @@ function getPersistedRevenue() {
   );
 }
 
-function getWorkspaceClientId(email: string) {
-  const normalizedEmail = email.trim().toLowerCase();
-  const currentUid = firebaseAuth.currentUser?.uid?.trim() || "";
-  const fallbackToken = normalizedEmail.replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+function toWorkspaceToken(value: string) {
+  return value.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+}
+
+function getWorkspaceClientId(sessionUser: Pick<SuperAdminSessionUser, "uid" | "email">) {
+  const normalizedEmail = sessionUser.email.trim().toLowerCase();
+  const currentUid = sessionUser.uid?.trim() || firebaseAuth.currentUser?.uid?.trim() || "";
+  const fallbackToken = toWorkspaceToken(normalizedEmail);
 
   return `workspace-${currentUid || fallbackToken || "client"}`;
 }
@@ -155,7 +161,7 @@ function createWorkspaceClient(sessionUser: SuperAdminSessionUser) {
   const resolvedPlan = getPlanDefinition(resolvePlanId(settings.billing.planName));
 
   return {
-    id: getWorkspaceClientId(sessionUser.email),
+    id: getWorkspaceClientId(sessionUser),
     workspaceName: settings.accountName,
     companyName: settings.companyName || settings.accountName,
     ownerName: settings.legalName || sessionUser.name || settings.accountName,
@@ -289,12 +295,25 @@ function mergeClientsByRecency(localClients: SuperAdminClient[], remoteClients: 
 }
 
 function disableCloudSync(reason: string) {
-  cloudSyncDisabledForSession = true;
+  cloudSyncBlockedUntil = Date.now() + CLOUD_SYNC_RETRY_DELAY_MS;
   cloudSyncDisabledReason = reason;
 }
 
 function canUseCloudSync() {
-  return hasFirebaseConfig() && !isTestEnvironment && !cloudSyncDisabledForSession;
+  if (!hasFirebaseConfig() || isTestEnvironment) {
+    return false;
+  }
+
+  if (Date.now() < cloudSyncBlockedUntil) {
+    return false;
+  }
+
+  if (cloudSyncBlockedUntil > 0) {
+    cloudSyncBlockedUntil = 0;
+    cloudSyncDisabledReason = "";
+  }
+
+  return true;
 }
 
 function readCloudSyncErrorMessage(error: unknown) {
@@ -404,9 +423,15 @@ export function loadSuperAdminClients() {
 }
 
 export function getSuperAdminCloudSyncState() {
+  const enabled = canUseCloudSync();
+
   return {
-    enabled: canUseCloudSync(),
-    reason: cloudSyncDisabledReason,
+    enabled,
+    reason: enabled
+      ? ""
+      : !hasFirebaseConfig()
+        ? "Firebase no esta configurado para sincronizacion compartida."
+        : cloudSyncDisabledReason,
   };
 }
 
@@ -447,13 +472,22 @@ export async function registerAuthenticatedWorkspaceClient(
     return loadSuperAdminClients();
   }
 
-  const clientId = getWorkspaceClientId(sessionUser.email);
+  const clientId = getWorkspaceClientId(sessionUser);
   const hydratedClients = await bootstrapSuperAdminClientsFromCloud();
+  const normalizedOwnerEmail = sessionUser.email.trim().toLowerCase();
   const existingClient = hydratedClients.find((client) => client.id === clientId && !client.isProtected);
+  const legacyClient =
+    existingClient ??
+    hydratedClients.find(
+      (client) =>
+        !client.isProtected &&
+        client.id !== clientId &&
+        client.ownerEmail.trim().toLowerCase() === normalizedOwnerEmail,
+    );
   const currentSettings = loadPlatformSettings();
 
-  if (existingClient && resolvePlanId(existingClient.planName) !== resolvePlanId(currentSettings.billing.planName)) {
-    applyPlanToSettings(currentSettings, resolvePlanId(existingClient.planName));
+  if (legacyClient && resolvePlanId(legacyClient.planName) !== resolvePlanId(currentSettings.billing.planName)) {
+    applyPlanToSettings(currentSettings, resolvePlanId(legacyClient.planName));
   }
 
   const settings = loadPlatformSettings();
@@ -468,10 +502,23 @@ export async function registerAuthenticatedWorkspaceClient(
 
   const client = createWorkspaceClient(sessionUser);
   markLocalWorkspaceClient(client.id);
+  const obsoleteClientIds = legacyClient && legacyClient.id !== client.id ? [legacyClient.id] : [];
   const nextClients = persistClients([
-    ...loadSuperAdminClients().filter((currentClient) => currentClient.id !== client.id),
+    ...loadSuperAdminClients().filter(
+      (currentClient) =>
+        currentClient.id !== client.id && !obsoleteClientIds.includes(currentClient.id),
+    ),
     client,
   ]);
+
+  for (const obsoleteClientId of obsoleteClientIds) {
+    if (shouldSyncLocalWorkspace(obsoleteClientId)) {
+      markLocalWorkspaceClient(client.id);
+    }
+
+    void removeClientFromCloud(obsoleteClientId);
+  }
+
   void pushClientToCloud(client);
   return nextClients;
 }

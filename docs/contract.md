@@ -52,6 +52,7 @@ There is still no custom backend API implemented in this codebase.
   - a protected root client row that cannot be deleted or deactivated
   - no demo client fallback; only real locally persisted clients plus the protected root account may be rendered
   - Firestore-backed shared client hydration when Firebase configuration and rules allow it
+  - automatic cloud retry after temporary Firestore failures (without requiring a full page reload)
 
 ### `GET /store/demo`
 
@@ -168,6 +169,7 @@ All routes below are protected by Firebase auth state and render inside the shar
 - Components: `DashboardLayout` + `SettingsPage`.
 - Includes:
   - sectioned internal navigation for general, shipping, members, billing, domains, digital products, legal, emails, security, payment gateways, tracking, and webhooks
+  - saving settings also refreshes the current workspace record in the superadmin shared registry
   - local forms and lists backed by `PlatformSettings`
   - subdomain reference suffix aligned to `.shop-cod.vercel.app` in the general account section
   - modal flows for member invites, webhook creation, gateway registration, and the payment-method requirement before removing the temporary store password
@@ -738,3 +740,4 @@ The following are breaking changes and must be versioned or coordinated before i
 - 2026-03-04 | El sidebar del dashboard agrega mensajes promocionales de upgrade para `Starter` y `Pro` con CTA de upgrade en un clic | non-breaking | Mejora conversion a planes superiores sin romper rutas ni contratos de datos
 - 2026-03-04 | El selector de workspace del topbar deja de usar labels fijos y refleja el workspace real (`accountName`) | non-breaking | Elimina opciones confusas legacy sin cambiar rutas ni flujos protegidos
 - 2026-03-04 | Se versionan y despliegan reglas de Firestore desde el repo (`firestore.rules` + `firebase.json`) | non-breaking | Formaliza el contrato operativo para sync compartida de superadmin
+- 2026-03-04 | El registro superadmin usa `uid` estable, reintenta sync cloud tras fallos temporales y resincroniza el perfil al guardar `GET /settings` | non-breaking | Corrige visibilidad y consistencia de cuentas reales entre workspaces y panel root

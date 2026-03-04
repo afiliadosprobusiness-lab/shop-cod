@@ -13,6 +13,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { subscribeToShopcodData } from "@/lib/live-sync";
 import { getMultiUserAccess, type ShopPlanId } from "@/lib/plans";
 import { loadPlatformSettings, savePlatformSettings, type PlatformSettings } from "@/lib/platform-data";
+import { useAuth } from "@/lib/auth";
+import { registerAuthenticatedWorkspaceClient } from "@/lib/superadmin";
 import { cn } from "@/lib/utils";
 
 const groups = [
@@ -75,6 +77,7 @@ function Field({ label, children, className }: { label: string; children: React.
 }
 
 export default function SettingsPage() {
+  const { user } = useAuth();
   const [settings, setSettings] = useState<PlatformSettings>(() => loadPlatformSettings());
   const [activeSection, setActiveSection] = useState<SectionId>("general");
   const [inviteOpen, setInviteOpen] = useState(false);
@@ -103,9 +106,22 @@ export default function SettingsPage() {
 
   const patch = (updater: (current: PlatformSettings) => PlatformSettings) => setSettings((current) => updater(current));
 
-  const save = () => {
+  const save = async () => {
     const next = savePlatformSettings(settings);
     setSettings(next);
+
+    if (user) {
+      try {
+        await registerAuthenticatedWorkspaceClient({
+          uid: user.uid,
+          email: user.email,
+          name: user.name,
+        });
+      } catch {
+        // Keep local settings saved even if superadmin sync fails temporarily.
+      }
+    }
+
     toast.success("Configuracion guardada.");
   };
 
@@ -343,7 +359,7 @@ export default function SettingsPage() {
 
   return (
     <>
-      <MainContent eyebrow="Preferencias" title="Configuracion" description="Centraliza envios, miembros, dominios, seguridad, pagos e integraciones de tu cuenta." actions={<Button type="button" className="rounded-2xl" onClick={save}>Guardar cambios</Button>}>
+      <MainContent eyebrow="Preferencias" title="Configuracion" description="Centraliza envios, miembros, dominios, seguridad, pagos e integraciones de tu cuenta." actions={<Button type="button" className="rounded-2xl" onClick={() => void save()}>Guardar cambios</Button>}>
         <section className="grid gap-6 xl:grid-cols-[18rem_minmax(0,1fr)]">
           <aside className="rounded-[2rem] border border-border/80 bg-card/90 p-5">
             <div className="border-b border-border/70 pb-4"><div className="flex items-center gap-3"><div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary text-base font-semibold text-primary-foreground">{accountInitial}</div><div className="min-w-0"><p className="truncate font-semibold text-foreground">{settings.accountName}</p><p className="truncate text-sm text-muted-foreground">{settings.ownerEmail}</p></div></div></div>
