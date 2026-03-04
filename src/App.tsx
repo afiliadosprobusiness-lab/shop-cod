@@ -29,6 +29,7 @@ import ProductsPage from "./pages/dashboard/ProductsPage";
 import SettingsPage from "./pages/dashboard/SettingsPage";
 import StoreDashboardPage from "./pages/dashboard/StoreDashboardPage";
 import StoresPage from "./pages/dashboard/StoresPage";
+import FunnelWorkspacePage from "./pages/funnel/FunnelWorkspacePage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -77,6 +78,14 @@ const App = () => (
               <Route path="settings" element={<SettingsPage />} />
               <Route path="*" element={<DashboardModulePage />} />
             </Route>
+            <Route
+              path="/funnels/:funnelId/editor"
+              element={
+                <ProtectedRoute>
+                  <FunnelWorkspacePage />
+                </ProtectedRoute>
+              }
+            />
             <Route
               path="/editor/:storeId"
               element={

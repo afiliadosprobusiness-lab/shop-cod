@@ -114,8 +114,22 @@ All routes below are protected by Firebase auth state and render inside the shar
 - Components: `DashboardLayout` + `FunnelsPage`.
 - Includes:
   - a funnel list with preview image area, name, conversion, and visits
-  - `Nuevo Funnel` CTA
-  - a 3-step creation wizard inside the same route
+  - `Crear funnel` CTA
+  - a fullscreen 3-step wizard (template selection, metadata, confirmation)
+  - template fallback to `blank` when template catalog is unavailable
+
+### `GET /funnels/:funnelId/editor`
+
+- Renders the authenticated funnel workspace.
+- Component: `FunnelWorkspacePage`.
+- Access: protected by Firebase auth state.
+- Route param:
+  - `funnelId: string`
+- Behavior:
+  - ensures a compatible local draft for the target funnel id
+  - exposes tabbed sections for `Resumen`, `Construir y Disenar`, `Configuracion`, and `Idiomas`
+  - supports page creation in builder mode via a page-type picker
+  - persists workspace-level settings (scripts, favicon, language toggles, publish status) in browser storage
 
 ### `GET /stores`
 
@@ -579,7 +593,7 @@ Rules:
 - `Product.slug` must remain unique within the browser-side catalog.
 - `/products` and `/products/new` use browser local persistence only.
 - `Funnel.slug` must remain unique within the browser-side catalog.
-- `/funnels` uses browser local persistence only and must initialize a compatible `/editor/:storeId` draft when creating a new funnel.
+- `/funnels` uses browser local persistence only and must initialize a compatible `/funnels/:funnelId/editor` draft when creating a new funnel.
 - `/orders`, `/analytics`, `/contacts`, `/offers`, and `/settings` use browser local persistence only.
 - `/superadmin` uses browser local persistence as immediate fallback and may mirror / hydrate the managed client registry from Firestore.
 - `/superadmin` must not invent demo clients; it may only render the protected root account and real locally persisted client records.
@@ -768,3 +782,4 @@ The following are breaking changes and must be versioned or coordinated before i
 - 2026-03-04 | El selector de workspace del topbar deja de usar labels fijos y refleja el workspace real (`accountName`) | non-breaking | Elimina opciones confusas legacy sin cambiar rutas ni flujos protegidos
 - 2026-03-04 | Se versionan y despliegan reglas de Firestore desde el repo (`firestore.rules` + `firebase.json`) | non-breaking | Formaliza el contrato operativo para sync compartida de superadmin
 - 2026-03-04 | El registro superadmin usa `uid` estable, reintenta sync cloud tras fallos temporales y resincroniza el perfil al guardar `GET /settings` | non-breaking | Corrige visibilidad y consistencia de cuentas reales entre workspaces y panel root
+- 2026-03-04 | `GET /funnels` adopta wizard fullscreen y se agrega `GET /funnels/:funnelId/editor` como workspace dedicado | non-breaking | Mantiene compatibilidad con editor legacy y separa flujo moderno de funnels

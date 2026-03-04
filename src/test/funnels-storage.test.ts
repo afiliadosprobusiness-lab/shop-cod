@@ -6,6 +6,7 @@ import {
   loadFunnels,
   saveFunnel,
   slugifyFunnelName,
+  updateFunnel,
 } from "@/lib/funnels";
 
 describe("funnels storage", () => {
@@ -61,5 +62,46 @@ describe("funnels storage", () => {
     expect(nextFunnels).not.toBeNull();
     expect(loadFunnels().some((item) => item.id === funnel.id)).toBe(false);
     expect(loadEditorState(funnel.id)).toBeNull();
+  });
+
+  it("starts blank funnels without initial pages", () => {
+    const funnel = saveFunnel({
+      name: "Blank Funnel",
+      slug: "blank-funnel",
+      currency: "USD",
+      templateId: "blank",
+    });
+
+    const editorState = loadEditorState(funnel.id);
+
+    expect(funnel.pages).toHaveLength(0);
+    expect(editorState?.funnelBuilder?.nodes).toHaveLength(0);
+    expect(editorState?.funnelBuilder?.pages).toHaveLength(0);
+  });
+
+  it("updates funnel settings and preserves unique slug", () => {
+    const first = saveFunnel({
+      name: "Primary Funnel",
+      slug: "primary-funnel",
+      currency: "USD",
+      templateId: "ai",
+    });
+    const second = saveFunnel({
+      name: "Secondary Funnel",
+      slug: "secondary-funnel",
+      currency: "EUR",
+      templateId: "preset",
+    });
+
+    const updated = updateFunnel(second.id, {
+      name: "Secondary Updated",
+      slug: first.slug,
+      currency: "PEN",
+    });
+
+    expect(updated).not.toBeNull();
+    expect(updated?.name).toBe("Secondary Updated");
+    expect(updated?.currency).toBe("PEN");
+    expect(updated?.slug).not.toBe(first.slug);
   });
 });

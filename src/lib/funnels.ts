@@ -1,4 +1,11 @@
 import { defaultBlockData } from "@/components/editor/block-config";
+import { createDefaultPageBuilderBlocks } from "@/builders/page-builder";
+import {
+  createFunnelPage as createVisualFunnelPage,
+  syncFunnelPagesFromNodes,
+  type FunnelGraph as VisualFunnelGraph,
+  type FunnelNodeType,
+} from "@/builders/funnel-builder";
 import {
   loadEditorState,
   removeEditorState,
@@ -43,6 +50,12 @@ export interface FunnelInput {
   templateId: FunnelTemplateId;
 }
 
+export interface UpdateFunnelInput {
+  name?: string;
+  slug?: string;
+  currency?: FunnelCurrency;
+}
+
 const FUNNELS_STORAGE_KEY = "shopcod-funnels-v1";
 
 const funnelTemplates: FunnelTemplate[] = [
@@ -51,11 +64,7 @@ const funnelTemplates: FunnelTemplate[] = [
     name: "Blank",
     category: "Base",
     description: "Arranca desde cero con una estructura minima y control total.",
-    pages: [
-      { id: "page-landing", name: "Landing", type: "landing" },
-      { id: "page-checkout", name: "Checkout", type: "checkout" },
-      { id: "page-thankyou", name: "Thank You", type: "thankyou" },
-    ],
+    pages: [],
   },
   {
     id: "ai",
@@ -241,6 +250,57 @@ function createBlocksForTemplate(template: FunnelTemplate, funnel: Funnel): Funn
   ];
 }
 
+function mapTemplatePageTypeToNodeType(
+  pageType: FunnelPage["type"],
+): FunnelNodeType {
+  if (pageType === "offer") {
+    return "product";
+  }
+
+  return pageType;
+}
+
+function createGraphFromFunnelTemplate(funnel: Funnel): VisualFunnelGraph {
+  const nodes = funnel.pages.map((page, index) => {
+    const type = mapTemplatePageTypeToNodeType(page.type);
+
+    return {
+      id: createEntityId("node"),
+      pageId: page.id,
+      type,
+      position: {
+        x: 140 + index * 360,
+        y: 180 + (index % 2 === 0 ? 0 : 20),
+      },
+      analytics: {
+        visits: 0,
+        clicks: 0,
+        conversionRate: 0,
+      },
+    };
+  });
+
+  const connections = nodes.flatMap((node, index) => {
+    const nextNode = nodes[index + 1];
+
+    if (!nextNode) {
+      return [];
+    }
+
+    return [{ from: node.id, to: nextNode.id }];
+  });
+
+  const graph: VisualFunnelGraph = {
+    id: funnel.id,
+    name: funnel.name,
+    nodes,
+    pages: nodes.map((node) => createVisualFunnelPage(node, funnel.id)),
+    connections,
+  };
+
+  return syncFunnelPagesFromNodes(graph);
+}
+
 function ensureEditorDraft(funnel: Funnel) {
   if (loadEditorState(funnel.id)) {
     return;
@@ -248,8 +308,25 @@ function ensureEditorDraft(funnel: Funnel) {
 
   const template = templateById(funnel.templateId);
   const blocks = createBlocksForTemplate(template, funnel);
+  const funnelGraph = createGraphFromFunnelTemplate(funnel);
+  const defaultPageBuilderBlocks = createDefaultPageBuilderBlocks();
+  const pageBuilderPages = funnelGraph.pages.reduce<Record<string, ReturnType<typeof createDefaultPageBuilderBlocks>>>(
+    (accumulator, page) => {
+      accumulator[page.id] = createDefaultPageBuilderBlocks();
+      return accumulator;
+    },
+    { default: defaultPageBuilderBlocks },
+  );
 
-  saveEditorState(funnel.id, blocks, null);
+  saveEditorState(
+    funnel.id,
+    blocks,
+    null,
+    defaultPageBuilderBlocks,
+    pageBuilderPages,
+    funnelGraph,
+    null,
+  );
 }
 
 function normalizePage(candidate: unknown): FunnelPage | null {
@@ -356,7 +433,7 @@ export function loadFunnels() {
 }
 
 export function ensureFunnelEditorDraft(funnelId: string) {
-  const funnel = loadFunnels().find((item) => item.id === funnelId);
+  const funnel = findFunnel(funnelId);
 
   if (!funnel) {
     return null;
@@ -364,6 +441,10 @@ export function ensureFunnelEditorDraft(funnelId: string) {
 
   ensureEditorDraft(funnel);
   return funnel;
+}
+
+export function findFunnel(funnelId: string) {
+  return loadFunnels().find((item) => item.id === funnelId) ?? null;
 }
 
 export function saveFunnel(input: FunnelInput) {
@@ -387,6 +468,37 @@ export function saveFunnel(input: FunnelInput) {
   writeStoredFunnels([funnel, ...currentFunnels]);
   ensureEditorDraft(funnel);
   return funnel;
+}
+
+export function updateFunnel(funnelId: string, input: UpdateFunnelInput) {
+  const currentFunnels = loadFunnels();
+  const targetFunnel = currentFunnels.find((funnel) => funnel.id === funnelId);
+
+  if (!targetFunnel) {
+    return null;
+  }
+
+  const nextName = typeof input.name === "string" ? input.name.trim() : targetFunnel.name;
+  const baseSlug =
+    typeof input.slug === "string" ? input.slug : slugifyFunnelName(nextName || targetFunnel.name);
+  const nextSlug = ensureUniqueSlug(
+    baseSlug || targetFunnel.slug,
+    currentFunnels.filter((funnel) => funnel.id !== funnelId),
+  );
+  const nextCurrency = input.currency ?? targetFunnel.currency;
+  const nextFunnels = currentFunnels.map((funnel) =>
+    funnel.id === funnelId
+      ? {
+          ...funnel,
+          name: nextName || funnel.name,
+          slug: nextSlug,
+          currency: nextCurrency,
+        }
+      : funnel,
+  );
+
+  writeStoredFunnels(nextFunnels);
+  return nextFunnels.find((funnel) => funnel.id === funnelId) ?? null;
 }
 
 export function deleteFunnel(funnelId: string) {

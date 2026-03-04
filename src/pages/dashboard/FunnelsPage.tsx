@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   ArrowRight,
+  Check,
   ChevronLeft,
   LayoutTemplate,
   Plus,
-  Sparkles,
+  Search,
   Trash2,
   Wand2,
 } from "lucide-react";
@@ -26,6 +27,7 @@ import {
   type FunnelTemplateId,
 } from "@/lib/funnels";
 import { subscribeToShopcodData } from "@/lib/live-sync";
+import { cn } from "@/lib/utils";
 
 type WizardStep = 1 | 2 | 3;
 
@@ -50,16 +52,20 @@ const previewThemes: Record<
   },
 };
 
+const fallbackBlankTemplate: FunnelTemplate = {
+  id: "blank",
+  name: "Plantilla en blanco",
+  category: "Base",
+  description: "Arranca desde cero con estructura minima.",
+  pages: [],
+};
+
 function formatConversion(value: number) {
   return `${value.toFixed(1)}%`;
 }
 
 function formatVisits(value: number) {
   return new Intl.NumberFormat("en-US").format(value);
-}
-
-function getTemplate(templateId: FunnelTemplateId) {
-  return getFunnelTemplates().find((template) => template.id === templateId) ?? getFunnelTemplates()[0];
 }
 
 function FunnelPreview({
@@ -71,7 +77,7 @@ function FunnelPreview({
   title: string;
   category: string;
 }) {
-  const theme = previewThemes[templateId];
+  const theme = previewThemes[templateId] ?? previewThemes.blank;
 
   return (
     <div className={`rounded-[1.5rem] border ${theme.accent} p-4 ${theme.shell}`}>
@@ -102,7 +108,11 @@ function FunnelPreview({
 
 export default function FunnelsPage() {
   const navigate = useNavigate();
-  const templates = useMemo(() => getFunnelTemplates(), []);
+  const sourceTemplates = useMemo(() => getFunnelTemplates(), []);
+  const templates = useMemo(
+    () => (sourceTemplates.length ? sourceTemplates : [fallbackBlankTemplate]),
+    [sourceTemplates],
+  );
   const [funnels, setFunnels] = useState(() => loadFunnels());
   const [wizardOpen, setWizardOpen] = useState(false);
   const [step, setStep] = useState<WizardStep>(1);
@@ -112,6 +122,7 @@ export default function FunnelsPage() {
   const [slugTouched, setSlugTouched] = useState(false);
   const [currency, setCurrency] = useState<FunnelCurrency>("USD");
   const [isCreating, setIsCreating] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
 
   useEffect(() => {
     return subscribeToShopcodData(() => {
@@ -119,8 +130,23 @@ export default function FunnelsPage() {
     });
   }, []);
 
-  const selectedTemplate =
-    templates.find((template) => template.id === selectedTemplateId) ?? templates[0];
+  const filteredTemplates = useMemo(() => {
+    const normalizedSearch = searchTerm.trim().toLowerCase();
+
+    if (!normalizedSearch) {
+      return templates;
+    }
+
+    return templates.filter((template) => {
+      const joined = `${template.name} ${template.category} ${template.description}`.toLowerCase();
+      return joined.includes(normalizedSearch);
+    });
+  }, [searchTerm, templates]);
+
+  const selectedTemplate = useMemo(
+    () => templates.find((template) => template.id === selectedTemplateId) ?? templates[0],
+    [selectedTemplateId, templates],
+  );
 
   const totalVisits = funnels.reduce((sum, funnel) => sum + funnel.visits, 0);
   const averageConversion =
@@ -144,14 +170,24 @@ export default function FunnelsPage() {
     return null;
   }, [name, selectedTemplate, slug, step]);
 
-  const openWizard = () => {
-    setWizardOpen(true);
+  const resetWizard = () => {
     setStep(1);
-    setSelectedTemplateId("blank");
+    setSelectedTemplateId(templates[0]?.id ?? "blank");
     setName("");
     setSlug("");
     setSlugTouched(false);
     setCurrency("USD");
+    setSearchTerm("");
+    setIsCreating(false);
+  };
+
+  const openWizard = () => {
+    resetWizard();
+    setWizardOpen(true);
+  };
+
+  const closeWizard = () => {
+    setWizardOpen(false);
   };
 
   const handleTemplateSelect = (template: FunnelTemplate) => {
@@ -164,6 +200,7 @@ export default function FunnelsPage() {
 
   const handleNameChange = (value: string) => {
     setName(value);
+
     if (!slugTouched) {
       setSlug(slugifyFunnelName(value));
     }
@@ -178,18 +215,20 @@ export default function FunnelsPage() {
     setIsCreating(true);
 
     try {
+      const templateId = selectedTemplate?.id ?? "blank";
       const funnel = saveFunnel({
         name,
         slug,
         currency,
-        templateId: selectedTemplateId,
+        templateId,
       });
 
       setFunnels(loadFunnels());
+      closeWizard();
       toast.success("Funnel creado.", {
-        description: `${funnel.name} se preparo y se abrira en el editor.`,
+        description: `${funnel.name} fue creado y esta listo para editar.`,
       });
-      navigate(`/editor/${funnel.id}`);
+      navigate(`/funnels/${funnel.id}/editor`);
     } finally {
       setIsCreating(false);
     }
@@ -206,6 +245,7 @@ export default function FunnelsPage() {
         toast.error(validationError);
         return;
       }
+
       setStep(3);
     }
   };
@@ -214,9 +254,9 @@ export default function FunnelsPage() {
     setStep((current) => (current === 1 ? 1 : ((current - 1) as WizardStep)));
   };
 
-  const handleOpenEditor = (funnelId: string) => {
+  const handleOpenFunnel = (funnelId: string) => {
     ensureFunnelEditorDraft(funnelId);
-    navigate(`/editor/${funnelId}`);
+    navigate(`/funnels/${funnelId}/editor`);
   };
 
   const handleDeleteFunnel = (funnelId: string) => {
@@ -235,11 +275,11 @@ export default function FunnelsPage() {
     <MainContent
       eyebrow="Conversion"
       title="Funnels"
-      description="Gestiona funnels, monitorea rendimiento y crea nuevas rutas con un wizard guiado por plantillas."
+      description="Gestiona funnels, monitorea rendimiento y crea nuevos flujos con plantillas."
       actions={
         <Button type="button" className="rounded-2xl" onClick={openWizard}>
           <Plus className="h-4 w-4" />
-          Nuevo Funnel
+          Crear funnel
         </Button>
       }
     >
@@ -266,294 +306,340 @@ export default function FunnelsPage() {
         </div>
       </section>
 
-      <section className="grid gap-6 xl:grid-cols-[minmax(0,1.2fr)_minmax(22rem,0.8fr)]">
-        <div className="space-y-6">
-          <div className="grid gap-5 xl:grid-cols-2">
-            {funnels.map((funnel) => {
-              const template = getTemplate(funnel.templateId);
+      <section className="grid gap-5 xl:grid-cols-2">
+        {funnels.map((funnel) => {
+          const template = templates.find((item) => item.id === funnel.templateId) ?? templates[0];
 
-              return (
-                <article
-                  key={funnel.id}
-                  className="overflow-hidden rounded-[2rem] border border-border/80 bg-card/90 p-5"
-                >
-                  <FunnelPreview
-                    templateId={funnel.templateId}
-                    title={funnel.name}
-                    category={template.category}
-                  />
+          return (
+            <article
+              key={funnel.id}
+              className="overflow-hidden rounded-[2rem] border border-border/80 bg-card/90 p-5"
+            >
+              <FunnelPreview
+                templateId={funnel.templateId}
+                title={funnel.name}
+                category={template?.category ?? "Base"}
+              />
 
-                  <div className="mt-5 space-y-4">
-                    <div>
-                      <p className="text-lg font-semibold text-foreground">{funnel.name}</p>
-                      <p className="text-sm text-muted-foreground">/{funnel.slug}</p>
-                    </div>
+              <div className="mt-5 space-y-4">
+                <div>
+                  <p className="text-lg font-semibold text-foreground">{funnel.name}</p>
+                  <p className="text-sm text-muted-foreground">/{funnel.slug}</p>
+                </div>
 
-                    <div className="grid gap-3 sm:grid-cols-2">
-                      <div className="rounded-2xl border border-border/80 bg-secondary/30 p-3">
-                        <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
-                          Conversion
-                        </p>
-                        <p className="mt-2 text-xl font-semibold text-foreground">
-                          {formatConversion(funnel.conversion)}
-                        </p>
-                      </div>
-                      <div className="rounded-2xl border border-border/80 bg-secondary/30 p-3">
-                        <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
-                          Visitas
-                        </p>
-                        <p className="mt-2 text-xl font-semibold text-foreground">
-                          {formatVisits(funnel.visits)}
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="flex flex-wrap items-center justify-between gap-3">
-                      <p className="text-xs text-muted-foreground">
-                        {funnel.pages.length} paginas en {funnel.currency}
-                      </p>
-                      <div className="flex flex-wrap gap-2">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          className="rounded-2xl"
-                          onClick={() => handleOpenEditor(funnel.id)}
-                        >
-                          Abrir editor
-                          <ArrowRight className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          className="rounded-2xl text-destructive hover:text-destructive"
-                          onClick={() => handleDeleteFunnel(funnel.id)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                          Borrar
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                </article>
-              );
-            })}
-          </div>
-        </div>
-
-        <aside className="rounded-[2rem] border border-border/80 bg-card/90 p-5">
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary">
-                Wizard de creacion
-              </p>
-              <p className="mt-1 text-lg font-semibold text-foreground">Nuevo funnel</p>
-            </div>
-            {!wizardOpen ? (
-              <Button type="button" variant="outline" className="rounded-2xl" onClick={openWizard}>
-                Iniciar
-              </Button>
-            ) : null}
-          </div>
-
-          {!wizardOpen ? (
-            <div className="mt-6 rounded-[1.5rem] border border-border/80 bg-secondary/20 p-5">
-              <p className="text-sm text-secondary-foreground">
-                Abre el wizard para seleccionar plantilla, configurar nombre, slug y moneda, y
-                terminar con redireccion directa al editor visual.
-              </p>
-            </div>
-          ) : (
-            <div className="mt-6 space-y-6">
-              <div className="grid gap-2 sm:grid-cols-3">
-                {[1, 2, 3].map((stepNumber) => (
-                  <div
-                    key={stepNumber}
-                    className={`rounded-2xl border px-3 py-3 text-center text-sm ${
-                      step === stepNumber
-                        ? "border-primary bg-primary/10 text-primary"
-                        : step > stepNumber
-                          ? "border-border bg-secondary/40 text-foreground"
-                          : "border-border/70 bg-background/40 text-muted-foreground"
-                    }`}
-                  >
-                    Paso {stepNumber}
-                  </div>
-                ))}
-              </div>
-
-              {step === 1 ? (
-                <div className="space-y-4">
-                  <div>
-                    <p className="text-lg font-semibold text-foreground">Seleccionar plantilla</p>
-                    <p className="text-sm text-muted-foreground">
-                      Elige la base con la que quieres iniciar tu funnel.
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="rounded-2xl border border-border/80 bg-secondary/30 p-3">
+                    <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
+                      Conversion
+                    </p>
+                    <p className="mt-2 text-xl font-semibold text-foreground">
+                      {formatConversion(funnel.conversion)}
                     </p>
                   </div>
+                  <div className="rounded-2xl border border-border/80 bg-secondary/30 p-3">
+                    <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
+                      Visitas
+                    </p>
+                    <p className="mt-2 text-xl font-semibold text-foreground">
+                      {formatVisits(funnel.visits)}
+                    </p>
+                  </div>
+                </div>
 
-                  <div className="grid gap-4">
-                    {templates.map((template) => {
-                      const isActive = template.id === selectedTemplateId;
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <p className="text-xs text-muted-foreground">
+                    {funnel.pages.length} paginas en {funnel.currency}
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="rounded-2xl"
+                      onClick={() => handleOpenFunnel(funnel.id)}
+                    >
+                      Abrir funnel
+                      <ArrowRight className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      className="rounded-2xl text-destructive hover:text-destructive"
+                      onClick={() => handleDeleteFunnel(funnel.id)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                      Borrar
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </article>
+          );
+        })}
+      </section>
 
-                      return (
+      {wizardOpen ? (
+        <div className="fixed inset-0 z-50 bg-slate-950/70 p-4 backdrop-blur-sm">
+          <div className="mx-auto flex h-full w-full max-w-6xl flex-col overflow-hidden rounded-[2rem] border border-border/80 bg-background shadow-2xl">
+            <header className="border-b border-border/70 px-5 py-4 lg:px-8">
+              <div className="flex flex-wrap items-center justify-between gap-4">
+                <div>
+                  <p className="text-3xl font-semibold text-foreground">Elige una plantilla</p>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Elige una plantilla para comenzar. Puedes personalizarla segun tu producto.
+                  </p>
+                </div>
+                <div className="flex min-w-[12rem] items-center gap-3">
+                  <div className="h-2 flex-1 rounded-full bg-secondary">
+                    <div
+                      className="h-full rounded-full bg-primary transition-all"
+                      style={{ width: `${(step / 3) * 100}%` }}
+                    />
+                  </div>
+                  <span className="text-sm font-medium text-muted-foreground">{step} de 3 pasos</span>
+                </div>
+              </div>
+            </header>
+
+            <div className="flex-1 overflow-auto p-5 lg:p-8">
+              {step === 1 ? (
+                <div className="grid gap-6 xl:grid-cols-[16rem_minmax(0,1fr)]">
+                  <aside className="rounded-[1.5rem] border border-border/80 bg-card/90 p-4">
+                    <p className="text-sm font-semibold text-foreground">Precios</p>
+                    <div className="mt-3 space-y-2 text-sm text-muted-foreground">
+                      <label className="flex items-center gap-2">
+                        <input type="checkbox" checked readOnly className="h-4 w-4 rounded" />
+                        Todo
+                      </label>
+                      <label className="flex items-center gap-2">
+                        <input type="checkbox" checked readOnly className="h-4 w-4 rounded" />
+                        Gratis
+                      </label>
+                    </div>
+                  </aside>
+
+                  <div className="space-y-4">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <div className="flex flex-wrap items-center gap-2">
                         <button
-                          key={template.id}
                           type="button"
-                          onClick={() => handleTemplateSelect(template)}
-                          className={`rounded-[1.5rem] border p-4 text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background ${
-                            isActive
-                              ? "border-primary bg-primary/8"
-                              : "border-border/80 bg-secondary/15 hover:border-primary/20"
-                          }`}
+                          className="rounded-xl border border-primary/30 bg-primary/10 px-3 py-1.5 text-sm font-medium text-primary"
                         >
-                          <FunnelPreview
-                            templateId={template.id}
-                            title={template.name}
-                            category={template.category}
-                          />
-                          <div className="mt-4 space-y-1">
-                            <p className="font-semibold text-foreground">{template.name}</p>
-                            <p className="text-sm text-muted-foreground">{template.description}</p>
-                          </div>
+                          Todas las plantillas
                         </button>
-                      );
-                    })}
+                        <button
+                          type="button"
+                          className="rounded-xl border border-border/80 bg-card px-3 py-1.5 text-sm text-muted-foreground"
+                        >
+                          Plantillas propias
+                        </button>
+                        <button
+                          type="button"
+                          className="rounded-xl border border-border/80 bg-card px-3 py-1.5 text-sm text-muted-foreground"
+                        >
+                          Plantillas compradas
+                        </button>
+                      </div>
+                      <div className="relative w-full max-w-xs">
+                        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                        <Input
+                          value={searchTerm}
+                          onChange={(event) => setSearchTerm(event.target.value)}
+                          placeholder="Buscar plantilla o categoria"
+                          className="rounded-xl pl-9"
+                        />
+                      </div>
+                    </div>
+
+                    {!sourceTemplates.length ? (
+                      <div className="rounded-2xl border border-dashed border-border/80 bg-secondary/20 p-4 text-sm text-muted-foreground">
+                        No hay plantillas cargadas. Se usara plantilla en blanco.
+                      </div>
+                    ) : null}
+
+                    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                      {filteredTemplates.map((template) => {
+                        const isActive = template.id === selectedTemplateId;
+
+                        return (
+                          <button
+                            key={template.id}
+                            type="button"
+                            onClick={() => handleTemplateSelect(template)}
+                            className={cn(
+                              "rounded-[1.5rem] border p-3 text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                              isActive
+                                ? "border-primary bg-primary/8 ring-2 ring-primary/30"
+                                : "border-border/80 bg-card hover:border-primary/20",
+                            )}
+                          >
+                            <div className="relative">
+                              {isActive ? (
+                                <span className="absolute right-2 top-2 inline-flex h-7 w-7 items-center justify-center rounded-full bg-primary text-primary-foreground">
+                                  <Check className="h-4 w-4" />
+                                </span>
+                              ) : null}
+                              <FunnelPreview
+                                templateId={template.id}
+                                title={template.name}
+                                category={template.category}
+                              />
+                            </div>
+                            <p className="mt-3 text-base font-semibold text-foreground">{template.name}</p>
+                            <p className="mt-1 text-sm text-muted-foreground">{template.description}</p>
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
                 </div>
               ) : null}
 
               {step === 2 ? (
-                <div className="space-y-5">
-                  <div>
-                    <p className="text-lg font-semibold text-foreground">Configurar funnel</p>
-                    <p className="text-sm text-muted-foreground">
-                      Define la base operativa antes de enviarlo al editor.
-                    </p>
-                  </div>
+                <div className="mx-auto max-w-xl rounded-[2rem] border border-border/80 bg-card/90 p-6">
+                  <p className="text-center text-2xl font-semibold text-foreground">Todo listo</p>
+                  <p className="mt-2 text-center text-sm text-muted-foreground">
+                    Tu funnel esta configurado. Ahora asignale nombre, URL y moneda.
+                  </p>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="funnel-name">Nombre</Label>
-                    <Input
-                      id="funnel-name"
-                      value={name}
-                      onChange={(event) => handleNameChange(event.target.value)}
-                      placeholder="Ej. Glow COD Sprint"
-                      className="rounded-2xl"
-                    />
-                  </div>
+                  <div className="mt-6 space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="wizard-funnel-name">Nombre del funnel</Label>
+                      <Input
+                        id="wizard-funnel-name"
+                        value={name}
+                        onChange={(event) => handleNameChange(event.target.value)}
+                        placeholder="weather island"
+                        className="rounded-xl"
+                      />
+                    </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="funnel-slug">Slug</Label>
-                    <Input
-                      id="funnel-slug"
-                      value={slug}
-                      onChange={(event) => {
-                        setSlugTouched(true);
-                        setSlug(slugifyFunnelName(event.target.value));
-                      }}
-                      placeholder="glow-cod-sprint"
-                      className="rounded-2xl"
-                    />
-                  </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="wizard-funnel-slug">URL del funnel</Label>
+                      <div className="flex items-center rounded-xl border border-border bg-background px-3">
+                        <Input
+                          id="wizard-funnel-slug"
+                          value={slug}
+                          onChange={(event) => {
+                            setSlugTouched(true);
+                            setSlug(slugifyFunnelName(event.target.value));
+                          }}
+                          className="h-10 border-0 px-0 shadow-none focus-visible:ring-0"
+                        />
+                        <span className="text-sm text-muted-foreground">.myecomsite.net</span>
+                      </div>
+                    </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="funnel-currency">Moneda</Label>
-                    <select
-                      id="funnel-currency"
-                      value={currency}
-                      onChange={(event) => setCurrency(event.target.value as FunnelCurrency)}
-                      className="h-11 w-full rounded-2xl border border-border bg-secondary/20 px-4 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-                    >
-                      <option value="USD">USD</option>
-                      <option value="EUR">EUR</option>
-                      <option value="PEN">PEN</option>
-                    </select>
+                    <div className="space-y-2">
+                      <Label htmlFor="wizard-funnel-currency">Seleccionar moneda</Label>
+                      <select
+                        id="wizard-funnel-currency"
+                        value={currency}
+                        onChange={(event) => setCurrency(event.target.value as FunnelCurrency)}
+                        className="h-11 w-full rounded-xl border border-border bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      >
+                        <option value="USD">Use account currency (USD)</option>
+                        <option value="EUR">EUR</option>
+                        <option value="PEN">PEN</option>
+                      </select>
+                    </div>
                   </div>
                 </div>
               ) : null}
 
               {step === 3 ? (
-                <div className="space-y-5">
-                  <div>
-                    <p className="text-lg font-semibold text-foreground">Crear funnel</p>
-                    <p className="text-sm text-muted-foreground">
-                      Revisa la configuracion y crea el funnel para continuar en el editor.
+                <div className="mx-auto max-w-3xl space-y-5">
+                  <div className="text-center">
+                    <p className="text-2xl font-semibold text-foreground">Confirmar configuracion</p>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      Revisa los datos y crea el funnel para abrir el constructor.
                     </p>
                   </div>
 
-                  <div className="rounded-[1.5rem] border border-border/80 bg-secondary/20 p-4">
+                  <article className="rounded-[2rem] border border-border/80 bg-card/90 p-5">
                     <FunnelPreview
                       templateId={selectedTemplate.id}
                       title={name || "Nuevo funnel"}
                       category={selectedTemplate.category}
                     />
 
-                    <div className="mt-4 grid gap-3 text-sm text-secondary-foreground">
-                      <p>Plantilla: {selectedTemplate.name}</p>
-                      <p>Slug: /{slug || "pendiente"}</p>
-                      <p>Moneda: {currency}</p>
-                      <p>Paginas iniciales: {selectedTemplate.pages.length}</p>
+                    <div className="mt-5 grid gap-3 rounded-2xl border border-border/70 bg-secondary/20 p-4 text-sm">
+                      <p>
+                        <span className="font-semibold text-foreground">Plantilla:</span> {selectedTemplate.name}
+                      </p>
+                      <p>
+                        <span className="font-semibold text-foreground">Nombre:</span> {name || "Sin nombre"}
+                      </p>
+                      <p>
+                        <span className="font-semibold text-foreground">URL:</span> /{slug || "pendiente"}
+                      </p>
+                      <p>
+                        <span className="font-semibold text-foreground">Moneda:</span> {currency}
+                      </p>
+                      <p>
+                        <span className="font-semibold text-foreground">Paginas base:</span>{" "}
+                        {selectedTemplate.pages.length}
+                      </p>
                     </div>
-                  </div>
 
-                  <div className="rounded-[1.5rem] border border-border/80 bg-background/30 p-4">
-                    <div className="flex items-start gap-3">
-                      <span className="mt-0.5 flex h-9 w-9 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-                        {selectedTemplate.id === "ai" ? (
-                          <Wand2 className="h-4 w-4" />
-                        ) : (
-                          <LayoutTemplate className="h-4 w-4" />
-                        )}
-                      </span>
-                      <div>
-                        <p className="font-semibold text-foreground">Listo para guardar</p>
-                        <p className="mt-1 text-sm text-muted-foreground">
-                          Al confirmar, se guardara la configuracion y se abrira `/editor/:storeId`
-                          con una base compatible.
+                    <div className="mt-4 rounded-2xl border border-border/70 bg-background/40 p-4">
+                      <div className="flex items-start gap-3">
+                        <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                          {selectedTemplate.id === "ai" ? (
+                            <Wand2 className="h-4 w-4" />
+                          ) : (
+                            <LayoutTemplate className="h-4 w-4" />
+                          )}
+                        </span>
+                        <p className="text-sm text-muted-foreground">
+                          Al confirmar, se creara el funnel y se abrira su workspace con resumen, builder,
+                          configuracion e idiomas.
                         </p>
                       </div>
                     </div>
-                  </div>
+                  </article>
                 </div>
               ) : null}
+            </div>
 
-              {validationError ? (
-                <div className="rounded-2xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+            <footer className="border-t border-border/70 px-5 py-4 lg:px-8">
+              {validationError && step > 1 ? (
+                <div className="mb-3 rounded-xl border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
                   {validationError}
                 </div>
               ) : null}
 
-              <div className="flex flex-col gap-3 sm:flex-row sm:justify-between">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <Button
                   type="button"
                   variant="outline"
-                  className="rounded-2xl"
-                  onClick={step === 1 ? () => setWizardOpen(false) : previousStep}
+                  className="rounded-xl"
+                  onClick={step === 1 ? closeWizard : previousStep}
                 >
                   <ChevronLeft className="h-4 w-4" />
-                  {step === 1 ? "Cerrar" : "Anterior"}
+                  {step === 1 ? "Cancelar" : "Anterior"}
                 </Button>
 
                 {step < 3 ? (
-                  <Button type="button" className="rounded-2xl" onClick={nextStep}>
+                  <Button type="button" className="rounded-xl" onClick={nextStep}>
                     Siguiente
                     <ArrowRight className="h-4 w-4" />
                   </Button>
                 ) : (
                   <Button
                     type="button"
-                    className="rounded-2xl"
+                    className="rounded-xl"
                     onClick={handleCreateFunnel}
                     disabled={isCreating}
                   >
-                    <Sparkles className="h-4 w-4" />
-                    {isCreating ? "Creando..." : "Crear funnel"}
+                    {isCreating ? "Creando..." : "Crear y abrir funnel"}
+                    <ArrowRight className="h-4 w-4" />
                   </Button>
                 )}
               </div>
-            </div>
-          )}
-        </aside>
-      </section>
+            </footer>
+          </div>
+        </div>
+      ) : null}
     </MainContent>
   );
 }

@@ -83,8 +83,11 @@ ShopCOD is a frontend SPA for COD-focused funnel selling. It uses Firebase Authe
   - Protected product creation form
   - Components: `DashboardLayout` + `ProductCreatePage`
 - `/funnels`
-  - Protected funnels list and wizard
+  - Protected funnels list and creation wizard
   - Components: `DashboardLayout` + `FunnelsPage`
+- `/funnels/:funnelId/editor`
+  - Protected funnel workspace (summary, builder, settings, languages)
+  - Component: `FunnelWorkspacePage`
 - `/stores`
   - Protected stores list and creation wizard
   - Components: `DashboardLayout` + `StoresPage`
@@ -223,17 +226,31 @@ ShopCOD is a frontend SPA for COD-focused funnel selling. It uses Firebase Authe
   - name
   - conversion
   - visits
-3. The user clicks `Nuevo Funnel` to open the creation wizard inside the same route.
+3. The user clicks `Crear funnel` to open a full-screen creation wizard.
 4. Step 1 lets the user select one of the available templates:
   - `Blank`
   - `IA`
   - `Plantillas predisenadas`
-5. Step 2 collects:
+5. If templates are unavailable, the wizard falls back to `Plantilla en blanco`.
+6. Step 2 collects:
   - `name`
   - `slug`
   - `currency`
-6. Step 3 saves the funnel configuration in browser `localStorage`.
-7. The app initializes a compatible editor draft and redirects to `/editor/:storeId`.
+7. Step 3 confirms settings and creates the funnel in browser `localStorage`.
+8. The app initializes a compatible draft and redirects to `/funnels/:funnelId/editor`.
+
+### Funnel Workspace Flow
+
+1. User opens `/funnels/:funnelId/editor`.
+2. The page ensures the funnel draft exists and hydrates graph plus workspace settings.
+3. The header exposes tab navigation:
+  - `Resumen`
+  - `Construir y Disenar`
+  - `Configuracion`
+  - `Idiomas`
+4. `Construir y Disenar` supports an empty-state plus button and page-type picker to add funnel pages.
+5. `Configuracion` persists slug, scripts, favicon, tracking toggles, and currency metadata.
+6. `Idiomas` toggles active funnel languages.
 
 ### Stores Flow
 
@@ -351,7 +368,8 @@ ShopCOD is a frontend SPA for COD-focused funnel selling. It uses Firebase Authe
 - `src/pages/dashboard/DashboardHomePage.tsx` renders the dashboard landing view.
 - `src/pages/dashboard/ProductsPage.tsx` renders the products management table, search, filters, and row actions.
 - `src/pages/dashboard/ProductCreatePage.tsx` renders the multi-section product creation workflow.
-- `src/pages/dashboard/FunnelsPage.tsx` renders the funnels list and the multi-step creation wizard.
+- `src/pages/dashboard/FunnelsPage.tsx` renders the funnels list and full-screen multi-step funnel creation wizard.
+- `src/pages/funnel/FunnelWorkspacePage.tsx` renders the dedicated funnel workspace with summary, builder, settings, and languages tabs.
 - `src/pages/dashboard/StoresPage.tsx` renders the stores list and the 3-step store creation wizard.
 - `src/pages/dashboard/StoreDashboardPage.tsx` renders the per-store internal dashboard and section navigation.
 - `src/pages/dashboard/OrdersPage.tsx` renders real COD orders and operational status updates.
@@ -365,6 +383,7 @@ ShopCOD is a frontend SPA for COD-focused funnel selling. It uses Firebase Authe
 - `src/components/plans/PlanUpgradeDialog.tsx` renders the reusable upgrade modal when a feature is blocked by plan.
 - `src/lib/products.ts` defines the frontend product model and browser persistence helpers.
 - `src/lib/funnels.ts` defines the frontend funnel model, template selector data, local persistence, and editor bootstrapping.
+- `src/lib/funnel-workspace.ts` defines persisted workspace-level funnel settings (status, scripts, favicon, languages, toggles).
 - `src/lib/stores.ts` defines the frontend store model, template selector data, payment selector, local persistence, editor bootstrapping, and derived store analytics snapshots.
 - `src/lib/platform-data.ts` defines real orders, contacts, offers, settings, and shared analytics snapshots for the dashboard.
 - `src/lib/live-sync.ts` dispatches browser events so local modules refresh when persisted data changes.
