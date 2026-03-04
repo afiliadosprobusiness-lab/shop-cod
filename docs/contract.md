@@ -23,6 +23,20 @@ There is still no custom backend API implemented in this codebase.
 - Supports:
   - Email/password sign-in
   - Google popup sign-in
+  - root redirect to `/superadmin` when the authenticated email is `afiliadosprobusiness@gmail.com`
+
+### `GET /superadmin`
+
+- Renders the protected superadmin control panel.
+- Components: `SuperAdminRoute` + `SuperAdminPage`.
+- Access:
+  - authenticated only
+  - restricted to `afiliadosprobusiness@gmail.com`
+- Includes:
+  - client list search and status filtering
+  - activate / deactivate actions
+  - delete client action for non-protected clients
+  - a protected root client row that cannot be deleted or deactivated
 
 ### `GET /store/demo`
 
@@ -261,6 +275,16 @@ interface PlatformEvent {
 
 type PlatformOffer = BundleOffer | DiscountOffer;
 
+interface SuperAdminClient {
+  id: string;
+  workspaceName: string;
+  companyName: string;
+  ownerEmail: string;
+  planName: string;
+  status: "active" | "inactive";
+  isProtected: boolean;
+}
+
 interface PlatformSettings {
   accountName: string;
   ownerEmail: string;
@@ -491,9 +515,11 @@ Rules:
 - `Funnel.slug` must remain unique within the browser-side catalog.
 - `/funnels` uses browser local persistence only and must initialize a compatible `/editor/:storeId` draft when creating a new funnel.
 - `/orders`, `/analytics`, `/contacts`, `/offers`, and `/settings` use browser local persistence only.
+- `/superadmin` uses browser local persistence only for the managed client registry.
 - Submitting the COD checkout must create a persisted `PlatformOrder` and upsert a linked `PlatformContact`.
 - Public-facing route visits and checkout starts must be tracked as `PlatformEvent` records and feed analytics KPIs.
 - Products, funnels, stores, and offers must support deletion without reloading the page.
+- The superadmin root client must remain protected and cannot be deleted or deactivated from the UI.
 - Platform operational data may mirror to Firestore when Firebase configuration is available, but the UI must continue working with local persistence as the immediate fallback.
 
 ### Store Catalog Model
@@ -652,3 +678,4 @@ The following are breaking changes and must be versioned or coordinated before i
 - 2026-03-04 | El panel agrega pedidos, analiticas, contactos, ofertas y configuracion funcionales con storage local reactivo | non-breaking | Convierte modulos placeholder en flujos operativos del producto sin cambiar rutas protegidas
 - 2026-03-04 | El panel agrega tracking real de visitas/conversion y sincronizacion remota opcional con Firestore para datos operativos | non-breaking | Mantiene fallback local mientras habilita KPIs y datos compartidos entre dispositivos
 - 2026-03-04 | `GET /settings` evoluciona a un hub multi-seccion con miembros, pagos, seguridad y webhooks, y se alinean las rutas reales del dashboard operativo | non-breaking | Actualiza el contrato al comportamiento ya implementado sin romper rutas ni persistencia local
+- 2026-03-04 | Se agrega `GET /superadmin` con acceso root por email y gestion local de clientes protegidos | non-breaking | Amplia el panel con un flujo de superadmin sin romper el dashboard existente

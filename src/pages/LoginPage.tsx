@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/lib/auth";
+import { isSuperAdminEmail } from "@/lib/superadmin";
 import { toast } from "sonner";
 
 interface LoginLocationState {
@@ -22,7 +23,7 @@ function GoogleBadge() {
 export default function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { isAuthenticated, isReady, login, loginWithGoogle } = useAuth();
+  const { isAuthenticated, isReady, login, loginWithGoogle, user } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -35,9 +36,11 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (isReady && isAuthenticated) {
-      navigate("/dashboard", { replace: true });
+      navigate(isSuperAdminEmail(user?.email) ? "/superadmin" : "/dashboard", {
+        replace: true,
+      });
     }
-  }, [isAuthenticated, isReady, navigate]);
+  }, [isAuthenticated, isReady, navigate, user?.email]);
 
   const handleEmailLogin = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -51,9 +54,14 @@ export default function LoginPage() {
 
     window.setTimeout(async () => {
       try {
-        await login({ email, password });
+        const authUser = await login({ email, password });
+        const destination = isSuperAdminEmail(authUser.email)
+          ? "/superadmin"
+          : nextPath === "/superadmin"
+            ? "/dashboard"
+            : nextPath;
         toast.success("Sesion iniciada correctamente.");
-        navigate(nextPath, { replace: true });
+        navigate(destination, { replace: true });
       } catch (error) {
         const authError = error as { code?: string; message?: string };
 
@@ -73,9 +81,14 @@ export default function LoginPage() {
 
     window.setTimeout(async () => {
       try {
-        await loginWithGoogle();
+        const authUser = await loginWithGoogle();
+        const destination = isSuperAdminEmail(authUser.email)
+          ? "/superadmin"
+          : nextPath === "/superadmin"
+            ? "/dashboard"
+            : nextPath;
         toast.success("Sesion iniciada con Google.");
-        navigate(nextPath, { replace: true });
+        navigate(destination, { replace: true });
       } catch (error) {
         const authError = error as { code?: string; message?: string };
 

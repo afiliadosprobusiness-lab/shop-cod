@@ -55,6 +55,9 @@ ShopCOD is a frontend SPA for COD-focused funnel selling. It uses Firebase Authe
 - `/login`
   - Login screen backed by Firebase Auth
   - Component: `LoginPage`
+- `/superadmin`
+  - Protected superadmin control panel
+  - Components: `SuperAdminRoute` + `SuperAdminPage`
 - `/store/demo`
   - Product demo landing
   - Component: `LandingPage`
@@ -117,7 +120,8 @@ ShopCOD is a frontend SPA for COD-focused funnel selling. It uses Firebase Authe
 1. User clicks `Iniciar sesion`.
 2. App opens `/login`.
 3. User signs in with email/password or Google through Firebase Auth.
-4. Protected routes become accessible.
+4. If the email is `afiliadosprobusiness@gmail.com`, the app redirects to `/superadmin`.
+5. All other authenticated users continue into the regular dashboard routes.
 
 ### Dashboard Shell Flow
 
@@ -276,6 +280,8 @@ ShopCOD is a frontend SPA for COD-focused funnel selling. It uses Firebase Authe
 - `src/lib/firebase.ts` initializes Firebase app and auth.
 - `src/lib/auth.tsx` exposes auth context and Firebase-backed session methods.
 - `src/components/auth/ProtectedRoute.tsx` gates private routes.
+- `src/components/auth/SuperAdminRoute.tsx` gates the root-only superadmin route.
+- `src/lib/superadmin.ts` defines the frontend-only superadmin client registry, the protected root account rule, and local client actions.
 
 ### Dashboard Shell Layer
 
@@ -296,6 +302,7 @@ ShopCOD is a frontend SPA for COD-focused funnel selling. It uses Firebase Authe
 - `src/pages/dashboard/OffersPage.tsx` renders bundle and discount creation.
 - `src/pages/dashboard/AppsPage.tsx` renders the "coming soon" integrations state.
 - `src/pages/dashboard/SettingsPage.tsx` renders a multi-section settings hub for general account data, shipping, members, billing, domains, digital files, legal copy, abandoned-cart email recovery, security, payment gateways, tracking, webhooks, and the temporary store password payment modal.
+- `src/pages/SuperAdminPage.tsx` renders the root control panel for managing client accounts, statuses, and deletions while keeping the root account protected.
 - `src/lib/products.ts` defines the frontend product model and browser persistence helpers.
 - `src/lib/funnels.ts` defines the frontend funnel model, template selector data, local persistence, and editor bootstrapping.
 - `src/lib/stores.ts` defines the frontend store model, template selector data, payment selector, local persistence, editor bootstrapping, and derived store analytics snapshots.
@@ -391,7 +398,7 @@ Required:
 - Browser storage powers the creator; drafts are local to the current browser/session context.
 - Google popup on deployed domains still depends on the Firebase authorized domain configuration.
 - The build currently produces a large JS chunk and may benefit from later code-splitting.
-- The dashboard modules are base shells and do not yet connect to real backend data.
+- Dashboard and superadmin operations are still browser-local and do not yet map to a shared backend source of truth.
 - There is still no backend API for stores, orders, or publishing.
 
 ## Convenciones Para Cambios Futuros

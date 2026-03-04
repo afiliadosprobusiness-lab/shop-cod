@@ -23,6 +23,7 @@
 
 - `/` -> landing SaaS
 - `/login` -> login con Firebase
+- `/superadmin` -> panel protegido de superadmin
 - `/store/demo` -> landing demo de producto
 - `/checkout` -> checkout demo
 - `/order-confirmed` -> confirmacion de compra
@@ -44,7 +45,7 @@
 
 ## Flujos Operativos
 
-- Inicio de sesion: `/login` con email/password o Google
+- Inicio de sesion: `/login` con email/password o Google; si el correo es `afiliadosprobusiness@gmail.com`, redirige al panel `/superadmin`
 - Rutas privadas: redirigen a `/login` si no hay sesion
 - Shell del panel: `DashboardLayout` monta sidebar izquierda, topbar superior y contenido dinamico con `Outlet`
 - Home del panel: `/dashboard` muestra dos tarjetas principales (`Crear tienda online` y `Crear funnel`) con CTA `Comenzar`
@@ -92,6 +93,7 @@
 - `src/pages/dashboard/OffersPage.tsx` renderiza la gestion de bundles y descuentos.
 - `src/pages/dashboard/AppsPage.tsx` renderiza el estado de proximas integraciones.
 - `src/pages/dashboard/SettingsPage.tsx` renderiza el hub completo de configuracion del workspace con formularios, listas y modales operativos por seccion.
+- `src/pages/SuperAdminPage.tsx` renderiza el panel root para activar, desactivar y eliminar clientes, manteniendo protegida la cuenta superadmin.
 - El modulo real de productos vive en `src/pages/dashboard/ProductsPage.tsx`.
 - El alta de productos vive en `src/pages/dashboard/ProductCreatePage.tsx`.
 - El modelo y almacenamiento local de productos viven en `src/lib/products.ts`.
@@ -101,6 +103,7 @@
 - El panel interno por tienda vive en `src/pages/dashboard/StoreDashboardPage.tsx`.
 - El modelo, templates, selector de pagos, almacenamiento local y analytics derivados de tiendas viven en `src/lib/stores.ts`.
 - Los pedidos, contactos, ofertas, configuracion global y el snapshot de analytics en tiempo real viven en `src/lib/platform-data.ts`.
+- `src/lib/superadmin.ts` mantiene el registro local de clientes gestionados por el root y evita borrar la cuenta superadmin.
 - `src/lib/live-sync.ts` emite eventos locales para refrescar modulos en tiempo real cuando cambia la data persistida.
 - `src/components/analytics/PlatformTelemetry.tsx` registra visitas reales, inicios de checkout y hace bootstrap de sincronizacion remota.
 - El editor visual y el preview legacy siguen operativos por ruta directa.

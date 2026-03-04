@@ -3,6 +3,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import PlatformTelemetry from "@/components/analytics/PlatformTelemetry";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
+import SuperAdminRoute from "@/components/auth/SuperAdminRoute";
 import { AuthProvider } from "@/lib/auth";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
@@ -10,6 +11,7 @@ import DashboardLayout from "./layouts/DashboardLayout";
 import SaaSLandingPage from "./pages/SaaSLandingPage";
 import EditorPage from "./pages/EditorPage";
 import PreviewPage from "./pages/PreviewPage";
+import SuperAdminPage from "./pages/SuperAdminPage";
 import LoginPage from "./pages/LoginPage";
 import LandingPage from "./pages/LandingPage";
 import CheckoutPage from "./pages/CheckoutPage";
@@ -42,6 +44,14 @@ const App = () => (
           <Routes>
             <Route path="/" element={<SaaSLandingPage />} />
             <Route path="/login" element={<LoginPage />} />
+            <Route
+              path="/superadmin"
+              element={
+                <SuperAdminRoute>
+                  <SuperAdminPage />
+                </SuperAdminRoute>
+              }
+            />
             <Route path="/store/demo" element={<LandingPage />} />
             <Route path="/checkout" element={<CheckoutPage />} />
             <Route path="/order-confirmed" element={<OrderConfirmedPage />} />
