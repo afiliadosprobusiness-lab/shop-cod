@@ -15,6 +15,7 @@
 - React Router
 - Framer Motion
 - dnd-kit
+- TanStack Query
 - Firebase Auth
 - Vitest
 
