@@ -214,7 +214,7 @@ All routes below are protected by Firebase auth state and render inside the shar
   - exposes a drag-and-drop funnel workspace with block library, funnel map, quick insertion, and conversion guidance
   - includes builder modes for store setup, funnel ordering, and page refinement within the same route
   - store setup uses a dedicated store builder for products, bundles, collections, checkout order bumps, multi-currency, and multi-domain configuration
-  - page refinement uses a visual page builder with three panels: left (`Elements`, `Layers`, `Settings`), center canvas, and right style editor, with top bar controls, nested containers, duplicate/resize controls, and inline editing without full reloads
+  - page refinement uses a visual page builder with three panels: left (`Elements`, `Layers`, `Settings`), center canvas, and right style editor, with top bar controls, quick-tools rail, nested containers, duplicate/resize controls, inline editing, and preview mode without full reloads
   - funnel ordering supports a node-based flow editor with pan, zoom, drag, node duplication/deletion, visible page previews, node connections, analytics badges, and page-level routing per node
   - each funnel node card now exposes action blocks (edit area, visits block, product selector, links status) plus bottom icon actions for settings, edit, preview, duplicate, and delete
   - node settings open a tabbed page-configuration modal (`Detalles`, `SEO`, `HTML personalizado`) persisted in funnel page settings
@@ -414,6 +414,7 @@ type PageBuilderBlockType =
   | "columns"
   | "video"
   | "product"
+  | "checkout"
   | "form"
   | "countdown"
   | "testimonial"
@@ -493,6 +494,8 @@ interface PageBuilderBlock {
 interface PageBuilderDocument {
   id: string;
   title: string;
+  type: "page";
+  children: PageBuilderBlock[];
   blocks: PageBuilderBlock[];
 }
 ```
@@ -650,6 +653,13 @@ Rules:
 - `pageBuilderPages` stores page-builder layouts keyed by `pageId`.
 - Only `section`, `container`, and `columns` may hold nested `children`.
 - The page builder UI must expose three panels: left (`Elements`, `Layers`, `Settings`), center canvas, right style editor.
+- The page-builder JSON document must serialize with page root (`type: "page"`) and `children` matching the canvas tree.
+- Allowed drop hierarchy:
+  - `section` -> page root
+  - `container` -> `section`
+  - `columns` -> `container`
+  - content/commerce elements (`text`, `image`, `video`, `button`, `form`, `testimonial`, `product`, `checkout`, `countdown`, `divider`) -> `container` or `columns`
+- The center canvas must render DOM-like webpage blocks (not card-like preview cards), with hover outline, selected-node toolbar, and drop indicator lines.
 - The style editor must support editing margin, padding, width, height, typography, background, borders, and shadow.
 - Page builder state/history management must be handled by Zustand and commit immutable updates to only the modified branch of the JSON tree.
 - `funnelBuilder` stores the visual funnel graph, node connections, and `pages[]` records.
@@ -862,3 +872,4 @@ The following are breaking changes and must be versioned or coordinated before i
 - 2026-03-05 | `GET /funnels/:funnelId/editor` abre Page Builder real al editar nodos y sincroniza CTAs del editor en `LINKS` en tiempo real | non-breaking | Hace funcionales editar y preview sin cambiar rutas ni romper persistencia del funnel graph
 - 2026-03-05 | `GET /stores` adopta wizard fullscreen de 3 pasos y redirige la creacion a `/stores/:storeId`, mientras `GET /stores/:storeId` alinea su UI al dashboard ecommerce con tabs y tablas operativas | non-breaking | Mejora UX del flujo de tiendas sin romper rutas ni modelos persistidos
 - 2026-03-05 | El Page Builder adopta arquitectura SaaS de 3 paneles con style editor dedicado y `state-manager` en Zustand con updates granulares | non-breaking | Moderniza UX visual y el modelo de estilos/layout sin romper rutas ni persistencia de drafts existentes
+- 2026-03-05 | El Page Builder migra a canvas DOM-like estilo lightfunnels/clickfunnels con jerarquia de drop estricta y root `page` en `page_json` | non-breaking | Reemplaza render card-like por editor visual de pagina real sin romper rutas ni persistencia legacy (`blocks` se mantiene)

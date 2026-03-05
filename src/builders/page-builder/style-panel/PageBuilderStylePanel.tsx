@@ -11,57 +11,60 @@ interface PageBuilderStylePanelProps {
   onUpdateLayout: (nextLayout: PageBuilderBlock["layout"]) => void;
 }
 
-function SpacingRow({
-  label,
-  value,
-  onChange,
-}: {
-  label: string;
-  value: number;
-  onChange: (value: number) => void;
-}) {
-  return (
-    <div className="space-y-1.5">
-      <div className="flex items-center justify-between">
-        <Label className="text-xs text-slate-700">{label}</Label>
-        <span className="text-xs text-slate-500">{value}px</span>
-      </div>
-      <div className="flex items-center gap-2">
-        <Input
-          type="number"
-          value={value}
-          onChange={(event) => onChange(Number.parseInt(event.target.value || "0", 10) || 0)}
-          className="h-8 w-16 border-slate-300 bg-white text-xs text-slate-700"
-        />
-        <input
-          type="range"
-          min={0}
-          max={120}
-          value={value}
-          onChange={(event) => onChange(Number.parseInt(event.target.value || "0", 10) || 0)}
-          className="h-1.5 flex-1 cursor-pointer appearance-none rounded-full bg-slate-200"
-          aria-label={label}
-        />
-      </div>
-    </div>
-  );
-}
-
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <section className="space-y-3 border-t border-slate-200 px-4 py-4 first:border-t-0">
-      <h3 className="text-base font-semibold text-slate-800">{title}</h3>
+    <section className="space-y-3 border-b border-slate-200 px-4 py-4 last:border-b-0">
+      <h3 className="text-sm font-semibold text-slate-900">{title}</h3>
       {children}
     </section>
   );
 }
 
-export function PageBuilderStylePanel({ selectedBlock, onUpdateStyle, onUpdateLayout }: PageBuilderStylePanelProps) {
+function NumberField({
+  id,
+  label,
+  value,
+  min,
+  max,
+  onChange,
+}: {
+  id: string;
+  label: string;
+  value: number;
+  min?: number;
+  max?: number;
+  onChange: (value: number) => void;
+}) {
+  return (
+    <div className="space-y-1.5">
+      <div className="flex items-center justify-between">
+        <Label htmlFor={id} className="text-[11px] uppercase tracking-[0.14em] text-slate-500">
+          {label}
+        </Label>
+        <span className="text-xs text-slate-500">{value}px</span>
+      </div>
+      <Input
+        id={id}
+        type="number"
+        min={min}
+        max={max}
+        value={value}
+        onChange={(event) => onChange(Number.parseInt(event.target.value || "0", 10) || 0)}
+        className="h-8 border-slate-300 bg-white text-slate-900"
+      />
+    </div>
+  );
+}
+
+export function PageBuilderStylePanel({
+  selectedBlock,
+  onUpdateStyle,
+  onUpdateLayout,
+}: PageBuilderStylePanelProps) {
   const mutateStyle = (mutator: (style: PageBuilderBlock["style"]) => PageBuilderBlock["style"]) => {
     if (!selectedBlock) {
       return;
     }
-
     onUpdateStyle(mutator(selectedBlock.style));
   };
 
@@ -69,21 +72,19 @@ export function PageBuilderStylePanel({ selectedBlock, onUpdateStyle, onUpdateLa
     if (!selectedBlock) {
       return;
     }
-
     onUpdateLayout(mutator(selectedBlock.layout));
   };
 
   return (
-    <aside className="h-full min-h-0 rounded-l-xl border-l border-slate-300 bg-[#f7f8fa]">
+    <aside className="h-full min-h-0 border-l border-slate-300 bg-white">
       <div className="flex h-full min-h-0 flex-col">
-        <header className="border-b border-slate-300 px-4 py-4">
+        <header className="border-b border-slate-200 px-4 py-4">
           <div className="flex items-center justify-between">
             <h2 className="text-2xl font-semibold text-slate-900">Styles</h2>
-            <div className="inline-flex h-8 items-center rounded-lg border border-slate-300 bg-white px-2 text-xs font-medium text-slate-700">
+            <div className="inline-flex h-8 items-center border border-slate-300 bg-slate-50 px-2 text-xs font-medium text-slate-700">
               Default
             </div>
           </div>
-
           <div className="relative mt-3">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
             <Input
@@ -93,146 +94,129 @@ export function PageBuilderStylePanel({ selectedBlock, onUpdateStyle, onUpdateLa
               placeholder="Search by property"
               aria-label="Buscar propiedad"
             />
-            <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400">Ctrl+K</span>
+            <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400">
+              Ctrl+K
+            </span>
           </div>
         </header>
 
         <div className="min-h-0 flex-1 overflow-y-auto">
           {!selectedBlock ? (
-            <div className="px-4 py-6 text-sm text-slate-500">Selecciona un bloque en el canvas para editar sus estilos.</div>
+            <div className="px-4 py-6 text-sm text-slate-500">Selecciona un elemento en el canvas para editar estilo.</div>
           ) : (
             <>
               <Section title="Spacing">
-                <div className="space-y-3">
-                  <p className="text-sm font-medium text-slate-700">Margin</p>
-                  <SpacingRow
-                    label="Top"
+                <div className="grid grid-cols-2 gap-2">
+                  <NumberField
+                    id="margin-top"
+                    label="Margin top"
                     value={selectedBlock.style.spacing.margin.top}
                     onChange={(value) =>
                       mutateStyle((style) => ({
                         ...style,
                         spacing: {
                           ...style.spacing,
-                          margin: {
-                            ...style.spacing.margin,
-                            top: value,
-                          },
+                          margin: { ...style.spacing.margin, top: value },
                         },
                       }))
                     }
                   />
-                  <SpacingRow
-                    label="Right"
+                  <NumberField
+                    id="margin-right"
+                    label="Margin right"
                     value={selectedBlock.style.spacing.margin.right}
                     onChange={(value) =>
                       mutateStyle((style) => ({
                         ...style,
                         spacing: {
                           ...style.spacing,
-                          margin: {
-                            ...style.spacing.margin,
-                            right: value,
-                          },
+                          margin: { ...style.spacing.margin, right: value },
                         },
                       }))
                     }
                   />
-                  <SpacingRow
-                    label="Bottom"
+                  <NumberField
+                    id="margin-bottom"
+                    label="Margin bottom"
                     value={selectedBlock.style.spacing.margin.bottom}
                     onChange={(value) =>
                       mutateStyle((style) => ({
                         ...style,
                         spacing: {
                           ...style.spacing,
-                          margin: {
-                            ...style.spacing.margin,
-                            bottom: value,
-                          },
+                          margin: { ...style.spacing.margin, bottom: value },
                         },
                       }))
                     }
                   />
-                  <SpacingRow
-                    label="Left"
+                  <NumberField
+                    id="margin-left"
+                    label="Margin left"
                     value={selectedBlock.style.spacing.margin.left}
                     onChange={(value) =>
                       mutateStyle((style) => ({
                         ...style,
                         spacing: {
                           ...style.spacing,
-                          margin: {
-                            ...style.spacing.margin,
-                            left: value,
-                          },
+                          margin: { ...style.spacing.margin, left: value },
                         },
                       }))
                     }
                   />
                 </div>
-
-                <div className="space-y-3">
-                  <p className="text-sm font-medium text-slate-700">Padding</p>
-                  <SpacingRow
-                    label="Top"
+                <div className="grid grid-cols-2 gap-2">
+                  <NumberField
+                    id="padding-top"
+                    label="Padding top"
                     value={selectedBlock.style.spacing.padding.top}
                     onChange={(value) =>
                       mutateStyle((style) => ({
                         ...style,
                         spacing: {
                           ...style.spacing,
-                          padding: {
-                            ...style.spacing.padding,
-                            top: value,
-                          },
+                          padding: { ...style.spacing.padding, top: value },
                         },
                       }))
                     }
                   />
-                  <SpacingRow
-                    label="Right"
+                  <NumberField
+                    id="padding-right"
+                    label="Padding right"
                     value={selectedBlock.style.spacing.padding.right}
                     onChange={(value) =>
                       mutateStyle((style) => ({
                         ...style,
                         spacing: {
                           ...style.spacing,
-                          padding: {
-                            ...style.spacing.padding,
-                            right: value,
-                          },
+                          padding: { ...style.spacing.padding, right: value },
                         },
                       }))
                     }
                   />
-                  <SpacingRow
-                    label="Bottom"
+                  <NumberField
+                    id="padding-bottom"
+                    label="Padding bottom"
                     value={selectedBlock.style.spacing.padding.bottom}
                     onChange={(value) =>
                       mutateStyle((style) => ({
                         ...style,
                         spacing: {
                           ...style.spacing,
-                          padding: {
-                            ...style.spacing.padding,
-                            bottom: value,
-                          },
+                          padding: { ...style.spacing.padding, bottom: value },
                         },
                       }))
                     }
                   />
-                  <SpacingRow
-                    label="Left"
+                  <NumberField
+                    id="padding-left"
+                    label="Padding left"
                     value={selectedBlock.style.spacing.padding.left}
                     onChange={(value) =>
                       mutateStyle((style) => ({
                         ...style,
                         spacing: {
                           ...style.spacing,
-                          padding: {
-                            ...style.spacing.padding,
-                            left: value,
-                          },
+                          padding: { ...style.spacing.padding, left: value },
                         },
                       }))
                     }
@@ -241,64 +225,103 @@ export function PageBuilderStylePanel({ selectedBlock, onUpdateStyle, onUpdateLa
               </Section>
 
               <Section title="Size">
-                <div className="space-y-2">
-                  <Label htmlFor="layout-width" className="text-xs text-slate-600">Width</Label>
-                  <Input
-                    id="layout-width"
-                    value={selectedBlock.layout.dimensions.width}
-                    onChange={(event) =>
-                      mutateLayout((layout) => ({
-                        ...layout,
-                        dimensions: {
-                          ...layout.dimensions,
-                          width: event.target.value,
-                        },
-                      }))
-                    }
-                    className="h-8 border-slate-300 bg-white text-slate-700"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="layout-height" className="text-xs text-slate-600">Height</Label>
-                  <Input
-                    id="layout-height"
-                    value={selectedBlock.layout.dimensions.height}
-                    onChange={(event) =>
-                      mutateLayout((layout) => ({
-                        ...layout,
-                        dimensions: {
-                          ...layout.dimensions,
-                          height: event.target.value,
-                        },
-                      }))
-                    }
-                    className="h-8 border-slate-300 bg-white text-slate-700"
-                  />
+                <div className="grid gap-2">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="layout-width" className="text-[11px] uppercase tracking-[0.14em] text-slate-500">
+                      Width
+                    </Label>
+                    <Input
+                      id="layout-width"
+                      value={selectedBlock.layout.dimensions.width}
+                      onChange={(event) =>
+                        mutateLayout((layout) => ({
+                          ...layout,
+                          dimensions: {
+                            ...layout.dimensions,
+                            width: event.target.value,
+                          },
+                        }))
+                      }
+                      className="h-8 border-slate-300 bg-white text-slate-900"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="layout-height" className="text-[11px] uppercase tracking-[0.14em] text-slate-500">
+                      Height
+                    </Label>
+                    <Input
+                      id="layout-height"
+                      value={selectedBlock.layout.dimensions.height}
+                      onChange={(event) =>
+                        mutateLayout((layout) => ({
+                          ...layout,
+                          dimensions: {
+                            ...layout.dimensions,
+                            height: event.target.value,
+                          },
+                        }))
+                      }
+                      className="h-8 border-slate-300 bg-white text-slate-900"
+                    />
+                  </div>
                 </div>
               </Section>
 
               <Section title="Typography">
                 <div className="grid gap-2">
+                  <NumberField
+                    id="typography-size"
+                    label="Font size"
+                    value={selectedBlock.style.typography.size}
+                    onChange={(value) =>
+                      mutateStyle((style) => ({
+                        ...style,
+                        typography: {
+                          ...style.typography,
+                          size: value,
+                        },
+                      }))
+                    }
+                  />
+                  <NumberField
+                    id="typography-weight"
+                    label="Weight"
+                    value={selectedBlock.style.typography.weight}
+                    min={100}
+                    max={900}
+                    onChange={(value) =>
+                      mutateStyle((style) => ({
+                        ...style,
+                        typography: {
+                          ...style.typography,
+                          weight: value,
+                        },
+                      }))
+                    }
+                  />
                   <div className="space-y-1.5">
-                    <Label htmlFor="typography-size" className="text-xs text-slate-600">Font size</Label>
+                    <Label htmlFor="typography-family" className="text-[11px] uppercase tracking-[0.14em] text-slate-500">
+                      Font family
+                    </Label>
                     <Input
-                      id="typography-size"
-                      type="number"
-                      value={selectedBlock.style.typography.size}
+                      id="typography-family"
+                      value={selectedBlock.style.typography.family}
                       onChange={(event) =>
                         mutateStyle((style) => ({
                           ...style,
                           typography: {
                             ...style.typography,
-                            size: Number.parseInt(event.target.value || "0", 10) || 0,
+                            family: event.target.value,
                           },
                         }))
                       }
-                      className="h-8 border-slate-300 bg-white text-slate-700"
+                      className="h-8 border-slate-300 bg-white text-slate-900"
                     />
                   </div>
                   <div className="space-y-1.5">
-                    <Label htmlFor="typography-color" className="text-xs text-slate-600">Color</Label>
+                    <Label htmlFor="typography-color" className="text-[11px] uppercase tracking-[0.14em] text-slate-500">
+                      Color
+                    </Label>
                     <Input
                       id="typography-color"
                       value={selectedBlock.style.textColor}
@@ -308,51 +331,108 @@ export function PageBuilderStylePanel({ selectedBlock, onUpdateStyle, onUpdateLa
                           textColor: event.target.value,
                         }))
                       }
-                      className="h-8 border-slate-300 bg-white text-slate-700"
+                      className="h-8 border-slate-300 bg-white text-slate-900"
                     />
                   </div>
                 </div>
               </Section>
 
               <Section title="Background">
-                <div className="space-y-1.5">
-                  <Label htmlFor="bg-color" className="text-xs text-slate-600">Color</Label>
-                  <Input
-                    id="bg-color"
-                    value={selectedBlock.style.background.color}
-                    onChange={(event) =>
-                      mutateStyle((style) => ({
-                        ...style,
-                        backgroundColor: event.target.value,
-                        background: {
-                          ...style.background,
-                          color: event.target.value,
-                        },
-                      }))
-                    }
-                    className="h-8 border-slate-300 bg-white text-slate-700"
-                  />
+                <div className="grid gap-2">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="background-color" className="text-[11px] uppercase tracking-[0.14em] text-slate-500">
+                      Color
+                    </Label>
+                    <Input
+                      id="background-color"
+                      value={selectedBlock.style.background.color}
+                      onChange={(event) =>
+                        mutateStyle((style) => ({
+                          ...style,
+                          backgroundColor: event.target.value,
+                          background: {
+                            ...style.background,
+                            color: event.target.value,
+                          },
+                        }))
+                      }
+                      className="h-8 border-slate-300 bg-white text-slate-900"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="background-image" className="text-[11px] uppercase tracking-[0.14em] text-slate-500">
+                      Image URL
+                    </Label>
+                    <Input
+                      id="background-image"
+                      value={selectedBlock.style.background.imageUrl}
+                      onChange={(event) =>
+                        mutateStyle((style) => ({
+                          ...style,
+                          background: {
+                            ...style.background,
+                            imageUrl: event.target.value,
+                          },
+                        }))
+                      }
+                      className="h-8 border-slate-300 bg-white text-slate-900"
+                    />
+                  </div>
                 </div>
               </Section>
 
-              <Section title="Borders">
-                <div className="space-y-1.5">
-                  <Label htmlFor="border-color" className="text-xs text-slate-600">Color</Label>
-                  <Input
-                    id="border-color"
-                    value={selectedBlock.style.border.color}
-                    onChange={(event) =>
+              <Section title="Border">
+                <div className="grid gap-2">
+                  <NumberField
+                    id="border-width"
+                    label="Width"
+                    value={selectedBlock.style.border.width}
+                    onChange={(value) =>
                       mutateStyle((style) => ({
                         ...style,
-                        borderColor: event.target.value,
+                        borderWidth: value > 0 ? "thin" : "none",
                         border: {
                           ...style.border,
-                          color: event.target.value,
+                          width: value,
+                          style: value > 0 ? "solid" : "none",
                         },
                       }))
                     }
-                    className="h-8 border-slate-300 bg-white text-slate-700"
                   />
+                  <NumberField
+                    id="border-radius"
+                    label="Radius"
+                    value={selectedBlock.style.border.radius}
+                    onChange={(value) =>
+                      mutateStyle((style) => ({
+                        ...style,
+                        border: {
+                          ...style.border,
+                          radius: value,
+                        },
+                      }))
+                    }
+                  />
+                  <div className="space-y-1.5">
+                    <Label htmlFor="border-color" className="text-[11px] uppercase tracking-[0.14em] text-slate-500">
+                      Color
+                    </Label>
+                    <Input
+                      id="border-color"
+                      value={selectedBlock.style.border.color}
+                      onChange={(event) =>
+                        mutateStyle((style) => ({
+                          ...style,
+                          borderColor: event.target.value,
+                          border: {
+                            ...style.border,
+                            color: event.target.value,
+                          },
+                        }))
+                      }
+                      className="h-8 border-slate-300 bg-white text-slate-900"
+                    />
+                  </div>
                 </div>
               </Section>
 
@@ -360,7 +440,7 @@ export function PageBuilderStylePanel({ selectedBlock, onUpdateStyle, onUpdateLa
                 <label
                   htmlFor="shadow-enabled"
                   className={cn(
-                    "inline-flex items-center gap-2 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700",
+                    "inline-flex items-center gap-2 border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700",
                     !selectedBlock ? "opacity-70" : "",
                   )}
                 >
@@ -381,6 +461,64 @@ export function PageBuilderStylePanel({ selectedBlock, onUpdateStyle, onUpdateLa
                   />
                   Enable shadow
                 </label>
+                <div className="grid grid-cols-2 gap-2">
+                  <NumberField
+                    id="shadow-x"
+                    label="X"
+                    value={selectedBlock.style.shadow.x}
+                    onChange={(value) =>
+                      mutateStyle((style) => ({
+                        ...style,
+                        shadow: {
+                          ...style.shadow,
+                          x: value,
+                        },
+                      }))
+                    }
+                  />
+                  <NumberField
+                    id="shadow-y"
+                    label="Y"
+                    value={selectedBlock.style.shadow.y}
+                    onChange={(value) =>
+                      mutateStyle((style) => ({
+                        ...style,
+                        shadow: {
+                          ...style.shadow,
+                          y: value,
+                        },
+                      }))
+                    }
+                  />
+                  <NumberField
+                    id="shadow-blur"
+                    label="Blur"
+                    value={selectedBlock.style.shadow.blur}
+                    onChange={(value) =>
+                      mutateStyle((style) => ({
+                        ...style,
+                        shadow: {
+                          ...style.shadow,
+                          blur: value,
+                        },
+                      }))
+                    }
+                  />
+                  <NumberField
+                    id="shadow-spread"
+                    label="Spread"
+                    value={selectedBlock.style.shadow.spread}
+                    onChange={(value) =>
+                      mutateStyle((style) => ({
+                        ...style,
+                        shadow: {
+                          ...style.shadow,
+                          spread: value,
+                        },
+                      }))
+                    }
+                  />
+                </div>
               </Section>
             </>
           )}

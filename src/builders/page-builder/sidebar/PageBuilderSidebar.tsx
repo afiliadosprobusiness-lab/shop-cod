@@ -1,7 +1,7 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useDraggable } from "@dnd-kit/core";
 import { CSS } from "@dnd-kit/utilities";
-import { ChevronRight, Code2, Layers3, Plus, Search, Settings2, SquareDashedMousePointer } from "lucide-react";
+import { ChevronRight, Code2, Layers3, Search, Settings2, SquareDashedMousePointer } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -30,10 +30,12 @@ interface PageBuilderSidebarProps {
 function PaletteRow({
   type,
   label,
+  description,
   onAddBlock,
 }: {
   type: PageBuilderBlockType;
   label: string;
+  description: string;
   onAddBlock: (type: PageBuilderBlockType) => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
@@ -55,22 +57,25 @@ function PaletteRow({
       style={style}
       onDoubleClick={() => onAddBlock(type)}
       className={cn(
-        "flex w-full items-center gap-3 rounded-lg border border-slate-300 bg-white px-3 py-2 text-left text-sm text-slate-700 transition-colors hover:border-blue-300 hover:bg-blue-50",
+        "flex w-full items-start gap-2 border border-slate-200 bg-white px-3 py-2 text-left transition-colors hover:border-blue-300",
         isDragging ? "opacity-60" : "",
       )}
     >
-      <span className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-slate-300 bg-slate-100 text-slate-600">
+      <span className="mt-0.5 inline-flex h-6 w-6 items-center justify-center border border-slate-200 bg-slate-50 text-slate-600">
         <SquareDashedMousePointer className="h-3.5 w-3.5" />
       </span>
-      <span className="flex-1 font-medium">{label}</span>
-      <ChevronRight className="h-4 w-4 text-slate-400" />
+      <span className="min-w-0 flex-1">
+        <span className="block text-sm font-medium text-slate-900">{label}</span>
+        <span className="mt-0.5 block text-xs leading-5 text-slate-500">{description}</span>
+      </span>
+      <ChevronRight className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
     </button>
   );
 }
 
 function EmptyState({ label }: { label: string }) {
   return (
-    <div className="rounded-lg border border-dashed border-slate-300 bg-white px-4 py-6 text-sm text-slate-500">
+    <div className="border border-dashed border-slate-300 bg-white px-3 py-5 text-sm text-slate-500">
       {label}
     </div>
   );
@@ -87,64 +92,58 @@ export function PageBuilderSidebar({
   onAddBlock,
   onUpdateContent,
 }: PageBuilderSidebarProps) {
+  const [search, setSearch] = useState("");
   const layers = flattenPageBuilderBlocks(blocks);
-  const groupedCatalog = useMemo(
-    () =>
-      pageBuilderElementCatalog.reduce<Record<string, typeof pageBuilderElementCatalog>>((accumulator, item) => {
-        accumulator[item.group] = [...(accumulator[item.group] || []), item];
-        return accumulator;
-      }, {}),
-    [],
-  );
+  const query = search.trim().toLowerCase();
+  const groupedCatalog = useMemo(() => {
+    const filtered = query
+      ? pageBuilderElementCatalog.filter((item) => {
+          return `${item.label} ${item.description} ${item.group}`.toLowerCase().includes(query);
+        })
+      : pageBuilderElementCatalog;
+
+    return filtered.reduce<Record<string, typeof pageBuilderElementCatalog>>((accumulator, item) => {
+      accumulator[item.group] = [...(accumulator[item.group] || []), item];
+      return accumulator;
+    }, {});
+  }, [query]);
 
   return (
-    <aside className="h-full min-h-0 rounded-r-xl border-r border-slate-300 bg-[#f5f6f8]">
+    <aside className="h-full min-h-0 border-r border-slate-300 bg-white">
       <div className="flex h-full min-h-0 flex-col">
-        <header className="border-b border-slate-300 px-4 py-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-slate-900">Build Your Page</h2>
-            <button
-              type="button"
-              className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-slate-300 bg-white text-slate-500"
-              aria-label="Colapsar panel"
-            >
-              <ChevronRight className="h-4 w-4 rotate-180" />
-            </button>
+        <header className="border-b border-slate-200 px-4 py-4">
+          <h2 className="text-xl font-semibold text-slate-900">Build Your Page</h2>
+          <div className="mt-3 grid grid-cols-3 gap-1 border border-slate-200 bg-slate-50 p-1">
+            {([
+              { key: "elements", label: "Elements" },
+              { key: "layers", label: "Layers" },
+              { key: "settings", label: "Settings" },
+            ] as const).map((tab) => (
+              <button
+                key={tab.key}
+                type="button"
+                onClick={() => onTabChange(tab.key)}
+                className={cn(
+                  "h-8 px-1 text-xs font-semibold",
+                  activeTab === tab.key ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700",
+                )}
+              >
+                {tab.label}
+              </button>
+            ))}
           </div>
-
-          <div className="mt-3 grid grid-cols-2 gap-1 rounded-lg border border-slate-300 bg-slate-100 p-1">
-            <button
-              type="button"
-              onClick={() => onTabChange("elements")}
-              className={cn(
-                "h-8 rounded-md text-sm font-medium",
-                activeTab === "elements" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700",
-              )}
-            >
-              Elements
-            </button>
-            <button
-              type="button"
-              onClick={() => onTabChange("layers")}
-              className={cn(
-                "h-8 rounded-md text-sm font-medium",
-                activeTab === "layers" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700",
-              )}
-            >
-              Sections
-            </button>
-          </div>
-
           <div className="relative mt-3">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
             <Input
-              value=""
-              readOnly
-              className="h-9 border-slate-300 bg-white pl-9 text-sm text-slate-500"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              className="h-9 border-slate-300 bg-white pl-9 text-sm"
               aria-label="Buscar elemento"
-              placeholder="Search"
+              placeholder="Search element"
             />
-            <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400">Ctrl+F</span>
+            <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400">
+              Ctrl+F
+            </span>
           </div>
         </header>
 
@@ -153,46 +152,53 @@ export function PageBuilderSidebar({
             <div className="space-y-4">
               {Object.entries(groupedCatalog).map(([group, items]) => (
                 <section key={group} className="space-y-2">
-                  <p className="px-1 text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">{group}</p>
+                  <p className="px-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">{group}</p>
                   <div className="space-y-2">
                     {items.map((item) => (
                       <PaletteRow
                         key={item.type}
                         type={item.type}
                         label={item.label}
+                        description={item.description}
                         onAddBlock={onAddBlock}
                       />
                     ))}
                   </div>
                 </section>
               ))}
+              {Object.keys(groupedCatalog).length === 0 ? (
+                <EmptyState label="No hay elementos para ese termino." />
+              ) : null}
             </div>
           ) : null}
 
           {activeTab === "layers" ? (
-            <div className="space-y-2">
+            <div className="space-y-1">
+              <button
+                type="button"
+                className={cn(
+                  "flex w-full items-center gap-2 border px-2 py-2 text-left text-sm",
+                  !selectedId ? "border-blue-300 bg-blue-50" : "border-slate-200 bg-white",
+                )}
+              >
+                <Layers3 className="h-4 w-4 text-slate-500" />
+                <span className="font-medium text-slate-900">Page</span>
+              </button>
               {layers.map(({ block, depth }) => (
                 <button
                   key={block.id}
                   type="button"
                   onClick={() => onSelect(block.id)}
                   className={cn(
-                    "flex w-full items-center gap-2 rounded-lg border px-3 py-2 text-left",
+                    "flex w-full items-center gap-2 border px-2 py-2 text-left text-sm",
                     selectedId === block.id
                       ? "border-blue-300 bg-blue-50"
-                      : "border-slate-300 bg-white hover:border-slate-400",
+                      : "border-slate-200 bg-white hover:border-slate-300",
                   )}
+                  style={{ paddingLeft: `${10 + depth * 14}px` }}
                 >
-                  <span
-                    className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-slate-300 bg-slate-100 text-slate-500"
-                    style={{ marginLeft: `${depth * 10}px` }}
-                  >
-                    <Layers3 className="h-3.5 w-3.5" />
-                  </span>
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-medium text-slate-800">{block.type}</p>
-                    <p className="truncate text-xs text-slate-500">{block.id}</p>
-                  </div>
+                  <span className="h-1.5 w-1.5 rounded-full bg-slate-400" />
+                  <span className="font-medium capitalize text-slate-900">{block.type}</span>
                 </button>
               ))}
             </div>
@@ -201,15 +207,15 @@ export function PageBuilderSidebar({
           {activeTab === "settings" ? (
             <div className="space-y-3">
               {!selectedBlock ? (
-                <EmptyState label="Selecciona un bloque para editar contenido y ver el JSON." />
+                <EmptyState label="Selecciona un nodo para editar su contenido y revisar page_json." />
               ) : (
                 <>
-                  <div className="rounded-lg border border-slate-300 bg-white p-3">
+                  <div className="border border-slate-200 bg-slate-50 p-3">
                     <div className="flex items-center gap-2 text-slate-700">
                       <Settings2 className="h-4 w-4" />
-                      <p className="text-xs font-semibold uppercase tracking-[0.16em]">Active block</p>
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.16em]">Active node</p>
                     </div>
-                    <p className="mt-2 text-sm font-semibold text-slate-800">{selectedBlock.type}</p>
+                    <p className="mt-2 text-sm font-semibold capitalize text-slate-900">{selectedBlock.type}</p>
                     <p className="mt-1 break-all text-xs text-slate-500">{selectedBlock.id}</p>
                   </div>
 
@@ -236,14 +242,14 @@ export function PageBuilderSidebar({
                               id={`content-${selectedBlock.id}-${field}`}
                               value={value}
                               onChange={(event) => onUpdateContent(field, event.target.value)}
-                              className="min-h-[82px] border-slate-300 bg-white text-slate-800"
+                              className="min-h-[82px] border-slate-300 bg-white text-slate-900"
                             />
                           ) : (
                             <Input
                               id={`content-${selectedBlock.id}-${field}`}
                               value={value}
                               onChange={(event) => onUpdateContent(field, event.target.value)}
-                              className="h-9 border-slate-300 bg-white text-slate-800"
+                              className="h-9 border-slate-300 bg-white text-slate-900"
                             />
                           )}
                         </div>
@@ -251,12 +257,12 @@ export function PageBuilderSidebar({
                     })}
                   </div>
 
-                  <div className="rounded-lg border border-slate-300 bg-white p-3">
+                  <div className="border border-slate-200 bg-white p-3">
                     <div className="flex items-center gap-2 text-slate-700">
                       <Code2 className="h-4 w-4" />
-                      <p className="text-xs font-semibold uppercase tracking-[0.16em]">page_json</p>
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.16em]">page_json</p>
                     </div>
-                    <pre className="mt-2 max-h-40 overflow-auto rounded-md border border-slate-200 bg-slate-50 p-2 text-[10px] leading-5 text-slate-600">
+                    <pre className="mt-2 max-h-44 overflow-auto border border-slate-200 bg-slate-50 p-2 text-[10px] leading-5 text-slate-600">
                       {pageJson}
                     </pre>
                   </div>
@@ -265,20 +271,6 @@ export function PageBuilderSidebar({
             </div>
           ) : null}
         </div>
-
-        <footer className="border-t border-slate-300 px-3 py-2">
-          <button
-            type="button"
-            onClick={() => onTabChange("settings")}
-            className={cn(
-              "inline-flex w-full items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm",
-              activeTab === "settings" ? "text-blue-600" : "text-slate-600",
-            )}
-          >
-            <Plus className="h-4 w-4" />
-            Open Block Settings
-          </button>
-        </footer>
       </div>
     </aside>
   );

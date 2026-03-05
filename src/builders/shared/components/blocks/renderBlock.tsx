@@ -538,6 +538,54 @@ function renderPageBlock(block: PageBuilderBlock, options?: RenderBlockOptions) 
         </section>
       );
 
+    case "checkout":
+      return (
+        <section className={wrapperClass} style={wrapperStyle}>
+          <div className="space-y-4">
+            <div>
+              <h3 className="text-xl font-bold">
+                <EditableField
+                  block={block}
+                  field="title"
+                  fallback="Checkout"
+                  options={options}
+                />
+              </h3>
+              <p className="mt-2 text-sm opacity-80">
+                <EditableField
+                  block={block}
+                  field="subtitle"
+                  fallback="Finaliza el pedido en un solo paso."
+                  multiline
+                  options={options}
+                />
+              </p>
+            </div>
+            <div className="grid gap-2">
+              {["Nombre", "Telefono", "Direccion"].map((field) => (
+                <div
+                  key={`${block.id}-${field}`}
+                  className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm opacity-80"
+                >
+                  {field}
+                </div>
+              ))}
+            </div>
+            <button
+              type="button"
+              className="inline-flex min-h-12 items-center justify-center rounded-2xl bg-white px-6 py-3 text-sm font-semibold text-slate-950"
+            >
+              <EditableField
+                block={block}
+                field="cta"
+                fallback="Pagar ahora"
+                options={options}
+              />
+            </button>
+          </div>
+        </section>
+      );
+
     case "form":
       return (
         <section className={wrapperClass} style={wrapperStyle}>

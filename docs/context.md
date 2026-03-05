@@ -316,9 +316,10 @@ ShopCOD is a frontend SPA for COD-focused funnel selling. It uses Firebase Authe
   - contextual insertion suggestions
   - heuristic conversion score and quick-win guidance
 5. `Page builder` mounts a dedicated module at `src/builders/page-builder` with:
-  - Lightfunnels-inspired light UI shell (thin topbar, quick-tools vertical rail, and x-ray-like canvas workspace)
+  - Lightfunnels/Clickfunnels-inspired light UI shell (thin topbar, quick-tools vertical rail, and x-ray-like canvas workspace)
   - `left panel` tabs: Elements, Layers, Settings
   - `right panel` dedicated style editor (margin, padding, width, height, typography, background, borders, shadow)
+  - DOM-like page canvas rendering (not card-like block previews), with hover outline, selected toolbar, preview mode, and drop indicators
   - `topbar` controls: undo, redo, responsive desktop/tablet/mobile, save, preview, publish
   - `canvas` tree: drag, drop, reorder, duplicate, resize, nested containers, inline editing, hover controls
   - `renderer/renderBlock(block)` for block-by-block rendering

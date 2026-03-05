@@ -6,6 +6,7 @@ export const pageBuilderBlockTypes = [
   "columns",
   "video",
   "product",
+  "checkout",
   "form",
   "countdown",
   "testimonial",
@@ -126,6 +127,8 @@ export interface PageBuilderBlock {
 export interface PageBuilderDocument {
   id: string;
   title: string;
+  type: "page";
+  children: PageBuilderBlock[];
   blocks: PageBuilderBlock[];
 }
 
@@ -280,25 +283,25 @@ function normalizeMinHeightToken(value: unknown): PageBuilderBlockLayout["minHei
 }
 
 function getDefaultStyle(): PageBuilderBlockStyle {
-  const paddingToken: LegacySpacingToken = "comfortable";
-  const marginToken: LegacyMarginToken = "sm";
+  const paddingToken: LegacySpacingToken = "compact";
+  const marginToken: LegacyMarginToken = "none";
   const fontFamilyToken: LegacyFontFamilyToken = "sans";
   const fontSizeToken: LegacyFontSizeToken = "base";
-  const radiusToken: LegacyRadiusToken = "rounded";
-  const borderWidthToken: LegacyBorderWidthToken = "thin";
+  const radiusToken: LegacyRadiusToken = "soft";
+  const borderWidthToken: LegacyBorderWidthToken = "none";
 
   return {
-    backgroundColor: "#0b1221",
-    textColor: "#e2e8f0",
+    backgroundColor: "transparent",
+    textColor: "#0f172a",
     align: "left",
     padding: paddingToken,
     margin: marginToken,
     radius: radiusToken,
     fontFamily: fontFamilyToken,
     fontSize: fontSizeToken,
-    borderStyle: "solid",
+    borderStyle: "none",
     borderWidth: borderWidthToken,
-    borderColor: "rgba(148,163,184,0.25)",
+    borderColor: "transparent",
     spacing: {
       margin: createBoxValues(marginTokenMap[marginToken]),
       padding: createBoxValues(paddingTokenMap[paddingToken]),
@@ -306,29 +309,29 @@ function getDefaultStyle(): PageBuilderBlockStyle {
     typography: {
       family: fontFamilyTokenMap[fontFamilyToken],
       size: fontSizeTokenMap[fontSizeToken],
-      weight: 500,
+      weight: 400,
       lineHeight: 1.5,
       letterSpacing: 0,
     },
     background: {
-      color: "#0b1221",
+      color: "transparent",
       imageUrl: "",
       size: "cover",
       position: "center",
     },
     border: {
-      style: "solid",
+      style: "none",
       width: borderWidthTokenMap[borderWidthToken],
-      color: "rgba(148,163,184,0.25)",
-      radius: radiusTokenMap[radiusToken],
+      color: "transparent",
+      radius: 0,
     },
     shadow: {
-      enabled: true,
+      enabled: false,
       x: 0,
-      y: 14,
-      blur: 36,
-      spread: -16,
-      color: "rgba(15, 23, 42, 0.55)",
+      y: 8,
+      blur: 24,
+      spread: -12,
+      color: "rgba(15, 23, 42, 0.16)",
     },
   };
 }
@@ -347,7 +350,7 @@ function getDefaultLayout(): PageBuilderBlockLayout {
       width: "100%",
       height: "auto",
       minHeight: minHeightTokenMap[minHeightToken],
-      maxWidth: widthTokenMap[widthToken],
+      maxWidth: "1200px",
     },
     gapPx: gapTokenMap[gapToken],
   };
@@ -526,14 +529,6 @@ export function createPageBuilderBlock(
       return {
         ...base,
         type,
-        style: {
-          ...base.style,
-          backgroundColor: "#0f172a",
-          background: {
-            ...base.style.background,
-            color: "#0f172a",
-          },
-        },
         content: {
           label: ctaText,
           href: "#checkout",
@@ -547,28 +542,42 @@ export function createPageBuilderBlock(
         type,
         style: {
           ...base.style,
-          backgroundColor: "#050a17",
+          backgroundColor: "transparent",
           background: {
             ...base.style.background,
-            color: "#050a17",
+            color: "transparent",
           },
-          borderColor: "rgba(56,189,248,0.25)",
+          textColor: "#0f172a",
+          borderColor: "transparent",
           border: {
             ...base.style.border,
-            color: "rgba(56,189,248,0.25)",
+            style: "none",
+            width: 0,
+            color: "transparent",
+            radius: 0,
           },
           spacing: {
-            ...base.style.spacing,
-            margin: createBoxValues(16),
+            margin: createBoxValues(0),
+            padding: {
+              top: 52,
+              right: 24,
+              bottom: 52,
+              left: 24,
+              unit: "px",
+            },
           },
-          margin: "md",
+          margin: "none",
+          padding: "spacious",
         },
         layout: {
           ...base.layout,
-          minHeight: "md",
+          width: "full",
+          minHeight: "auto",
           dimensions: {
             ...base.layout.dimensions,
-            minHeight: "180px",
+            width: "100%",
+            minHeight: "0px",
+            maxWidth: "100%",
           },
         },
         content: {
@@ -581,6 +590,25 @@ export function createPageBuilderBlock(
       return {
         ...base,
         type,
+        style: {
+          ...base.style,
+          backgroundColor: "transparent",
+          background: {
+            ...base.style.background,
+            color: "transparent",
+          },
+          spacing: {
+            margin: createBoxValues(0),
+            padding: createBoxValues(0),
+          },
+        },
+        layout: {
+          ...base.layout,
+          dimensions: {
+            ...base.layout.dimensions,
+            maxWidth: "1120px",
+          },
+        },
         content: {
           title: "Container",
           subtitle: "Agrupa bloques y ordena una seccion completa.",
@@ -591,6 +619,19 @@ export function createPageBuilderBlock(
       return {
         ...base,
         type,
+        style: {
+          ...base.style,
+          backgroundColor: "transparent",
+          background: {
+            ...base.style.background,
+            color: "transparent",
+          },
+        },
+        layout: {
+          ...base.layout,
+          columns: 2,
+          gapPx: 24,
+        },
         content: {
           title: "Columns",
           subtitle: "Comparacion, beneficios o grids de confianza.",
@@ -617,6 +658,17 @@ export function createPageBuilderBlock(
           price,
           badge: "Pago contraentrega",
           description: `Oferta lista para publicar desde ${storeName}.`,
+        },
+      };
+
+    case "checkout":
+      return {
+        ...base,
+        type,
+        content: {
+          title: "Checkout",
+          subtitle: "Formulario de pago simplificado para cerrar la venta.",
+          cta: ctaText,
         },
       };
 
@@ -665,6 +717,7 @@ export function createPageBuilderBlock(
             ...base.style.background,
             color: "transparent",
           },
+          textColor: "#94a3b8",
           borderStyle: "none",
           borderWidth: "none",
           border: {
@@ -679,10 +732,10 @@ export function createPageBuilderBlock(
         },
         layout: {
           ...base.layout,
-          minHeight: "sm",
+          minHeight: "auto",
           dimensions: {
             ...base.layout.dimensions,
-            minHeight: "96px",
+            minHeight: "0px",
           },
         },
         content: {
@@ -766,10 +819,13 @@ export function createPageBuilderDocument(
   blocks: PageBuilderBlock[],
   options?: { id?: string; title?: string },
 ): PageBuilderDocument {
+  const normalizedBlocks = normalizePageBuilderBlocks(blocks);
   return {
     id: options?.id || createBlockId("page"),
     title: options?.title?.trim() || "Nueva pagina",
-    blocks: normalizePageBuilderBlocks(blocks),
+    type: "page",
+    children: normalizedBlocks,
+    blocks: normalizedBlocks,
   };
 }
 

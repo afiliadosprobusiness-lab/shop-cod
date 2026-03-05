@@ -3,7 +3,6 @@ import { type DragEndEvent, type DragStartEvent } from "@dnd-kit/core";
 import { useStore } from "zustand";
 import { createStore, type StoreApi } from "zustand/vanilla";
 import {
-  canAcceptChildren,
   createDefaultPageBuilderBlocks,
   createPageBuilderBlock,
   normalizePageBuilderBlocks,
@@ -46,6 +45,43 @@ const widthTokenMap: Record<PageBuilderBlock["layout"]["width"], string> = {
   narrow: "760px",
 };
 
+const elementTypes = new Set<PageBuilderBlockType>([
+  "text",
+  "image",
+  "video",
+  "button",
+  "form",
+  "testimonial",
+  "product",
+  "checkout",
+  "countdown",
+  "divider",
+]);
+
+function isElementType(type: PageBuilderBlockType) {
+  return elementTypes.has(type);
+}
+
+function canParentAcceptChild(parentType: PageBuilderBlockType | null, childType: PageBuilderBlockType) {
+  if (parentType === null) {
+    return childType === "section";
+  }
+
+  if (parentType === "section") {
+    return childType === "container";
+  }
+
+  if (parentType === "container") {
+    return childType === "columns" || isElementType(childType);
+  }
+
+  if (parentType === "columns") {
+    return isElementType(childType);
+  }
+
+  return false;
+}
+
 function cycleWidth(width: PageBuilderBlock["layout"]["width"]): PageBuilderBlock["layout"]["width"] {
   if (width === "narrow") {
     return "wide";
@@ -74,17 +110,25 @@ function createPageBuilderStore(seedBlocks: PageBuilderBlock[]): StoreApi<PageBu
   }));
 }
 
-function resolveDefaultInsertTarget(blocks: PageBuilderBlock[], selectedId: string | null) {
+function resolveDefaultInsertTarget(
+  blocks: PageBuilderBlock[],
+  selectedId: string | null,
+  blockType: PageBuilderBlockType,
+) {
   if (!selectedId) {
-    return {
-      parentId: null,
-      index: blocks.length,
-    };
+    if (canParentAcceptChild(null, blockType)) {
+      return {
+        parentId: null,
+        index: blocks.length,
+      };
+    }
+
+    return null;
   }
 
   const selected = findPageBuilderBlock(blocks, selectedId);
 
-  if (selected && canAcceptChildren(selected.type)) {
+  if (selected && canParentAcceptChild(selected.type, blockType)) {
     return {
       parentId: selected.id,
       index: selected.children.length,
@@ -94,16 +138,35 @@ function resolveDefaultInsertTarget(blocks: PageBuilderBlock[], selectedId: stri
   const location = findPageBuilderBlockLocation(blocks, selectedId);
 
   if (!location) {
+    return canParentAcceptChild(null, blockType)
+      ? {
+          parentId: null,
+          index: blocks.length,
+        }
+      : null;
+  }
+
+  if (canParentAcceptChild(location.parentType, blockType)) {
     return {
-      parentId: null,
-      index: blocks.length,
+      parentId: location.parentId,
+      index: location.index + 1,
     };
   }
 
-  return {
-    parentId: location.parentId,
-    index: location.index + 1,
-  };
+  const compatibleParent = blocks.find((block) => canParentAcceptChild(block.type, blockType));
+  if (compatibleParent) {
+    return {
+      parentId: compatibleParent.id,
+      index: compatibleParent.children.length,
+    };
+  }
+
+  return canParentAcceptChild(null, blockType)
+    ? {
+        parentId: null,
+        index: blocks.length,
+      }
+    : null;
 }
 
 function resolveTargetFromDrop(
@@ -112,9 +175,15 @@ function resolveTargetFromDrop(
   overData: Record<string, unknown>,
 ) {
   if (overData.kind === "slot") {
+    const parentTypeFromData =
+      typeof overData.parentType === "string"
+        ? (overData.parentType as PageBuilderBlockType)
+        : null;
+
     return {
       parentId: typeof overData.parentId === "string" ? overData.parentId : null,
       index: typeof overData.index === "number" ? overData.index : 0,
+      parentType: parentTypeFromData,
     };
   }
 
@@ -124,12 +193,14 @@ function resolveTargetFromDrop(
     return {
       parentId: null,
       index: blocks.length,
+      parentType: null,
     };
   }
 
   return {
     parentId: location.parentId,
     index: location.index,
+    parentType: location.parentType,
   };
 }
 
@@ -280,7 +351,10 @@ export function usePageBuilderState({
     (type: PageBuilderBlockType) => {
       const state = store.getState();
       const currentBlocks = getCurrentBlocks(state);
-      const target = resolveDefaultInsertTarget(currentBlocks, state.selectedId);
+      const target = resolveDefaultInsertTarget(currentBlocks, state.selectedId, type);
+      if (!target) {
+        return;
+      }
       const nextBlock = createPageBuilderBlock(type, seed);
       const nextBlocks = insertPageBuilderBlock(
         currentBlocks,
@@ -442,6 +516,10 @@ export function usePageBuilderState({
       const target = resolveTargetFromDrop(currentBlocks, String(overId), overData);
 
       if (activeData.kind === "palette") {
+        if (!canParentAcceptChild(target.parentType, activeData.blockType)) {
+          return;
+        }
+
         const nextBlock = createPageBuilderBlock(activeData.blockType, seed);
         const nextBlocks = insertPageBuilderBlock(
           currentBlocks,
@@ -451,6 +529,15 @@ export function usePageBuilderState({
         );
 
         commitBlocks(nextBlocks, nextBlock.id);
+        return;
+      }
+
+      const movingBlock = findPageBuilderBlock(currentBlocks, activeData.blockId);
+      if (!movingBlock) {
+        return;
+      }
+
+      if (!canParentAcceptChild(target.parentType, movingBlock.type)) {
         return;
       }
 

@@ -51,27 +51,33 @@ export const pageBuilderElementCatalog: PageBuilderElementCatalogItem[] = [
     group: "Content",
   },
   {
+    type: "button",
+    label: "Button",
+    description: "CTA principal o secundarios con enlace.",
+    group: "Content",
+  },
+  {
+    type: "form",
+    label: "Form",
+    description: "Formulario de pedido o lead con CTA final.",
+    group: "Content",
+  },
+  {
     type: "testimonial",
     label: "Testimonial",
     description: "Prueba social con cita y autor.",
     group: "Content",
   },
   {
-    type: "button",
-    label: "Button",
-    description: "CTA principal o secundarios con enlace.",
-    group: "Commerce",
-  },
-  {
     type: "product",
     label: "Product",
-    description: "Card de producto con precio, badge y beneficios.",
+    description: "Bloque de producto con precio, badge y beneficios.",
     group: "Commerce",
   },
   {
-    type: "form",
-    label: "Form",
-    description: "Formulario de pedido o lead con CTA final.",
+    type: "checkout",
+    label: "Checkout",
+    description: "Checkout visual para cerrar pedidos en la misma pagina.",
     group: "Commerce",
   },
   {

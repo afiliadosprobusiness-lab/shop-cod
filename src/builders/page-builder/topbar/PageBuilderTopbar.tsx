@@ -17,11 +17,13 @@ interface PageBuilderTopbarProps {
   device: PageBuilderDevice;
   canUndo: boolean;
   canRedo: boolean;
+  previewMode: boolean;
   onUndo: () => void;
   onRedo: () => void;
+  onTogglePreviewMode: () => void;
   onDeviceChange: (device: PageBuilderDevice) => void;
   onSave: () => void;
-  onPreview: () => void;
+  onOpenPreview: () => void;
   onPublish: () => void;
 }
 
@@ -29,11 +31,13 @@ export function PageBuilderTopbar({
   device,
   canUndo,
   canRedo,
+  previewMode,
   onUndo,
   onRedo,
+  onTogglePreviewMode,
   onDeviceChange,
   onSave,
-  onPreview,
+  onOpenPreview,
   onPublish,
 }: PageBuilderTopbarProps) {
   const devices: Array<{ value: PageBuilderDevice; icon: typeof Monitor; label: string }> = [
@@ -43,24 +47,23 @@ export function PageBuilderTopbar({
   ];
 
   return (
-    <header className="rounded-xl border border-slate-300 bg-white px-3 py-2 shadow-sm">
+    <header className="border border-slate-300 bg-white px-3 py-2">
       <div className="flex flex-wrap items-center gap-2">
         <button
           type="button"
-          className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-300 bg-slate-50 text-slate-700"
+          className="inline-flex h-8 w-8 items-center justify-center border border-slate-300 bg-white text-slate-600 hover:bg-slate-50"
           aria-label="Volver"
         >
           <ChevronLeft className="h-4 w-4" />
         </button>
 
-        <div className="inline-flex h-8 items-center rounded-lg border border-slate-300 bg-slate-50 px-3 text-sm font-medium text-slate-800">
+        <div className="inline-flex h-8 items-center border border-slate-300 bg-slate-50 px-3 text-sm font-medium text-slate-900">
           Product Page
         </div>
 
-        <div className="inline-flex items-center rounded-lg border border-slate-300 bg-slate-50 p-1">
+        <div className="mx-auto inline-flex items-center border border-slate-300 bg-slate-50 p-0.5">
           {devices.map((item) => {
             const Icon = item.icon;
-
             return (
               <button
                 key={item.value}
@@ -68,8 +71,8 @@ export function PageBuilderTopbar({
                 onClick={() => onDeviceChange(item.value)}
                 aria-label={`Vista ${item.label.toLowerCase()}`}
                 className={cn(
-                  "inline-flex h-6 w-6 items-center justify-center rounded-md text-slate-600 transition-colors",
-                  device === item.value ? "bg-white text-blue-600 shadow-sm" : "hover:bg-white/80",
+                  "inline-flex h-7 w-7 items-center justify-center text-slate-600 transition-colors",
+                  device === item.value ? "bg-white text-blue-600 shadow-sm" : "hover:bg-white/70",
                 )}
               >
                 <Icon className="h-3.5 w-3.5" />
@@ -85,9 +88,10 @@ export function PageBuilderTopbar({
             size="sm"
             onClick={onUndo}
             disabled={!canUndo}
-            className="h-8 rounded-lg border border-slate-300 bg-white px-2.5 text-slate-600 hover:bg-slate-50"
+            className="h-8 border border-slate-300 bg-white px-2.5 text-slate-700 hover:bg-slate-50"
           >
             <RotateCcw className="h-3.5 w-3.5" />
+            Undo
           </Button>
           <Button
             type="button"
@@ -95,16 +99,30 @@ export function PageBuilderTopbar({
             size="sm"
             onClick={onRedo}
             disabled={!canRedo}
-            className="h-8 rounded-lg border border-slate-300 bg-white px-2.5 text-slate-600 hover:bg-slate-50"
+            className="h-8 border border-slate-300 bg-white px-2.5 text-slate-700 hover:bg-slate-50"
           >
             <RotateCw className="h-3.5 w-3.5" />
+            Redo
           </Button>
           <Button
             type="button"
             variant="outline"
             size="sm"
-            onClick={onPreview}
-            className="h-8 rounded-lg border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
+            onClick={onTogglePreviewMode}
+            className={cn(
+              "h-8 border-slate-300 bg-white text-slate-700 hover:bg-slate-50",
+              previewMode ? "border-blue-300 bg-blue-50 text-blue-700" : "",
+            )}
+          >
+            <Eye className="h-3.5 w-3.5" />
+            {previewMode ? "Exit preview" : "Preview mode"}
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={onOpenPreview}
+            className="h-8 border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
           >
             <Eye className="h-3.5 w-3.5" />
             Preview
@@ -114,7 +132,7 @@ export function PageBuilderTopbar({
             variant="outline"
             size="sm"
             onClick={onSave}
-            className="h-8 rounded-lg border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
+            className="h-8 border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
           >
             <Save className="h-3.5 w-3.5" />
             Save
@@ -123,7 +141,7 @@ export function PageBuilderTopbar({
             type="button"
             size="sm"
             onClick={onPublish}
-            className="h-8 rounded-lg bg-blue-600 text-white hover:bg-blue-500"
+            className="h-8 bg-blue-600 text-white hover:bg-blue-500"
           >
             <Rocket className="h-3.5 w-3.5" />
             Publish
