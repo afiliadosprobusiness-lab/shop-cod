@@ -5,13 +5,17 @@ export type PaymentType = "stripe" | "paypal" | "cash_on_delivery";
 export type PageType = "landing" | "checkout" | "thankyou";
 export type OrderStatus = "new" | "processing" | "shipped" | "completed";
 export type LandingBlockType =
+  | "hero"
+  | "section"
   | "headline"
   | "text"
   | "image"
   | "video"
   | "button"
   | "testimonials"
-  | "faq";
+  | "faq"
+  | "cod_form"
+  | "footer";
 
 export interface UserRow {
   id: string;
@@ -60,6 +64,8 @@ export interface OrderRow {
 export interface LandingBlock {
   id: string;
   type: LandingBlockType;
+  title?: string;
+  subtitle?: string;
   content?: string;
   src?: string;
   text?: string;
@@ -107,6 +113,8 @@ interface CreateOrderInput {
 const DATABASE_STORAGE_KEY = "shopcod-funnel-system-db-v1";
 
 const allowedBlockTypes = new Set<LandingBlockType>([
+  "hero",
+  "section",
   "headline",
   "text",
   "image",
@@ -114,6 +122,8 @@ const allowedBlockTypes = new Set<LandingBlockType>([
   "button",
   "testimonials",
   "faq",
+  "cod_form",
+  "footer",
 ]);
 
 function emptyDatabase(): FunnelDatabase {
@@ -172,19 +182,28 @@ function defaultLandingContent(funnelName: string): LandingContent {
     sections: [
       {
         id: createId("blk"),
-        type: "headline",
-        content: funnelName,
+        type: "hero",
+        title: funnelName,
+        subtitle: "Oferta principal para conversion rapida.",
+        text: "Comprar ahora",
+        href: "#checkout",
       },
       {
         id: createId("blk"),
-        type: "text",
+        type: "section",
+        title: "Beneficios",
         content: "Describe en pocas lineas por que este producto resuelve el problema.",
       },
       {
         id: createId("blk"),
-        type: "button",
-        text: "Comprar ahora",
-        href: "#checkout",
+        type: "cod_form",
+        title: "Formulario COD",
+        text: "Confirm Order",
+      },
+      {
+        id: createId("blk"),
+        type: "footer",
+        content: "Copyright 2026 - Todos los derechos reservados.",
       },
     ],
   };
@@ -225,6 +244,8 @@ function normalizeLandingContent(contentJson: string): LandingContent {
         return {
           id: typeof entry.id === "string" ? entry.id : createId("blk"),
           type: entry.type as LandingBlockType,
+          title: typeof entry.title === "string" ? entry.title : undefined,
+          subtitle: typeof entry.subtitle === "string" ? entry.subtitle : undefined,
           content: typeof entry.content === "string" ? entry.content : undefined,
           src: typeof entry.src === "string" ? entry.src : undefined,
           text: typeof entry.text === "string" ? entry.text : undefined,
@@ -468,6 +489,26 @@ export function setFunnelPublished(funnelId: string, published: boolean) {
   );
   writeDatabase({ ...database, funnels: nextFunnels });
   return nextFunnels.find((funnel) => funnel.id === funnelId) ?? null;
+}
+
+export function deleteFunnel(funnelId: string) {
+  const database = readDatabase();
+  const target = database.funnels.find((funnel) => funnel.id === funnelId);
+
+  if (!target) {
+    return false;
+  }
+
+  const nextDatabase: FunnelDatabase = {
+    ...database,
+    funnels: database.funnels.filter((funnel) => funnel.id !== funnelId),
+    products: database.products.filter((product) => product.funnel_id !== funnelId),
+    pages: database.pages.filter((page) => page.funnel_id !== funnelId),
+    orders: database.orders.filter((order) => order.funnel_id !== funnelId),
+  };
+
+  writeDatabase(nextDatabase);
+  return true;
 }
 
 export function createOrder({

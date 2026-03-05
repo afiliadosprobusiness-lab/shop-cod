@@ -45,17 +45,18 @@ Legacy:
 
 ## Flujo Principal
 
-1. Crear funnel por nombre (`/funnels`) -> se crean 3 paginas (`landing`, `checkout`, `thankyou`).
+1. Crear funnel por nombre (`/funnels`) -> se crean 3 paginas (`landing`, `checkout`, `thankyou`) y se abre editor automaticamente.
 2. Configurar producto unico (`/funnels/:funnelId/editor`) con:
   - `product_name`
   - `price`
   - `product_type`
   - `payment_type`
 3. Editar landing en orden vertical con bloques permitidos:
-  - `headline`, `text`, `image`, `video`, `button`, `testimonials`, `faq`
+  - `hero`, `section`, `headline`, `text`, `image`, `video`, `button`, `testimonials`, `faq`, `cod_form`, `footer`
 4. Publicar funnel desde el editor.
 5. Checkout autogenerado desde producto en `/f/:slug/checkout`.
 6. Registrar pedido y ver tabla en `/orders`.
+7. Desde `/funnels` se puede borrar funnel completo (con producto, paginas y pedidos).
 
 ## Persistencia
 

@@ -1,5 +1,6 @@
 import { Link, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { findFunnelBySlug, getFunnelProduct, getLandingSections } from "@/lib/funnel-system";
 
 function normalizeButtonHref(slug: string, href?: string) {
@@ -36,6 +37,38 @@ export default function PublicLandingPage() {
   return (
     <main className="mx-auto w-full max-w-4xl space-y-5 px-4 py-8">
       {sections.map((section) => {
+        if (section.type === "hero") {
+          const target = normalizeButtonHref(funnel.slug, section.href);
+
+          return (
+            <section
+              key={section.id}
+              className="rounded-2xl border border-border bg-card p-7 text-center sm:p-10"
+            >
+              <h1 className="text-3xl font-semibold tracking-tight sm:text-5xl">
+                {section.title || funnel.name}
+              </h1>
+              <p className="mx-auto mt-3 max-w-2xl text-base text-muted-foreground">
+                {section.subtitle}
+              </p>
+              <Button asChild className="mt-6 rounded-xl">
+                <Link to={target}>{section.text || "Comprar ahora"}</Link>
+              </Button>
+            </section>
+          );
+        }
+
+        if (section.type === "section") {
+          return (
+            <section key={section.id} className="rounded-2xl border border-border bg-card p-6">
+              {section.title ? <h2 className="text-xl font-semibold">{section.title}</h2> : null}
+              <p className="mt-2 whitespace-pre-wrap text-base leading-7 text-muted-foreground">
+                {section.content}
+              </p>
+            </section>
+          );
+        }
+
         if (section.type === "headline") {
           return (
             <section key={section.id} className="rounded-2xl border border-border bg-card p-6 text-center">
@@ -109,6 +142,31 @@ export default function PublicLandingPage() {
               <h2 className="text-xl font-semibold">Testimonials</h2>
               <p className="mt-2 text-muted-foreground">{section.content}</p>
             </section>
+          );
+        }
+
+        if (section.type === "cod_form") {
+          return (
+            <section key={section.id} className="rounded-2xl border border-border bg-card p-6">
+              <h2 className="text-xl font-semibold">{section.title || "Formulario COD"}</h2>
+              <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                <Input placeholder="name" aria-label="name" />
+                <Input placeholder="phone" aria-label="phone" />
+                <Input placeholder="address" aria-label="address" />
+                <Input placeholder="city" aria-label="city" />
+              </div>
+              <Button asChild className="mt-4 rounded-xl">
+                <Link to={`/f/${funnel.slug}/checkout`}>{section.text || "Confirm Order"}</Link>
+              </Button>
+            </section>
+          );
+        }
+
+        if (section.type === "footer") {
+          return (
+            <footer key={section.id} className="rounded-2xl border border-border bg-card p-5 text-center">
+              <p className="text-sm text-muted-foreground">{section.content}</p>
+            </footer>
           );
         }
 

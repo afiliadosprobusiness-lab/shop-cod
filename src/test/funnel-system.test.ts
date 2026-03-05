@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import {
   createFunnel,
   createOrder,
+  deleteFunnel,
   getDatabaseSnapshot,
   getFunnelProduct,
   getLandingSections,
@@ -66,13 +67,13 @@ describe("funnel-system", () => {
     });
 
     saveLandingSections(funnel.id, [
-      { id: "1", type: "headline", content: "Amazing Product" },
+      { id: "1", type: "hero", title: "Amazing Product", subtitle: "Best hero" },
       { id: "2", type: "button", text: "Buy Now", href: "#checkout" },
     ]);
 
     const sections = getLandingSections(funnel.id);
     expect(sections).toHaveLength(2);
-    expect(sections[0].type).toBe("headline");
+    expect(sections[0].type).toBe("hero");
     expect(sections[1].type).toBe("button");
   });
 
@@ -104,5 +105,37 @@ describe("funnel-system", () => {
     const updated = updateOrderStatus(order.id, "processing");
     const orderRow = updated.find((row) => row.id === order.id);
     expect(orderRow?.status).toBe("processing");
+  });
+
+  it("deletes funnel with related records", () => {
+    const funnel = createFunnel({
+      name: "Delete me",
+      userId: "user-1",
+    });
+    const product = upsertFunnelProduct({
+      funnelId: funnel.id,
+      name: "Producto",
+      price: 10,
+      type: "physical",
+      paymentType: "cash_on_delivery",
+    });
+    createOrder({
+      funnelId: funnel.id,
+      productId: product.id,
+      name: "Ken",
+      phone: "999",
+      address: "Street",
+      city: "Lima",
+      paymentType: "cash_on_delivery",
+    });
+
+    const deleted = deleteFunnel(funnel.id);
+    const snapshot = getDatabaseSnapshot();
+
+    expect(deleted).toBe(true);
+    expect(snapshot.funnels.find((item) => item.id === funnel.id)).toBeUndefined();
+    expect(snapshot.products.find((item) => item.funnel_id === funnel.id)).toBeUndefined();
+    expect(snapshot.pages.find((item) => item.funnel_id === funnel.id)).toBeUndefined();
+    expect(snapshot.orders.find((item) => item.funnel_id === funnel.id)).toBeUndefined();
   });
 });

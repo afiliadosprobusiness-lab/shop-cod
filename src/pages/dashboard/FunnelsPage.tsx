@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { ExternalLink, Plus } from "lucide-react";
-import { Link } from "react-router-dom";
+import { ExternalLink, Plus, Trash2 } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
 import MainContent from "@/components/dashboard/MainContent";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,12 +8,14 @@ import { Label } from "@/components/ui/label";
 import { useAuth } from "@/lib/auth";
 import {
   createFunnel,
+  deleteFunnel,
   listFunnelsByUser,
   type FunnelRow,
 } from "@/lib/funnel-system";
 import { subscribeToShopcodData } from "@/lib/live-sync";
 
 export default function FunnelsPage() {
+  const navigate = useNavigate();
   const { user } = useAuth();
   const [funnelName, setFunnelName] = useState("");
   const [funnels, setFunnels] = useState<FunnelRow[]>([]);
@@ -34,12 +36,27 @@ export default function FunnelsPage() {
       return;
     }
 
-    createFunnel({
+    const funnel = createFunnel({
       name: funnelName,
       userId: user.uid,
       userEmail: user.email,
     });
     setFunnelName("");
+    setFunnels(listFunnelsByUser(user.uid));
+    navigate(`/funnels/${funnel.id}/editor`);
+  };
+
+  const handleDeleteFunnel = (funnelId: string) => {
+    if (!user) {
+      return;
+    }
+
+    const shouldDelete = window.confirm("¿Seguro que deseas borrar este funnel y sus pedidos?");
+    if (!shouldDelete) {
+      return;
+    }
+
+    deleteFunnel(funnelId);
     setFunnels(listFunnelsByUser(user.uid));
   };
 
@@ -115,6 +132,16 @@ export default function FunnelsPage() {
                             Ver
                             <ExternalLink className="h-3.5 w-3.5" />
                           </Link>
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="ghost"
+                          className="rounded-lg text-destructive hover:text-destructive"
+                          onClick={() => handleDeleteFunnel(funnel.id)}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                          Borrar
                         </Button>
                       </div>
                     </td>

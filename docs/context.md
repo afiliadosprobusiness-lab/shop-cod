@@ -71,10 +71,12 @@ Se mantienen rutas legacy del repo para compatibilidad tecnica, pero no forman p
 
 1. Usuario entra a `/funnels`.
 2. Ingresa nombre y crea funnel.
-3. El sistema genera automaticamente 3 paginas:
+3. El sistema abre inmediatamente `/funnels/:funnelId/editor`.
+4. El sistema genera automaticamente 3 paginas:
   - `landing`
   - `checkout`
   - `thankyou`
+5. Desde el listado tambien puede borrar un funnel completo (incluye producto/paginas/pedidos asociados).
 
 ### Product Flow (one product per funnel)
 
@@ -90,6 +92,8 @@ Se mantienen rutas legacy del repo para compatibilidad tecnica, pero no forman p
 
 1. En el editor del funnel, usuario agrega bloques por orden vertical.
 2. Bloques permitidos:
+  - `hero`
+  - `section`
   - `headline`
   - `text`
   - `image`
@@ -97,6 +101,8 @@ Se mantienen rutas legacy del repo para compatibilidad tecnica, pero no forman p
   - `button`
   - `testimonials`
   - `faq`
+  - `cod_form`
+  - `footer`
 3. Se guarda JSON en `pages.content_json`.
 
 ### Checkout Flow

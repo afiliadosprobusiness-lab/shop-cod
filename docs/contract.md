@@ -58,6 +58,8 @@ Todas las rutas privadas pasan por auth y `DashboardLayout`.
 
 - Lista y creacion de funnels.
 - Componente: `FunnelsPage`.
+- Al crear funnel, abre automaticamente el editor del funnel creado.
+- Incluye accion de borrado de funnel (elimina producto, paginas y pedidos asociados).
 
 ### `GET /funnels/:funnelId/editor`
 
@@ -158,6 +160,8 @@ Landing JSON:
 
 Bloques permitidos:
 
+- `hero`
+- `section`
 - `headline`
 - `text`
 - `image`
@@ -165,6 +169,8 @@ Bloques permitidos:
 - `button`
 - `testimonials`
 - `faq`
+- `cod_form`
+- `footer`
 
 ### `orders`
 
@@ -219,3 +225,4 @@ Cambios breaking que requieren versionado/coordinacion:
 ## Changelog del Contrato
 
 - 2026-03-05 | Se redefine el contrato operativo a sistema funnel-only de producto unico con rutas publicas `/f/:slug*`, editor simple por bloques y dashboard de pedidos por funnel | non-breaking | Alinea contrato al nuevo flujo principal sin eliminar rutas legacy de compatibilidad
+- 2026-03-05 | Se expande el editor basico con bloques `hero/section/footer/cod_form`, se agrega borrado de funnel y creacion con apertura directa del editor | non-breaking | Mejora UX operativa sin cambiar rutas ni romper modelos base
