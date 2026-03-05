@@ -55,7 +55,7 @@ Legacy:
   - `currency`
 3. Editar landing en paso 2 con editor visual dentro del layout actual:
   - sidebar izquierda con tabs `Elements`/`Sections` y buscador
-  - `Elements`: bloques arrastrables individuales
+  - `Elements`: bloques arrastrables al canvas (y click para agregar rapido)
   - `Sections`: presets basicos para insertar rapido
   - canvas central visual (drop/reorder + preview de diseno)
   - panel derecho (propiedades del bloque seleccionado)

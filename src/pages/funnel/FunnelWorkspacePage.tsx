@@ -1,13 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   DndContext,
-  DragOverlay,
-  type DragStartEvent,
   type DragEndEvent,
   PointerSensor,
   closestCenter,
-  useDraggable,
-  useDroppable,
   useSensor,
   useSensors,
 } from "@dnd-kit/core";
@@ -100,6 +96,10 @@ const blockLabel: Record<LandingBlockType, string> = {
   footer: "Footer",
 };
 
+function isLandingBlockType(value: string): value is LandingBlockType {
+  return value in blockLabel;
+}
+
 function createBlockId() {
   return `blk_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 }
@@ -183,18 +183,31 @@ function SaveStatus({ state, at }: { state: SaveState; at: string | null }) {
   return <p className="text-xs text-muted-foreground">Sin cambios pendientes</p>;
 }
 
-function LibraryItem({ element }: { element: LibraryElement }) {
-  const { setNodeRef, listeners, attributes, isDragging } = useDraggable({ id: `lib-${element.type}` });
+function LibraryItem({
+  element,
+  onAdd,
+  onNativeDragStart,
+  onNativeDragEnd,
+}: {
+  element: LibraryElement;
+  onAdd: (type: LandingBlockType) => void;
+  onNativeDragStart: (type: LandingBlockType) => void;
+  onNativeDragEnd: () => void;
+}) {
   return (
     <button
-      ref={setNodeRef}
       type="button"
+      draggable
       className={cn(
-        "w-full rounded-xl border border-border bg-card px-3 py-2 text-left transition-colors hover:border-primary/45 hover:bg-secondary/20",
-        isDragging ? "opacity-50" : "",
+        "w-full cursor-grab rounded-xl border border-border bg-card px-3 py-2 text-left transition-colors hover:border-primary/45 hover:bg-secondary/20 active:cursor-grabbing",
       )}
-      {...listeners}
-      {...attributes}
+      onClick={() => onAdd(element.type)}
+      onDragStart={(event) => {
+        event.dataTransfer.effectAllowed = "copy";
+        event.dataTransfer.setData("text/plain", element.type);
+        onNativeDragStart(element.type);
+      }}
+      onDragEnd={onNativeDragEnd}
     >
       <p className="text-sm font-medium">{element.label}</p>
       <p className="mt-1 text-xs text-muted-foreground">{element.description}</p>
@@ -420,7 +433,8 @@ export default function FunnelWorkspacePage() {
   const [deviceMode, setDeviceMode] = useState<DeviceMode>("desktop");
   const [libraryTab, setLibraryTab] = useState<LibraryTab>("elements");
   const [libraryQuery, setLibraryQuery] = useState("");
-  const [activeDragId, setActiveDragId] = useState<string | null>(null);
+  const [nativeDragType, setNativeDragType] = useState<LandingBlockType | null>(null);
+  const [isNativeCanvasOver, setIsNativeCanvasOver] = useState(false);
   const [productName, setProductName] = useState("");
   const [productPrice, setProductPrice] = useState("0");
   const [productType, setProductType] = useState<ProductType>("physical");
@@ -463,7 +477,6 @@ export default function FunnelWorkspacePage() {
         item.label.toLowerCase().includes(q) || item.description.toLowerCase().includes(q),
     );
   }, [libraryQuery]);
-  const { setNodeRef: setCanvasDropRef, isOver } = useDroppable({ id: "canvas-drop" });
 
   useEffect(() => {
     if (!funnel) return;
@@ -562,34 +575,21 @@ export default function FunnelWorkspacePage() {
         ? "mx-auto max-w-[760px]"
         : "mx-auto max-w-[420px]";
 
-  const onDragStart = (event: DragStartEvent) => {
-    setActiveDragId(String(event.active.id));
+  const addBlockToCanvas = (type: LandingBlockType) => {
+    const next = createBlock(type);
+    setLandingSections((current) => [...current, next]);
+    setSelectedBlockId(next.id);
   };
 
   const onDragEnd = (event: DragEndEvent) => {
-    setActiveDragId(null);
     const active = String(event.active.id);
     const over = event.over ? String(event.over.id) : null;
     if (!over) return;
-
-    if (active.startsWith("lib-")) {
-      const type = active.replace("lib-", "") as LandingBlockType;
-      const next = createBlock(type);
-      setLandingSections((current) => {
-        if (over === "canvas-drop") return [...current, next];
-        const index = current.findIndex((item) => item.id === over);
-        if (index < 0) return [...current, next];
-        return [...current.slice(0, index), next, ...current.slice(index)];
-      });
-      setSelectedBlockId(next.id);
-      return;
-    }
 
     if (active === over) return;
     setLandingSections((current) => {
       const oldIndex = current.findIndex((item) => item.id === active);
       if (oldIndex < 0) return current;
-      if (over === "canvas-drop") return arrayMove(current, oldIndex, current.length - 1);
       const newIndex = current.findIndex((item) => item.id === over);
       if (newIndex < 0) return current;
       return arrayMove(current, oldIndex, newIndex);
@@ -655,10 +655,6 @@ export default function FunnelWorkspacePage() {
       setOffersSaveState("error");
     }
   };
-
-  const activeDragElement = activeDragId?.startsWith("lib-")
-    ? libraryElements.find((item) => `lib-${item.type}` === activeDragId)
-    : null;
 
   return (
     <main className="mx-auto w-full max-w-[1500px] space-y-5 px-4 py-6 sm:px-6 lg:px-8">
@@ -757,7 +753,7 @@ export default function FunnelWorkspacePage() {
             </div>
           </div>
 
-          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={onDragStart} onDragEnd={onDragEnd}>
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
             <div className="grid gap-3 lg:grid-cols-[280px_minmax(0,1fr)_320px]">
               <aside className="rounded-xl border border-border bg-secondary/15 p-3">
                 <p className="text-sm font-semibold">Build Your Page</p>
@@ -795,7 +791,18 @@ export default function FunnelWorkspacePage() {
                 </div>
                 {libraryTab === "elements" ? (
                   <div className="mt-3 space-y-2">
-                    {filteredElements.map((element) => <LibraryItem key={element.type} element={element} />)}
+                    {filteredElements.map((element) => (
+                      <LibraryItem
+                        key={element.type}
+                        element={element}
+                        onAdd={addBlockToCanvas}
+                        onNativeDragStart={(type) => setNativeDragType(type)}
+                        onNativeDragEnd={() => {
+                          setNativeDragType(null);
+                          setIsNativeCanvasOver(false);
+                        }}
+                      />
+                    ))}
                     {!filteredElements.length ? (
                       <p className="rounded-lg border border-border bg-card px-3 py-4 text-xs text-muted-foreground">
                         No hay elementos para esta busqueda.
@@ -820,11 +827,36 @@ export default function FunnelWorkspacePage() {
                   <p className="text-xs text-muted-foreground">Reordena con drag & drop</p>
                 </div>
                 <div
-                  ref={setCanvasDropRef}
                   className={cn(
                     "min-h-[620px] rounded-xl border border-dashed p-3 transition-colors",
-                    isOver ? "border-primary/65 bg-primary/5" : "border-border bg-secondary/5",
+                    isNativeCanvasOver ? "border-primary/65 bg-primary/5" : "border-border bg-secondary/5",
                   )}
+                  onDragOver={(event) => {
+                    if (!nativeDragType) return;
+                    event.preventDefault();
+                    event.dataTransfer.dropEffect = "copy";
+                    setIsNativeCanvasOver(true);
+                  }}
+                  onDragEnter={(event) => {
+                    if (!nativeDragType) return;
+                    event.preventDefault();
+                    setIsNativeCanvasOver(true);
+                  }}
+                  onDragLeave={(event) => {
+                    if (!nativeDragType) return;
+                    const nextTarget = event.relatedTarget as Node | null;
+                    if (nextTarget && event.currentTarget.contains(nextTarget)) return;
+                    setIsNativeCanvasOver(false);
+                  }}
+                  onDrop={(event) => {
+                    if (!nativeDragType) return;
+                    event.preventDefault();
+                    const rawType = event.dataTransfer.getData("text/plain");
+                    const nextType = isLandingBlockType(rawType) ? rawType : nativeDragType;
+                    addBlockToCanvas(nextType);
+                    setNativeDragType(null);
+                    setIsNativeCanvasOver(false);
+                  }}
                 >
                   <div className={cn("min-h-[595px]", canvasWidthClass)}>
                     {landingSections.length ? (
@@ -927,14 +959,6 @@ export default function FunnelWorkspacePage() {
                 )}
               </aside>
             </div>
-            <DragOverlay>
-              {activeDragElement ? (
-                <div className="rounded-xl border border-primary/45 bg-card px-3 py-2 shadow-lg">
-                  <p className="text-sm font-medium">{activeDragElement.label}</p>
-                  <p className="mt-0.5 text-xs text-muted-foreground">{activeDragElement.description}</p>
-                </div>
-              ) : null}
-            </DragOverlay>
           </DndContext>
         </section>
       ) : null}

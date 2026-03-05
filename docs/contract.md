@@ -69,6 +69,7 @@ Todas las rutas privadas pasan por auth y `DashboardLayout`.
   - wizard guiado por pasos
   - paso 1: seleccionar/crear producto unico + divisa
   - paso 2: editor visual con tabs `Elements/Sections`, buscador, presets basicos, canvas central + propiedades derecha y drag&drop vertical
+  - `Elements` permite insertar por arrastre al canvas o click directo
   - paso 3: configuracion de upsell, bundle y descuento
   - accion publicar/despublicar
   - enlaces publicos de landing/checkout/thank-you
@@ -254,3 +255,4 @@ Cambios breaking que requieren versionado/coordinacion:
 - 2026-03-05 | `/funnels/:funnelId/editor` evoluciona a wizard guiado con paso de producto/divisa, landing drag&drop y paso de ofertas (upsell/bundle/descuento) | non-breaking | Mantiene rutas y persistencia local, mejora la experiencia paso a paso
 - 2026-03-05 | Paso 2 adopta editor visual de 3 paneles dentro del layout actual y se bloquea edicion en mobile (solo metricas) | non-breaking | Refuerza UX de escritorio sin romper rutas ni contratos de datos
 - 2026-03-05 | Paso 2 mejora UX con tabs `Elements/Sections`, buscador, presets basicos de diseno, duplicado de bloque y overlay visual en drag | non-breaking | Mantiene modelo de datos y rutas, mejora velocidad de edicion en escritorio
+- 2026-03-05 | Se corrige insercion de bloques con drag&drop al canvas y se agrega fallback por click en `Elements` | non-breaking | Evita perdida de insercion por deteccion de drop y mejora confiabilidad del editor

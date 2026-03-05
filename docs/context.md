@@ -97,7 +97,7 @@ Se mantienen rutas legacy del repo para compatibilidad tecnica, pero no forman p
 2. El editor se muestra dentro del layout actual con:
   - panel izquierdo con tabs `Elements` y `Sections`
   - buscador de bloques/secciones
-  - `Elements`: bloques drag&drop individuales
+  - `Elements`: bloques con drag&drop al canvas y click para agregar rapido
   - `Sections`: presets basicos listos para insertar
   - canvas central visual (drop/reorder + vista de diseno del bloque)
   - panel derecho (propiedades del bloque seleccionado)
