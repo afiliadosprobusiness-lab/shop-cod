@@ -331,6 +331,7 @@ ShopCOD is a frontend SPA for COD-focused funnel selling. It uses Firebase Authe
   - SVG node connections with disconnect controls
   - per-node action cards with: page-open block, visits block, product selector, links state block, and icon action row (`settings`, `edit`, `preview`, `duplicate`, `delete`)
   - `LINKS` rows are generated from CTA-like elements in each page `contentJson` (button/form/product) and can connect independently by row
+  - node cards are draggable from the card header area and stale CTA connections are auto-pruned when a CTA is removed in page editor
   - tabbed page settings modal (`Detalles`, `SEO`, `HTML personalizado`) persisted per page
   - per-node analytics badges (visits, clicks, conversion rate)
   - supported node types for product, checkout, upsell, downsell, thank you, lead capture, article, and blank page

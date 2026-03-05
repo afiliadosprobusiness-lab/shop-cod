@@ -1,5 +1,5 @@
 ﻿
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowRight,
   Copy,
@@ -280,13 +280,17 @@ function FunnelNodeCard({
   onToggleNodeConnection: (nodeId: string) => void;
   onToggleSourceConnection: (nodeId: string, source: FunnelCtaSource) => void;
   onProductChange: (nodeId: string, productId: string | null) => void;
-  onDragStart: (event: React.PointerEvent<HTMLButtonElement>) => void;
+  onDragStart: (event: React.PointerEvent<HTMLElement>) => void;
 }) {
   const meta = nodeMeta[node.type];
 
   return (
     <article className="w-[300px] rounded-xl border-2 border-blue-500 bg-white p-2 text-slate-900 shadow-[0_8px_30px_rgba(15,23,42,0.14)]">
-      <div className="mb-2 flex items-center gap-2">
+      <div
+        className="mb-2 flex cursor-grab select-none items-center gap-2 active:cursor-grabbing"
+        onPointerDown={onDragStart}
+        aria-label="Arrastrar tarjeta"
+      >
         <button
           type="button"
           onPointerDown={onDragStart}
@@ -542,11 +546,10 @@ export function FunnelBuilderEditor({
     onGraphChange(nextGraph);
   };
 
-  const startNodeDrag = (event: React.PointerEvent<HTMLButtonElement>, nodeId: string) => {
+  const startNodeDrag = (event: React.PointerEvent<HTMLElement>, nodeId: string) => {
     event.stopPropagation();
     event.preventDefault();
     setDraggingNodeId(nodeId);
-    event.currentTarget.setPointerCapture(event.pointerId);
   };
 
   const handleCanvasPointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
@@ -644,6 +647,34 @@ export function FunnelBuilderEditor({
 
     onGraphChange(updateFunnelPageSettings(graph, activeSettingsPage.id, patch));
   };
+
+  useEffect(() => {
+    const validSourceIdsByNode = new Map<string, Set<string>>();
+
+    for (const [nodeId, sources] of ctaSourcesByNode.entries()) {
+      validSourceIdsByNode.set(
+        nodeId,
+        new Set(sources.map((source) => source.id)),
+      );
+    }
+
+    const nextConnections = graph.connections.filter((connection) => {
+      if (!connection.sourceHandleId) {
+        return true;
+      }
+
+      return validSourceIdsByNode
+        .get(connection.from)
+        ?.has(connection.sourceHandleId);
+    });
+
+    if (nextConnections.length !== graph.connections.length) {
+      onGraphChange({
+        ...graph,
+        connections: nextConnections,
+      });
+    }
+  }, [ctaSourcesByNode, graph, onGraphChange]);
 
   return (
     <section className="space-y-4">
