@@ -130,6 +130,9 @@ All routes below are protected by Firebase auth state and render inside the shar
   - ensures a compatible local draft for the target funnel id
   - exposes tabbed sections for `Resumen`, `Construir y Disenar`, `Configuracion`, and `Idiomas`
   - supports page creation in builder mode via a page-type picker
+  - opens the real visual page editor (`PageBuilderEditor`) when a node edit action is triggered
+  - syncs CTA-like blocks (`button`, `form`, `product`) from each page editor into node `LINKS` rows in real time via page `contentJson`
+  - routes preview actions to `/preview/:funnelId` after persisting the latest graph/page draft
   - persists workspace-level settings (scripts, favicon, language toggles, publish status) in browser storage
 
 ### `GET /stores`
@@ -808,3 +811,4 @@ The following are breaking changes and must be versioned or coordinated before i
 - 2026-03-05 | `GET /stores` deja de sembrar tiendas demo y limpia automaticamente el legado local (`store-201`, `store-202`) | non-breaking | Evita cards demo en workspaces nuevos y sanea catálogos ya persistidos sin cambiar rutas ni modelos
 - 2026-03-05 | El funnel builder adopta tarjetas por acciones con barra de iconos y modal de configuración por página, persistiendo `selectedProductId` y `FunnelPage.settings` | non-breaking | Mejora UX operativa del builder sin cambiar rutas ni romper el flujo de edición existente
 - 2026-03-05 | El funnel builder conecta CTAs del page editor por enlace individual (`sourceHandleId`) y migra la UI a un canvas claro estilo lightfunnels | non-breaking | Habilita wiring por CTA (button/form/product) sin romper contratos de ruta ni persistencia previa
+- 2026-03-05 | `GET /funnels/:funnelId/editor` abre Page Builder real al editar nodos y sincroniza CTAs del editor en `LINKS` en tiempo real | non-breaking | Hace funcionales editar y preview sin cambiar rutas ni romper persistencia del funnel graph

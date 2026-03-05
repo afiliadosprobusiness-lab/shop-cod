@@ -86,7 +86,7 @@ ShopCOD is a frontend SPA for COD-focused funnel selling. It uses Firebase Authe
   - Protected funnels list and creation wizard
   - Components: `DashboardLayout` + `FunnelsPage`
 - `/funnels/:funnelId/editor`
-  - Protected funnel workspace (summary, builder, settings, languages)
+  - Protected funnel workspace (summary, builder, settings, languages, page editor by node)
   - Component: `FunnelWorkspacePage`
 - `/stores`
   - Protected stores list and creation wizard
@@ -250,8 +250,11 @@ ShopCOD is a frontend SPA for COD-focused funnel selling. It uses Firebase Authe
   - `Configuracion`
   - `Idiomas`
 4. `Construir y Disenar` supports an empty-state plus button and page-type picker to add funnel pages.
-5. `Configuracion` persists slug, scripts, favicon, tracking toggles, and currency metadata.
-6. `Idiomas` toggles active funnel languages.
+5. Clicking the node edit area (or the edit icon) opens an embedded visual `PageBuilderEditor` for that node page id.
+6. While editing, every CTA-like block added in page builder (`button`, `form`, `product`) syncs immediately into funnel `LINKS` rows by updating that page `contentJson`.
+7. The node preview icon opens real workspace preview via `/preview/:funnelId` (after persisting the draft graph/page payload).
+8. `Configuracion` persists slug, scripts, favicon, tracking toggles, and currency metadata.
+9. `Idiomas` toggles active funnel languages.
 
 ### Stores Flow
 
@@ -375,6 +378,7 @@ ShopCOD is a frontend SPA for COD-focused funnel selling. It uses Firebase Authe
 - `src/pages/dashboard/ProductCreatePage.tsx` renders the multi-section product creation workflow.
 - `src/pages/dashboard/FunnelsPage.tsx` renders the funnels list and full-screen multi-step funnel creation wizard.
 - `src/pages/funnel/FunnelWorkspacePage.tsx` renders the dedicated funnel workspace with summary, builder, settings, and languages tabs.
+- `FunnelWorkspacePage` now opens `PageBuilderEditor` inline when a node action triggers edit, and persists page-level `contentJson` changes in real time so CTA rows remain connectable in the funnel canvas.
 - `src/pages/dashboard/StoresPage.tsx` renders the stores list and the 3-step store creation wizard.
 - `src/pages/dashboard/StoreDashboardPage.tsx` renders the per-store internal dashboard and section navigation.
 - `src/pages/dashboard/OrdersPage.tsx` renders real COD orders and operational status updates.

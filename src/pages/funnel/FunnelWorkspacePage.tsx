@@ -19,10 +19,20 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
+  PageBuilderEditor,
+  createDefaultPageBuilderBlocks,
+  serializePageBuilderDocument,
+  type PageBuilderBlock,
+  type PageBuilderSeed,
+} from "@/builders/page-builder";
+import {
   FunnelBuilderEditor,
   addPage,
+  getFunnelPage,
   syncFunnelPagesFromNodes,
+  upsertFunnelPageContent,
   type FunnelGraph,
+  type FunnelNode,
   type FunnelNodeType,
 } from "@/builders/funnel-builder";
 import { loadEditorState, publishEditorState, saveEditorState } from "@/lib/editor";
@@ -103,6 +113,56 @@ function getNodeLabel(type: FunnelNodeType) {
   return labels[type];
 }
 
+function getPageTitleByType(type?: FunnelNodeType | null) {
+  const labels: Record<FunnelNodeType, string> = {
+    landing: "Landing page",
+    product: "Product page",
+    checkout: "Checkout page",
+    upsell: "Upsell page",
+    downsell: "Downsell page",
+    thankyou: "Thank you page",
+    leadCapture: "Lead capture page",
+    article: "Article page",
+    blank: "Blank page",
+  };
+
+  if (!type) {
+    return "Nueva pagina";
+  }
+
+  return labels[type];
+}
+
+function parsePageBuilderBlocksFromContentJson(
+  contentJson: string | undefined,
+  seed?: PageBuilderSeed,
+) {
+  if (!contentJson?.trim()) {
+    return createDefaultPageBuilderBlocks(seed);
+  }
+
+  try {
+    const parsed = JSON.parse(contentJson) as unknown;
+
+    if (Array.isArray(parsed)) {
+      return parsed as PageBuilderBlock[];
+    }
+
+    if (
+      parsed &&
+      typeof parsed === "object" &&
+      "blocks" in parsed &&
+      Array.isArray((parsed as { blocks: unknown }).blocks)
+    ) {
+      return (parsed as { blocks: PageBuilderBlock[] }).blocks;
+    }
+  } catch {
+    return createDefaultPageBuilderBlocks(seed);
+  }
+
+  return createDefaultPageBuilderBlocks(seed);
+}
+
 function getNextNodePosition(graph: FunnelGraph) {
   if (!graph.nodes.length) {
     return { x: 160, y: 190 };
@@ -147,6 +207,8 @@ export default function FunnelWorkspacePage() {
   const [selectedLanguages, setSelectedLanguages] = useState<string[]>(["es"]);
   const [status, setStatus] = useState<FunnelWorkspaceStatus>("draft");
   const [graph, setGraph] = useState<FunnelGraph>(() => emptyGraph(funnelId, "Nuevo funnel"));
+  const [activePageId, setActivePageId] = useState<string | null>(null);
+  const [activePageBlocks, setActivePageBlocks] = useState<PageBuilderBlock[]>([]);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
   useEffect(() => {
@@ -174,6 +236,8 @@ export default function FunnelWorkspacePage() {
       draft.workspaceConfig.languages.length ? draft.workspaceConfig.languages : ["es"],
     );
     setStatus(draft.workspaceConfig.status);
+    setActivePageId(null);
+    setActivePageBlocks([]);
     setHasUnsavedChanges(false);
   }, [funnelId]);
 
@@ -197,17 +261,68 @@ export default function FunnelWorkspacePage() {
     };
   }, [graph.nodes]);
 
-  const persistGraph = (nextGraph: FunnelGraph) => {
+  const pageBuilderSeed = useMemo<PageBuilderSeed>(() => {
+    const priceByCurrency: Record<FunnelCurrency, string> = {
+      USD: "$49.00",
+      EUR: "EUR 45.00",
+      PEN: "S/ 179.00",
+    };
+
+    return {
+      storeName: funnelName || "ShopCOD",
+      productName: "Producto principal",
+      headline: `Oferta principal de ${funnelName || "ShopCOD"}`,
+      subheadline: "Editor visual con elementos CTA conectables en el funnel.",
+      ctaText: "Comprar ahora",
+      price: priceByCurrency[currency],
+    };
+  }, [currency, funnelName]);
+
+  const activeEditingNode = useMemo(
+    () => (activePageId ? graph.nodes.find((node) => node.pageId === activePageId) || null : null),
+    [activePageId, graph.nodes],
+  );
+  const activeEditingPage = useMemo(
+    () => (activePageId ? getFunnelPage(graph, activePageId) : null),
+    [activePageId, graph],
+  );
+
+  const persistGraph = (
+    nextGraph: FunnelGraph,
+    pageDraft?: { pageId: string; blocks: PageBuilderBlock[] },
+  ) => {
     const baseState = loadEditorState(funnelId);
+    const nextPageBuilderPages = pageDraft
+      ? {
+          ...(baseState?.pageBuilderPages ?? {}),
+          default: pageDraft.blocks,
+          [pageDraft.pageId]: pageDraft.blocks,
+        }
+      : baseState?.pageBuilderPages ?? null;
+
     saveEditorState(
       funnelId,
       baseState?.blocks ?? [],
       baseState?.profile ?? null,
-      baseState?.pageBuilder ?? null,
-      baseState?.pageBuilderPages ?? null,
+      pageDraft?.blocks ?? baseState?.pageBuilder ?? null,
+      nextPageBuilderPages,
       syncFunnelPagesFromNodes(nextGraph),
       baseState?.storeBuilder ?? null,
     );
+  };
+
+  const buildGraphWithPageBlocks = (
+    targetGraph: FunnelGraph,
+    pageId: string,
+    blocks: PageBuilderBlock[],
+  ) => {
+    const targetPage = getFunnelPage(targetGraph, pageId);
+    const contentJson = serializePageBuilderDocument(blocks, {
+      id: pageId,
+      title: getPageTitleByType(targetPage?.type),
+    });
+
+    return upsertFunnelPageContent(targetGraph, pageId, contentJson);
   };
 
   const handleGraphChange = (nextGraph: FunnelGraph) => {
@@ -215,6 +330,14 @@ export default function FunnelWorkspacePage() {
     setGraph(normalizedGraph);
     setHasUnsavedChanges(true);
     persistGraph(normalizedGraph);
+  };
+
+  const syncPageBuilderDraft = (pageId: string, blocks: PageBuilderBlock[]) => {
+    const normalizedGraph = syncFunnelPagesFromNodes(graph);
+    const nextGraph = buildGraphWithPageBlocks(normalizedGraph, pageId, blocks);
+    setGraph(nextGraph);
+    persistGraph(nextGraph, { pageId, blocks });
+    return nextGraph;
   };
 
   const addFunnelPage = (type: FunnelNodeType) => {
@@ -291,6 +414,95 @@ export default function FunnelWorkspacePage() {
     setHasUnsavedChanges(false);
     toast.success("Funnel publicado.");
   };
+
+  const openFunnelNodePage = (node: FunnelNode) => {
+    const page = getFunnelPage(graph, node.pageId);
+    const initialBlocks = parsePageBuilderBlocksFromContentJson(page?.contentJson, pageBuilderSeed);
+    setActivePageId(node.pageId);
+    setActivePageBlocks(initialBlocks);
+    setShowPagePicker(false);
+  };
+
+  const handlePageBuilderBlocksChange = (blocks: PageBuilderBlock[]) => {
+    if (!activePageId) {
+      return;
+    }
+
+    setActivePageBlocks(blocks);
+    setHasUnsavedChanges(true);
+    syncPageBuilderDraft(activePageId, blocks);
+  };
+
+  const handlePageBuilderSave = (blocks: PageBuilderBlock[]) => {
+    if (!activePageId) {
+      return;
+    }
+
+    setActivePageBlocks(blocks);
+    syncPageBuilderDraft(activePageId, blocks);
+    toast.success("Pagina guardada.");
+  };
+
+  const openWorkspacePreview = (nextGraph = graph) => {
+    persistGraph(nextGraph);
+    navigate(`/preview/${funnelId}`);
+  };
+
+  const handlePageBuilderPreview = (blocks: PageBuilderBlock[]) => {
+    if (!activePageId) {
+      return;
+    }
+
+    setActivePageBlocks(blocks);
+    const nextGraph = syncPageBuilderDraft(activePageId, blocks);
+    openWorkspacePreview(nextGraph);
+  };
+
+  const handlePageBuilderPublish = (blocks: PageBuilderBlock[]) => {
+    if (!activePageId) {
+      return;
+    }
+
+    const nextGraph = syncPageBuilderDraft(activePageId, blocks);
+    const baseState = loadEditorState(funnelId);
+    const pageBuilderPages = {
+      ...(baseState?.pageBuilderPages ?? {}),
+      default: blocks,
+      [activePageId]: blocks,
+    };
+    const publishedState = publishEditorState(
+      funnelId,
+      baseState?.blocks ?? [],
+      baseState?.profile ?? null,
+      blocks,
+      pageBuilderPages,
+      nextGraph,
+      baseState?.storeBuilder ?? null,
+    );
+
+    if (!publishedState) {
+      toast.error("No se pudo publicar la pagina.");
+      return;
+    }
+
+    setStatus("published");
+    saveFunnelWorkspaceConfig(funnelId, { status: "published" });
+    setHasUnsavedChanges(false);
+    toast.success("Pagina publicada.");
+  };
+
+  useEffect(() => {
+    if (!activePageId) {
+      return;
+    }
+
+    const stillExists = graph.pages.some((page) => page.id === activePageId);
+
+    if (!stillExists) {
+      setActivePageId(null);
+      setActivePageBlocks([]);
+    }
+  }, [activePageId, graph.pages]);
 
   if (!currentFunnel) {
     return (
@@ -504,17 +716,63 @@ export default function FunnelWorkspacePage() {
 
         {activeTab === "builder" ? (
           <section className="relative">
-            {graph.nodes.length ? (
+            {activePageId ? (
+              <div className="space-y-5">
+                <article className="rounded-[1.8rem] border border-sky-200/80 bg-white px-5 py-4 shadow-sm">
+                  <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                    <div>
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-sky-600">
+                        Editor visual
+                      </p>
+                      <h2 className="mt-1 text-xl font-semibold text-slate-900">
+                        {activeEditingPage?.settings.title || getPageTitleByType(activeEditingNode?.type)}
+                      </h2>
+                      <p className="mt-1 text-sm text-slate-600">
+                        Cada CTA agregado aqui aparece automaticamente en LINKS del Funnel Builder.
+                      </p>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="rounded-xl"
+                        onClick={() => handlePageBuilderPreview(activePageBlocks)}
+                      >
+                        <Eye className="h-4 w-4" />
+                        Preview
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="rounded-xl"
+                        onClick={() => setActivePageId(null)}
+                      >
+                        <ArrowLeft className="h-4 w-4" />
+                        Volver al funnel
+                      </Button>
+                    </div>
+                  </div>
+                </article>
+
+                <PageBuilderEditor
+                  editorKey={`${funnelId}:${activePageId}`}
+                  initialBlocks={activePageBlocks}
+                  seed={pageBuilderSeed}
+                  pageTitle={activeEditingPage?.settings.title || getPageTitleByType(activeEditingNode?.type)}
+                  onBlocksChange={handlePageBuilderBlocksChange}
+                  onSave={handlePageBuilderSave}
+                  onPreview={handlePageBuilderPreview}
+                  onPublish={handlePageBuilderPublish}
+                />
+              </div>
+            ) : graph.nodes.length ? (
               <div className="relative">
                 <FunnelBuilderEditor
                   graph={graph}
                   onGraphChange={handleGraphChange}
-                  onOpenPage={(node) =>
-                    toast.info(`${getNodeLabel(node.type)} listo para edicion visual en la siguiente iteracion.`)
-                  }
-                  onPreviewPage={(node) =>
-                    toast.info(`Preview de ${getNodeLabel(node.type)} en esta ruta disponible en la siguiente iteracion.`)
-                  }
+                  onOpenPage={openFunnelNodePage}
+                  onPreviewPage={() => openWorkspacePreview()}
                 />
                 <button
                   type="button"
@@ -542,7 +800,7 @@ export default function FunnelWorkspacePage() {
               </div>
             )}
 
-            {showPagePicker ? (
+            {showPagePicker && !activePageId ? (
               <div
                 className={cn(
                   "mt-5 rounded-[2rem] border border-border/80 bg-card/95 p-4 shadow-xl",
