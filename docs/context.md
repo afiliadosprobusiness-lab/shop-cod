@@ -94,8 +94,13 @@ Se mantienen rutas legacy del repo para compatibilidad tecnica, pero no forman p
 ### Landing Editor Flow
 
 1. Paso 2 del wizard abre el editor de landing.
-2. El editor soporta drag&drop vertical para reordenar bloques.
-3. Bloques permitidos:
+2. El editor se muestra dentro del layout actual con:
+  - panel izquierdo (biblioteca de elementos drag&drop)
+  - canvas central (drop/reorder visual)
+  - panel derecho (propiedades del bloque seleccionado)
+  - guardado automatico con estado visible
+3. El editor soporta drag&drop vertical para reordenar bloques.
+4. Bloques permitidos:
   - `hero`
   - `section`
   - `headline`
@@ -107,7 +112,13 @@ Se mantienen rutas legacy del repo para compatibilidad tecnica, pero no forman p
   - `faq`
   - `cod_form`
   - `footer`
-4. Se guarda JSON en `pages.content_json`.
+5. Se guarda JSON en `pages.content_json`.
+
+### Mobile Policy
+
+1. En mobile no se permite editar funnels.
+2. `/funnels/:funnelId/editor` muestra solo metricas/analisis.
+3. La edicion completa queda reservada para escritorio.
 
 ### Offers Flow
 

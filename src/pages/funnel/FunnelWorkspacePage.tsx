@@ -1,5 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
-import { DndContext, PointerSensor, closestCenter, useSensor, useSensors } from "@dnd-kit/core";
+import {
+  DndContext,
+  type DragEndEvent,
+  PointerSensor,
+  closestCenter,
+  useDraggable,
+  useDroppable,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core";
 import {
   SortableContext,
   arrayMove,
@@ -7,18 +16,20 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { GripVertical } from "lucide-react";
+import { AlertCircle, GripVertical, Monitor, Smartphone, Tablet } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { useAuth } from "@/lib/auth";
 import {
   findFunnelById,
   getFunnelOffers,
   getFunnelProduct,
   getLandingSections,
+  listOrders,
   listUserProducts,
   saveFunnelOffers,
   saveLandingSections,
@@ -32,10 +43,13 @@ import {
   type PaymentType,
   type ProductType,
 } from "@/lib/funnel-system";
+import { cn } from "@/lib/utils";
 
 type WizardStep = 1 | 2 | 3;
+type DeviceMode = "desktop" | "tablet" | "mobile";
+type SaveState = "idle" | "saving" | "saved" | "error";
 
-const quickBlocks: LandingBlockType[] = [
+const blockTypes: LandingBlockType[] = [
   "hero",
   "section",
   "headline",
@@ -51,235 +65,107 @@ const quickBlocks: LandingBlockType[] = [
 
 const blockLabel: Record<LandingBlockType, string> = {
   hero: "Hero",
-  section: "Seccion",
+  section: "Section",
   headline: "Headline",
-  text: "Texto",
-  image: "Imagen",
+  text: "Text",
+  image: "Image",
   video: "Video",
-  button: "Boton",
-  testimonials: "Testimonios",
+  button: "Button",
+  testimonials: "Testimonials",
   faq: "FAQ",
-  cod_form: "Form COD",
+  cod_form: "COD Form",
   footer: "Footer",
 };
 
 function createBlock(type: LandingBlockType): LandingBlock {
   const id = `blk_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-
   if (type === "hero") {
-    return {
-      id,
-      type,
-      title: "Hero principal",
-      subtitle: "Texto de apoyo para convencer al cliente.",
-      text: "Comprar ahora",
-      href: "#checkout",
-    };
+    return { id, type, title: "Hero principal", subtitle: "Subtitulo", text: "Comprar ahora", href: "#checkout" };
   }
-  if (type === "section") {
-    return { id, type, title: "Seccion", content: "Contenido de la seccion" };
-  }
-  if (type === "headline") {
-    return { id, type, content: "Titulo de alto impacto" };
-  }
-  if (type === "text") {
-    return { id, type, content: "Texto descriptivo del producto." };
-  }
-  if (type === "image") {
-    return { id, type, src: "https://images.unsplash.com/photo-1523275335684-37898b6baf30" };
-  }
-  if (type === "video") {
-    return { id, type, src: "https://www.youtube.com/embed/dQw4w9WgXcQ" };
-  }
-  if (type === "button") {
-    return { id, type, text: "Comprar ahora", href: "#checkout" };
-  }
-  if (type === "testimonials") {
-    return { id, type, content: "Cliente A: Excelente.\nCliente B: Recomendado." };
-  }
-  if (type === "faq") {
-    return { id, type, question: "Pregunta frecuente", answer: "Respuesta clara y corta." };
-  }
-  if (type === "cod_form") {
-    return { id, type, title: "Formulario COD", text: "Confirm Order" };
-  }
+  if (type === "section") return { id, type, title: "Seccion", content: "Contenido" };
+  if (type === "headline") return { id, type, content: "Titulo de alto impacto" };
+  if (type === "text") return { id, type, content: "Texto descriptivo." };
+  if (type === "image") return { id, type, src: "https://images.unsplash.com/photo-1523275335684-37898b6baf30" };
+  if (type === "video") return { id, type, src: "https://www.youtube.com/embed/dQw4w9WgXcQ" };
+  if (type === "button") return { id, type, text: "Comprar ahora", href: "#checkout" };
+  if (type === "testimonials") return { id, type, content: "Cliente A: Excelente." };
+  if (type === "faq") return { id, type, question: "Pregunta frecuente", answer: "Respuesta breve." };
+  if (type === "cod_form") return { id, type, title: "Formulario COD", text: "Confirm Order" };
   return { id, type: "footer", content: "Copyright 2026 - Todos los derechos reservados." };
 }
 
-interface SortableBlockCardProps {
-  block: LandingBlock;
-  onChange: (patch: Partial<LandingBlock>) => void;
-  onRemove: () => void;
+function SaveStatus({ state, at }: { state: SaveState; at: string | null }) {
+  if (state === "saving") return <p className="text-xs text-muted-foreground">Guardando cambios...</p>;
+  if (state === "error") return <p className="text-xs text-destructive">Error de guardado automatico</p>;
+  if (state === "saved" && at)
+    return <p className="text-xs text-muted-foreground">Guardado automatico {new Date(at).toLocaleTimeString("es-PE")}</p>;
+  return <p className="text-xs text-muted-foreground">Sin cambios pendientes</p>;
 }
 
-function SortableBlockCard({ block, onChange, onRemove }: SortableBlockCardProps) {
-  const { attributes, listeners, setNodeRef, transform, transition } = useSortable({
-    id: block.id,
-  });
+function LibraryItem({ type }: { type: LandingBlockType }) {
+  const { setNodeRef, listeners, attributes, isDragging } = useDraggable({ id: `lib-${type}` });
+  return (
+    <button
+      ref={setNodeRef}
+      type="button"
+      className={cn(
+        "w-full rounded-xl border border-border bg-card px-3 py-2 text-left text-sm hover:border-primary/40",
+        isDragging ? "opacity-50" : "",
+      )}
+      {...listeners}
+      {...attributes}
+    >
+      + {blockLabel[type]}
+    </button>
+  );
+}
 
+function CanvasCard({
+  block,
+  selected,
+  onSelect,
+  onDelete,
+}: {
+  block: LandingBlock;
+  selected: boolean;
+  onSelect: () => void;
+  onDelete: () => void;
+}) {
+  const { setNodeRef, transform, transition, attributes, listeners } = useSortable({ id: block.id });
   return (
     <article
       ref={setNodeRef}
       style={{ transform: CSS.Transform.toString(transform), transition }}
-      className="rounded-xl border border-border bg-secondary/20 p-4"
+      className={cn("rounded-xl border bg-card p-3", selected ? "border-primary" : "border-border")}
+      onClick={onSelect}
     >
-      <div className="mb-3 flex items-center justify-between gap-2">
+      <div className="mb-2 flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <button
             type="button"
-            className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-background"
-            {...attributes}
+            aria-label="Mover bloque"
+            className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-secondary/20"
             {...listeners}
-            aria-label="Arrastrar bloque"
+            {...attributes}
           >
             <GripVertical className="h-4 w-4" />
           </button>
-          <span className="rounded-full border border-border bg-background px-2 py-1 text-xs font-medium">
-            {blockLabel[block.type]}
-          </span>
+          <span className="rounded-full border border-border bg-secondary/20 px-2 py-1 text-xs">{blockLabel[block.type]}</span>
         </div>
         <Button
           type="button"
           size="sm"
           variant="ghost"
           className="rounded-lg text-destructive hover:text-destructive"
-          onClick={onRemove}
+          onClick={(event) => {
+            event.stopPropagation();
+            onDelete();
+          }}
         >
           Eliminar
         </Button>
       </div>
-
-      {(block.type === "hero" || block.type === "section" || block.type === "cod_form") && (
-        <div className="space-y-2">
-          <Label htmlFor={`${block.id}-title`}>Titulo</Label>
-          <Input
-            id={`${block.id}-title`}
-            className="rounded-xl"
-            value={block.title ?? ""}
-            onChange={(event) => onChange({ title: event.target.value })}
-          />
-        </div>
-      )}
-
-      {block.type === "hero" && (
-        <div className="mt-3 space-y-3">
-          <div className="space-y-2">
-            <Label htmlFor={`${block.id}-subtitle`}>Subtitulo</Label>
-            <Textarea
-              id={`${block.id}-subtitle`}
-              className="rounded-xl"
-              value={block.subtitle ?? ""}
-              onChange={(event) => onChange({ subtitle: event.target.value })}
-            />
-          </div>
-          <div className="grid gap-3 md:grid-cols-2">
-            <div className="space-y-2">
-              <Label htmlFor={`${block.id}-text`}>Texto boton</Label>
-              <Input
-                id={`${block.id}-text`}
-                className="rounded-xl"
-                value={block.text ?? ""}
-                onChange={(event) => onChange({ text: event.target.value })}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor={`${block.id}-href`}>Enlace boton</Label>
-              <Input
-                id={`${block.id}-href`}
-                className="rounded-xl"
-                value={block.href ?? ""}
-                onChange={(event) => onChange({ href: event.target.value })}
-              />
-            </div>
-          </div>
-        </div>
-      )}
-
-      {(block.type === "section" ||
-        block.type === "headline" ||
-        block.type === "text" ||
-        block.type === "testimonials" ||
-        block.type === "footer") && (
-        <div className="mt-3 space-y-2">
-          <Label htmlFor={`${block.id}-content`}>Contenido</Label>
-          <Textarea
-            id={`${block.id}-content`}
-            className="rounded-xl"
-            value={block.content ?? ""}
-            onChange={(event) => onChange({ content: event.target.value })}
-          />
-        </div>
-      )}
-
-      {(block.type === "image" || block.type === "video") && (
-        <div className="mt-3 space-y-2">
-          <Label htmlFor={`${block.id}-src`}>URL</Label>
-          <Input
-            id={`${block.id}-src`}
-            className="rounded-xl"
-            value={block.src ?? ""}
-            onChange={(event) => onChange({ src: event.target.value })}
-          />
-        </div>
-      )}
-
-      {block.type === "button" && (
-        <div className="mt-3 grid gap-3 md:grid-cols-2">
-          <div className="space-y-2">
-            <Label htmlFor={`${block.id}-button-text`}>Texto</Label>
-            <Input
-              id={`${block.id}-button-text`}
-              className="rounded-xl"
-              value={block.text ?? ""}
-              onChange={(event) => onChange({ text: event.target.value })}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor={`${block.id}-button-href`}>Enlace</Label>
-            <Input
-              id={`${block.id}-button-href`}
-              className="rounded-xl"
-              value={block.href ?? ""}
-              onChange={(event) => onChange({ href: event.target.value })}
-            />
-          </div>
-        </div>
-      )}
-
-      {block.type === "faq" && (
-        <div className="mt-3 grid gap-3 md:grid-cols-2">
-          <div className="space-y-2">
-            <Label htmlFor={`${block.id}-question`}>Pregunta</Label>
-            <Input
-              id={`${block.id}-question`}
-              className="rounded-xl"
-              value={block.question ?? ""}
-              onChange={(event) => onChange({ question: event.target.value })}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor={`${block.id}-answer`}>Respuesta</Label>
-            <Input
-              id={`${block.id}-answer`}
-              className="rounded-xl"
-              value={block.answer ?? ""}
-              onChange={(event) => onChange({ answer: event.target.value })}
-            />
-          </div>
-        </div>
-      )}
-
-      {block.type === "cod_form" && (
-        <div className="mt-3 space-y-2">
-          <Label htmlFor={`${block.id}-cod-button`}>Texto boton</Label>
-          <Input
-            id={`${block.id}-cod-button`}
-            className="rounded-xl"
-            value={block.text ?? ""}
-            onChange={(event) => onChange({ text: event.target.value })}
-          />
-        </div>
-      )}
+      <p className="text-sm text-foreground">{block.title || block.content || block.text || block.question || "Bloque visual"}</p>
     </article>
   );
 }
@@ -287,8 +173,10 @@ function SortableBlockCard({ block, onChange, onRemove }: SortableBlockCardProps
 export default function FunnelWorkspacePage() {
   const { funnelId = "" } = useParams();
   const { user } = useAuth();
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
+  const isMobile = useIsMobile();
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
   const [step, setStep] = useState<WizardStep>(1);
+  const [deviceMode, setDeviceMode] = useState<DeviceMode>("desktop");
   const [productName, setProductName] = useState("");
   const [productPrice, setProductPrice] = useState("0");
   const [productType, setProductType] = useState<ProductType>("physical");
@@ -296,41 +184,72 @@ export default function FunnelWorkspacePage() {
   const [currency, setCurrency] = useState<FunnelCurrency>("USD");
   const [selectedExistingProductId, setSelectedExistingProductId] = useState("");
   const [landingSections, setLandingSections] = useState<LandingBlock[]>([]);
+  const [selectedBlockId, setSelectedBlockId] = useState<string | null>(null);
   const [offers, setOffers] = useState<FunnelOfferRow | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [landingSaveState, setLandingSaveState] = useState<SaveState>("idle");
+  const [offersSaveState, setOffersSaveState] = useState<SaveState>("idle");
+  const [lastLandingSavedAt, setLastLandingSavedAt] = useState<string | null>(null);
+  const [lastOffersSavedAt, setLastOffersSavedAt] = useState<string | null>(null);
 
   const funnel = useMemo(() => findFunnelById(funnelId), [funnelId, refreshKey]);
   const userProducts = useMemo(() => (user ? listUserProducts(user.uid) : []), [user, refreshKey]);
+  const mobileOrders = useMemo(() => listOrders(funnelId), [funnelId, refreshKey]);
+  const selectedBlock = useMemo(
+    () => landingSections.find((item) => item.id === selectedBlockId) ?? null,
+    [landingSections, selectedBlockId],
+  );
+  const { setNodeRef: setCanvasDropRef, isOver } = useDroppable({ id: "canvas-drop" });
 
   useEffect(() => {
-    if (!funnel) {
-      return;
-    }
-
+    if (!funnel) return;
     const product = getFunnelProduct(funnel.id);
-    if (product) {
-      setProductName(product.name);
-      setProductPrice(String(product.price));
-      setProductType(product.type);
-      setPaymentType(product.payment_type);
-    } else {
-      setProductName("");
-      setProductPrice("0");
-      setProductType("physical");
-      setPaymentType("cash_on_delivery");
-    }
-
+    setProductName(product?.name ?? "");
+    setProductPrice(String(product?.price ?? 0));
+    setProductType(product?.type ?? "physical");
+    setPaymentType(product?.payment_type ?? "cash_on_delivery");
     setCurrency(funnel.currency || "USD");
-    setLandingSections(getLandingSections(funnel.id));
+    const sections = getLandingSections(funnel.id);
+    setLandingSections(sections);
+    setSelectedBlockId(sections[0]?.id ?? null);
     setOffers(getFunnelOffers(funnel.id));
   }, [funnel]);
+
+  useEffect(() => {
+    if (!funnel || isMobile || step !== 2) return;
+    setLandingSaveState("saving");
+    const timer = window.setTimeout(() => {
+      try {
+        saveLandingSections(funnel.id, landingSections);
+        setLandingSaveState("saved");
+        setLastLandingSavedAt(new Date().toISOString());
+      } catch {
+        setLandingSaveState("error");
+      }
+    }, 450);
+    return () => window.clearTimeout(timer);
+  }, [funnel, isMobile, landingSections, step]);
+
+  useEffect(() => {
+    if (!funnel || !offers || isMobile || step !== 3) return;
+    setOffersSaveState("saving");
+    const timer = window.setTimeout(() => {
+      try {
+        saveFunnelOffers(funnel.id, offers);
+        setOffersSaveState("saved");
+        setLastOffersSavedAt(new Date().toISOString());
+      } catch {
+        setOffersSaveState("error");
+      }
+    }, 450);
+    return () => window.clearTimeout(timer);
+  }, [funnel, offers, isMobile, step]);
 
   if (!funnel) {
     return (
       <main className="mx-auto w-full max-w-3xl px-4 py-8">
         <div className="rounded-2xl border border-border bg-card p-6">
           <h1 className="text-xl font-semibold">Funnel no encontrado</h1>
-          <p className="mt-2 text-sm text-muted-foreground">El funnel fue eliminado o no existe.</p>
           <Button asChild className="mt-4 rounded-xl">
             <Link to="/funnels">Volver a funnels</Link>
           </Button>
@@ -339,193 +258,161 @@ export default function FunnelWorkspacePage() {
     );
   }
 
-  const canContinueFromProductStep = Boolean(productName.trim()) && Number(productPrice) > 0;
+  if (isMobile) {
+    const total = mobileOrders.length;
+    const newCount = mobileOrders.filter((o) => o.status === "new").length;
+    const completed = mobileOrders.filter((o) => o.status === "completed").length;
+    return (
+      <main className="mx-auto w-full max-w-3xl space-y-4 px-4 py-6">
+        <section className="rounded-2xl border border-border bg-card p-5">
+          <div className="flex items-start gap-3">
+            <AlertCircle className="mt-0.5 h-5 w-5 text-amber-500" />
+            <div>
+              <h1 className="text-lg font-semibold">Edicion solo desde PC</h1>
+              <p className="mt-1 text-sm text-muted-foreground">
+                En mobile solo puedes ver metricas y analisis.
+              </p>
+            </div>
+          </div>
+        </section>
+        <section className="grid gap-3 sm:grid-cols-3">
+          <article className="rounded-xl border border-border bg-card p-4"><p className="text-xs text-muted-foreground">Pedidos</p><p className="text-2xl font-semibold">{total}</p></article>
+          <article className="rounded-xl border border-border bg-card p-4"><p className="text-xs text-muted-foreground">Nuevos</p><p className="text-2xl font-semibold">{newCount}</p></article>
+          <article className="rounded-xl border border-border bg-card p-4"><p className="text-xs text-muted-foreground">Completados</p><p className="text-2xl font-semibold">{completed}</p></article>
+        </section>
+      </main>
+    );
+  }
 
-  const handleApplyExistingProduct = (productId: string) => {
-    setSelectedExistingProductId(productId);
-    const selectedProduct = userProducts.find((item) => item.id === productId);
+  const canContinue = Boolean(productName.trim()) && Number(productPrice) > 0;
 
-    if (!selectedProduct) {
+  const onDragEnd = (event: DragEndEvent) => {
+    const active = String(event.active.id);
+    const over = event.over ? String(event.over.id) : null;
+    if (!over) return;
+
+    if (active.startsWith("lib-")) {
+      const type = active.replace("lib-", "") as LandingBlockType;
+      const next = createBlock(type);
+      setLandingSections((current) => {
+        if (over === "canvas-drop") return [...current, next];
+        const index = current.findIndex((item) => item.id === over);
+        if (index < 0) return [...current, next];
+        return [...current.slice(0, index), next, ...current.slice(index)];
+      });
+      setSelectedBlockId(next.id);
       return;
     }
 
-    setProductName(selectedProduct.name);
-    setProductPrice(String(selectedProduct.price));
-    setProductType(selectedProduct.type);
-    setPaymentType(selectedProduct.payment_type);
-  };
-
-  const handleSaveProductStep = () => {
-    if (!canContinueFromProductStep) {
-      return;
-    }
-
-    upsertFunnelProduct({
-      funnelId: funnel.id,
-      name: productName,
-      price: Number(productPrice),
-      type: productType,
-      paymentType,
-    });
-    updateFunnelCurrency(funnel.id, currency);
-    setStep(2);
-    setRefreshKey((current) => current + 1);
-  };
-
-  const handleDragEnd = (event: { active: { id: string | number }; over: { id: string | number } | null }) => {
-    const { active, over } = event;
-
-    if (!over || active.id === over.id) {
-      return;
-    }
-
+    if (active === over) return;
     setLandingSections((current) => {
-      const oldIndex = current.findIndex((item) => item.id === active.id);
-      const newIndex = current.findIndex((item) => item.id === over.id);
-
-      if (oldIndex < 0 || newIndex < 0) {
-        return current;
-      }
-
+      const oldIndex = current.findIndex((item) => item.id === active);
+      if (oldIndex < 0) return current;
+      if (over === "canvas-drop") return arrayMove(current, oldIndex, current.length - 1);
+      const newIndex = current.findIndex((item) => item.id === over);
+      if (newIndex < 0) return current;
       return arrayMove(current, oldIndex, newIndex);
     });
   };
 
-  const handleSaveLandingStep = () => {
-    saveLandingSections(funnel.id, landingSections);
-    setStep(3);
-    setRefreshKey((current) => current + 1);
+  const updateSelected = (patch: Partial<LandingBlock>) => {
+    if (!selectedBlock) return;
+    setLandingSections((current) => current.map((item) => (item.id === selectedBlock.id ? { ...item, ...patch } : item)));
   };
 
-  const handleSaveOffersStep = () => {
-    if (!offers) {
-      return;
+  const saveNowLanding = () => {
+    try {
+      saveLandingSections(funnel.id, landingSections);
+      setLandingSaveState("saved");
+      setLastLandingSavedAt(new Date().toISOString());
+    } catch {
+      setLandingSaveState("error");
     }
+  };
 
-    saveFunnelOffers(funnel.id, offers);
-    setRefreshKey((current) => current + 1);
+  const saveNowOffers = () => {
+    if (!offers) return;
+    try {
+      saveFunnelOffers(funnel.id, offers);
+      setOffersSaveState("saved");
+      setLastOffersSavedAt(new Date().toISOString());
+    } catch {
+      setOffersSaveState("error");
+    }
   };
 
   return (
-    <main className="mx-auto w-full max-w-7xl space-y-5 px-4 py-6 sm:px-6 lg:px-8">
+    <main className="mx-auto w-full max-w-[1500px] space-y-5 px-4 py-6 sm:px-6 lg:px-8">
       <section className="rounded-2xl border border-border bg-card p-5">
-        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-          Wizard del funnel
-        </p>
-        <h1 className="mt-1 text-2xl font-semibold text-foreground">{funnel.name}</h1>
+        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">Wizard del funnel</p>
+        <h1 className="mt-1 text-2xl font-semibold">{funnel.name}</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Paso {step} de 3:{" "}
-          {step === 1
-            ? "Producto y divisa"
-            : step === 2
-              ? "Editor Landing drag & drop"
-              : "Upsells, bundles y descuentos"}
+          Paso {step} de 3: {step === 1 ? "Producto y divisa" : step === 2 ? "Editor visual drag & drop" : "Upsells, bundles y descuentos"}
         </p>
         <div className="mt-4 h-2 w-full rounded-full bg-secondary">
-          <div
-            className="h-full rounded-full bg-primary transition-all"
-            style={{ width: `${step === 1 ? 33 : step === 2 ? 66 : 100}%` }}
-          />
+          <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${step === 1 ? 33 : step === 2 ? 66 : 100}%` }} />
         </div>
       </section>
 
       {step === 1 ? (
         <section className="mx-auto w-full max-w-3xl rounded-2xl border border-border bg-card p-6">
           <h2 className="text-xl font-semibold">1) Primero crea o selecciona producto</h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Este bloque va primero para guiar al cliente paso a paso.
-          </p>
-
           <div className="mt-4 space-y-3">
             <div className="space-y-2">
               <Label htmlFor="existing-product">Seleccionar producto existente (opcional)</Label>
               <select
                 id="existing-product"
                 value={selectedExistingProductId}
-                onChange={(event) => handleApplyExistingProduct(event.target.value)}
+                onChange={(event) => {
+                  setSelectedExistingProductId(event.target.value);
+                  const selected = userProducts.find((item) => item.id === event.target.value);
+                  if (!selected) return;
+                  setProductName(selected.name);
+                  setProductPrice(String(selected.price));
+                  setProductType(selected.type);
+                  setPaymentType(selected.payment_type);
+                }}
                 className="h-10 w-full rounded-xl border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
                 <option value="">Crear nuevo producto</option>
-                {userProducts
-                  .filter((item) => item.funnel_id !== funnel.id)
-                  .map((item) => (
-                    <option key={item.id} value={item.id}>
-                      {item.name} ({item.funnel_name})
-                    </option>
-                  ))}
+                {userProducts.filter((item) => item.funnel_id !== funnel.id).map((item) => (
+                  <option key={item.id} value={item.id}>{item.name} ({item.funnel_name})</option>
+                ))}
               </select>
             </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="product-name">product_name</Label>
-              <Input
-                id="product-name"
-                value={productName}
-                onChange={(event) => setProductName(event.target.value)}
-                className="rounded-xl"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="product-price">price</Label>
-              <Input
-                id="product-price"
-                type="number"
-                min="0"
-                step="0.01"
-                value={productPrice}
-                onChange={(event) => setProductPrice(event.target.value)}
-                className="rounded-xl"
-              />
-            </div>
-
+            <div className="space-y-2"><Label htmlFor="product-name">product_name</Label><Input id="product-name" value={productName} onChange={(e) => setProductName(e.target.value)} /></div>
+            <div className="space-y-2"><Label htmlFor="product-price">price</Label><Input id="product-price" type="number" min="0" step="0.01" value={productPrice} onChange={(e) => setProductPrice(e.target.value)} /></div>
             <div className="grid gap-3 md:grid-cols-3">
               <div className="space-y-2">
                 <Label htmlFor="product-type">product_type</Label>
-                <select
-                  id="product-type"
-                  value={productType}
-                  onChange={(event) => setProductType(event.target.value as ProductType)}
-                  className="h-10 w-full rounded-xl border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                >
-                  <option value="physical">physical</option>
-                  <option value="digital">digital</option>
+                <select id="product-type" value={productType} onChange={(e) => setProductType(e.target.value as ProductType)} className="h-10 w-full rounded-xl border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                  <option value="physical">physical</option><option value="digital">digital</option>
                 </select>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="payment-type">payment_type</Label>
-                <select
-                  id="payment-type"
-                  value={paymentType}
-                  onChange={(event) => setPaymentType(event.target.value as PaymentType)}
-                  className="h-10 w-full rounded-xl border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                >
-                  <option value="stripe">stripe</option>
-                  <option value="paypal">paypal</option>
-                  <option value="cash_on_delivery">cash_on_delivery</option>
+                <select id="payment-type" value={paymentType} onChange={(e) => setPaymentType(e.target.value as PaymentType)} className="h-10 w-full rounded-xl border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                  <option value="stripe">stripe</option><option value="paypal">paypal</option><option value="cash_on_delivery">cash_on_delivery</option>
                 </select>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="currency">divisa</Label>
-                <select
-                  id="currency"
-                  value={currency}
-                  onChange={(event) => setCurrency(event.target.value as FunnelCurrency)}
-                  className="h-10 w-full rounded-xl border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                >
-                  <option value="USD">USD</option>
-                  <option value="EUR">EUR</option>
-                  <option value="PEN">PEN</option>
+                <select id="currency" value={currency} onChange={(e) => setCurrency(e.target.value as FunnelCurrency)} className="h-10 w-full rounded-xl border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                  <option value="USD">USD</option><option value="EUR">EUR</option><option value="PEN">PEN</option>
                 </select>
               </div>
             </div>
           </div>
-
           <Button
             type="button"
             className="mt-5 rounded-xl"
-            disabled={!canContinueFromProductStep}
-            onClick={handleSaveProductStep}
+            disabled={!canContinue}
+            onClick={() => {
+              upsertFunnelProduct({ funnelId: funnel.id, name: productName, price: Number(productPrice), type: productType, paymentType });
+              updateFunnelCurrency(funnel.id, currency);
+              setStep(2);
+              setRefreshKey((c) => c + 1);
+            }}
           >
             Guardar producto y continuar
           </Button>
@@ -533,231 +420,171 @@ export default function FunnelWorkspacePage() {
       ) : null}
 
       {step === 2 ? (
-        <section className="grid gap-5 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]">
-          <article className="rounded-2xl border border-border bg-card p-5">
-            <h2 className="text-xl font-semibold">2) Editor de Landing (drag & drop)</h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Arrastra bloques para ordenar la pagina y edita su contenido.
-            </p>
-
-            <div className="mt-4">
-              <p className="text-sm font-semibold text-foreground">Agregar bloques</p>
-              <div className="mt-2 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                {quickBlocks.map((type) => (
-                  <Button
-                    key={type}
-                    type="button"
-                    variant="outline"
-                    className="justify-start rounded-xl"
-                    onClick={() => setLandingSections((current) => [...current, createBlock(type)])}
-                  >
-                    + {blockLabel[type]}
-                  </Button>
-                ))}
+        <section className="rounded-2xl border border-border bg-card p-3 lg:p-4">
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border bg-secondary/20 px-3 py-2">
+            <div>
+              <p className="text-sm font-semibold">Editor visual de landing</p>
+              <SaveStatus state={landingSaveState} at={lastLandingSavedAt} />
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="inline-flex rounded-lg border border-border bg-background p-1">
+                <button type="button" className={cn("rounded-md px-2 py-1", deviceMode === "desktop" ? "bg-primary/15 text-primary" : "")} onClick={() => setDeviceMode("desktop")}><Monitor className="h-4 w-4" /></button>
+                <button type="button" className={cn("rounded-md px-2 py-1", deviceMode === "tablet" ? "bg-primary/15 text-primary" : "")} onClick={() => setDeviceMode("tablet")}><Tablet className="h-4 w-4" /></button>
+                <button type="button" className={cn("rounded-md px-2 py-1", deviceMode === "mobile" ? "bg-primary/15 text-primary" : "")} onClick={() => setDeviceMode("mobile")}><Smartphone className="h-4 w-4" /></button>
               </div>
+              <Button type="button" variant="outline" size="sm" className="rounded-lg" onClick={saveNowLanding}>Guardar ahora</Button>
+              <Button type="button" variant="outline" size="sm" className="rounded-lg" onClick={() => setStep(1)}>Volver</Button>
+              <Button type="button" size="sm" className="rounded-lg" onClick={() => setStep(3)}>Continuar</Button>
             </div>
+          </div>
 
-            <div className="mt-4 space-y-3">
-              {landingSections.length ? (
-                <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-                  <SortableContext
-                    items={landingSections.map((section) => section.id)}
-                    strategy={verticalListSortingStrategy}
-                  >
-                    {landingSections.map((block) => (
-                      <SortableBlockCard
-                        key={block.id}
-                        block={block}
-                        onChange={(patch) =>
-                          setLandingSections((current) =>
-                            current.map((item) => (item.id === block.id ? { ...item, ...patch } : item)),
-                          )
-                        }
-                        onRemove={() =>
-                          setLandingSections((current) => current.filter((item) => item.id !== block.id))
-                        }
-                      />
-                    ))}
-                  </SortableContext>
-                </DndContext>
-              ) : (
-                <p className="rounded-xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
-                  Agrega el primer bloque para empezar.
-                </p>
-              )}
-            </div>
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
+            <div className="grid gap-3 lg:grid-cols-[260px_minmax(0,1fr)_300px]">
+              <aside className="rounded-xl border border-border bg-secondary/15 p-3">
+                <p className="text-sm font-semibold">Build Your Page</p>
+                <p className="mt-1 text-xs text-muted-foreground">Arrastra elementos al canvas.</p>
+                <div className="mt-3 space-y-2">{blockTypes.map((type) => <LibraryItem key={type} type={type} />)}</div>
+              </aside>
 
-            <div className="mt-4 flex flex-wrap gap-2">
-              <Button type="button" variant="outline" className="rounded-xl" onClick={() => setStep(1)}>
-                Volver
-              </Button>
-              <Button type="button" className="rounded-xl" onClick={handleSaveLandingStep}>
-                Guardar landing y continuar
-              </Button>
-            </div>
-          </article>
-
-          <aside className="rounded-2xl border border-border bg-card p-5">
-            <h3 className="text-lg font-semibold">Vista previa rapida</h3>
-            <p className="mt-1 text-sm text-muted-foreground">Orden que vera el cliente.</p>
-            <div className="mt-4 space-y-3">
-              {landingSections.map((block) => (
-                <div key={`preview-${block.id}`} className="rounded-xl border border-border bg-secondary/20 p-3">
-                  <p className="text-xs font-semibold uppercase tracking-[0.15em] text-muted-foreground">
-                    {blockLabel[block.type]}
-                  </p>
-                  <p className="mt-1 text-sm text-foreground">
-                    {block.title || block.content || block.text || block.question || "Bloque sin texto"}
-                  </p>
+              <section className="rounded-xl border border-border bg-background p-3">
+                <div
+                  ref={setCanvasDropRef}
+                  className={cn(
+                    "min-h-[620px] rounded-xl border border-dashed p-3 transition-colors",
+                    isOver ? "border-primary/60 bg-primary/5" : "border-border",
+                    deviceMode === "desktop" ? "mx-auto max-w-[980px]" : deviceMode === "tablet" ? "mx-auto max-w-[760px]" : "mx-auto max-w-[420px]",
+                  )}
+                >
+                  {landingSections.length ? (
+                    <SortableContext items={landingSections.map((s) => s.id)} strategy={verticalListSortingStrategy}>
+                      <div className="space-y-3">
+                        {landingSections.map((block) => (
+                          <CanvasCard
+                            key={block.id}
+                            block={block}
+                            selected={selectedBlockId === block.id}
+                            onSelect={() => setSelectedBlockId(block.id)}
+                            onDelete={() => {
+                              setLandingSections((c) => c.filter((i) => i.id !== block.id));
+                              if (selectedBlockId === block.id) setSelectedBlockId(null);
+                            }}
+                          />
+                        ))}
+                      </div>
+                    </SortableContext>
+                  ) : (
+                    <div className="flex min-h-[580px] items-center justify-center rounded-lg border border-dashed border-border text-sm text-muted-foreground">
+                      Arrastra un bloque desde la izquierda.
+                    </div>
+                  )}
                 </div>
-              ))}
+              </section>
+
+              <aside className="rounded-xl border border-border bg-secondary/15 p-3">
+                <p className="text-sm font-semibold">Properties</p>
+                {!selectedBlock ? (
+                  <p className="mt-2 text-xs text-muted-foreground">Selecciona un bloque del canvas.</p>
+                ) : (
+                  <div className="mt-3 space-y-2">
+                    <div className="rounded-lg border border-border bg-card px-2 py-1 text-xs">{blockLabel[selectedBlock.type]}</div>
+
+                    {(selectedBlock.type === "hero" || selectedBlock.type === "section" || selectedBlock.type === "cod_form") && (
+                      <>
+                        <Label htmlFor="prop-title">Titulo</Label>
+                        <Input id="prop-title" value={selectedBlock.title ?? ""} onChange={(e) => updateSelected({ title: e.target.value })} />
+                      </>
+                    )}
+                    {selectedBlock.type === "hero" && (
+                      <>
+                        <Label htmlFor="prop-sub">Subtitulo</Label>
+                        <Textarea id="prop-sub" value={selectedBlock.subtitle ?? ""} onChange={(e) => updateSelected({ subtitle: e.target.value })} />
+                        <Label htmlFor="prop-htxt">Texto boton</Label>
+                        <Input id="prop-htxt" value={selectedBlock.text ?? ""} onChange={(e) => updateSelected({ text: e.target.value })} />
+                        <Label htmlFor="prop-hlnk">Enlace boton</Label>
+                        <Input id="prop-hlnk" value={selectedBlock.href ?? ""} onChange={(e) => updateSelected({ href: e.target.value })} />
+                      </>
+                    )}
+                    {(selectedBlock.type === "section" || selectedBlock.type === "headline" || selectedBlock.type === "text" || selectedBlock.type === "testimonials" || selectedBlock.type === "footer") && (
+                      <>
+                        <Label htmlFor="prop-content">Contenido</Label>
+                        <Textarea id="prop-content" value={selectedBlock.content ?? ""} onChange={(e) => updateSelected({ content: e.target.value })} />
+                      </>
+                    )}
+                    {(selectedBlock.type === "image" || selectedBlock.type === "video") && (
+                      <>
+                        <Label htmlFor="prop-src">URL</Label>
+                        <Input id="prop-src" value={selectedBlock.src ?? ""} onChange={(e) => updateSelected({ src: e.target.value })} />
+                      </>
+                    )}
+                    {selectedBlock.type === "button" && (
+                      <>
+                        <Label htmlFor="prop-btxt">Texto</Label>
+                        <Input id="prop-btxt" value={selectedBlock.text ?? ""} onChange={(e) => updateSelected({ text: e.target.value })} />
+                        <Label htmlFor="prop-blnk">Enlace</Label>
+                        <Input id="prop-blnk" value={selectedBlock.href ?? ""} onChange={(e) => updateSelected({ href: e.target.value })} />
+                      </>
+                    )}
+                    {selectedBlock.type === "faq" && (
+                      <>
+                        <Label htmlFor="prop-q">Pregunta</Label>
+                        <Input id="prop-q" value={selectedBlock.question ?? ""} onChange={(e) => updateSelected({ question: e.target.value })} />
+                        <Label htmlFor="prop-a">Respuesta</Label>
+                        <Textarea id="prop-a" value={selectedBlock.answer ?? ""} onChange={(e) => updateSelected({ answer: e.target.value })} />
+                      </>
+                    )}
+                    {selectedBlock.type === "cod_form" && (
+                      <>
+                        <Label htmlFor="prop-codtxt">Texto boton</Label>
+                        <Input id="prop-codtxt" value={selectedBlock.text ?? ""} onChange={(e) => updateSelected({ text: e.target.value })} />
+                      </>
+                    )}
+                  </div>
+                )}
+              </aside>
             </div>
-          </aside>
+          </DndContext>
         </section>
       ) : null}
 
       {step === 3 && offers ? (
         <section className="mx-auto w-full max-w-4xl rounded-2xl border border-border bg-card p-6">
           <h2 className="text-xl font-semibold">3) Ofertas: upsells, bundles y descuentos</h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Configura opciones comerciales despues de terminar el producto y la landing.
-          </p>
-
+          <SaveStatus state={offersSaveState} at={lastOffersSavedAt} />
           <div className="mt-5 grid gap-4 md:grid-cols-3">
             <article className="rounded-xl border border-border bg-secondary/20 p-4">
-              <label className="flex items-center gap-2 text-sm font-medium">
-                <input
-                  type="checkbox"
-                  checked={offers.upsell_enabled}
-                  onChange={(event) =>
-                    setOffers((current) =>
-                      current ? { ...current, upsell_enabled: event.target.checked } : current,
-                    )
-                  }
-                />
-                Upsell
-              </label>
+              <label className="flex items-center gap-2 text-sm font-medium"><input type="checkbox" checked={offers.upsell_enabled} onChange={(e) => setOffers((c) => (c ? { ...c, upsell_enabled: e.target.checked } : c))} />Upsell</label>
               <div className="mt-3 space-y-2">
-                <Input
-                  placeholder="Nombre upsell"
-                  value={offers.upsell_name}
-                  onChange={(event) =>
-                    setOffers((current) => (current ? { ...current, upsell_name: event.target.value } : current))
-                  }
-                />
-                <Input
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  placeholder="Precio upsell"
-                  value={offers.upsell_price}
-                  onChange={(event) =>
-                    setOffers((current) =>
-                      current ? { ...current, upsell_price: Number(event.target.value) } : current,
-                    )
-                  }
-                />
+                <Input placeholder="Nombre upsell" value={offers.upsell_name} onChange={(e) => setOffers((c) => (c ? { ...c, upsell_name: e.target.value } : c))} />
+                <Input type="number" min="0" step="0.01" placeholder="Precio upsell" value={offers.upsell_price} onChange={(e) => setOffers((c) => (c ? { ...c, upsell_price: Number(e.target.value) } : c))} />
               </div>
             </article>
-
             <article className="rounded-xl border border-border bg-secondary/20 p-4">
-              <label className="flex items-center gap-2 text-sm font-medium">
-                <input
-                  type="checkbox"
-                  checked={offers.bundle_enabled}
-                  onChange={(event) =>
-                    setOffers((current) =>
-                      current ? { ...current, bundle_enabled: event.target.checked } : current,
-                    )
-                  }
-                />
-                Bundle
-              </label>
+              <label className="flex items-center gap-2 text-sm font-medium"><input type="checkbox" checked={offers.bundle_enabled} onChange={(e) => setOffers((c) => (c ? { ...c, bundle_enabled: e.target.checked } : c))} />Bundle</label>
               <div className="mt-3 space-y-2">
-                <Input
-                  placeholder="Nombre bundle"
-                  value={offers.bundle_name}
-                  onChange={(event) =>
-                    setOffers((current) => (current ? { ...current, bundle_name: event.target.value } : current))
-                  }
-                />
-                <Input
-                  type="number"
-                  min="2"
-                  placeholder="Cantidad"
-                  value={offers.bundle_quantity}
-                  onChange={(event) =>
-                    setOffers((current) =>
-                      current ? { ...current, bundle_quantity: Number(event.target.value) } : current,
-                    )
-                  }
-                />
-                <Input
-                  type="number"
-                  min="0"
-                  max="100"
-                  placeholder="% descuento"
-                  value={offers.bundle_discount_percentage}
-                  onChange={(event) =>
-                    setOffers((current) =>
-                      current
-                        ? { ...current, bundle_discount_percentage: Number(event.target.value) }
-                        : current,
-                    )
-                  }
-                />
+                <Input placeholder="Nombre bundle" value={offers.bundle_name} onChange={(e) => setOffers((c) => (c ? { ...c, bundle_name: e.target.value } : c))} />
+                <Input type="number" min="2" placeholder="Cantidad" value={offers.bundle_quantity} onChange={(e) => setOffers((c) => (c ? { ...c, bundle_quantity: Number(e.target.value) } : c))} />
+                <Input type="number" min="0" max="100" placeholder="% descuento" value={offers.bundle_discount_percentage} onChange={(e) => setOffers((c) => (c ? { ...c, bundle_discount_percentage: Number(e.target.value) } : c))} />
               </div>
             </article>
-
             <article className="rounded-xl border border-border bg-secondary/20 p-4">
-              <label className="flex items-center gap-2 text-sm font-medium">
-                <input
-                  type="checkbox"
-                  checked={offers.discount_enabled}
-                  onChange={(event) =>
-                    setOffers((current) =>
-                      current ? { ...current, discount_enabled: event.target.checked } : current,
-                    )
-                  }
-                />
-                Descuento
-              </label>
+              <label className="flex items-center gap-2 text-sm font-medium"><input type="checkbox" checked={offers.discount_enabled} onChange={(e) => setOffers((c) => (c ? { ...c, discount_enabled: e.target.checked } : c))} />Descuento</label>
               <div className="mt-3 space-y-2">
-                <Input
-                  type="number"
-                  min="0"
-                  max="100"
-                  placeholder="% descuento"
-                  value={offers.discount_percentage}
-                  onChange={(event) =>
-                    setOffers((current) =>
-                      current ? { ...current, discount_percentage: Number(event.target.value) } : current,
-                    )
-                  }
-                />
-                <Input
-                  placeholder="Codigo"
-                  value={offers.discount_code}
-                  onChange={(event) =>
-                    setOffers((current) => (current ? { ...current, discount_code: event.target.value } : current))
-                  }
-                />
+                <Input type="number" min="0" max="100" placeholder="% descuento" value={offers.discount_percentage} onChange={(e) => setOffers((c) => (c ? { ...c, discount_percentage: Number(e.target.value) } : c))} />
+                <Input placeholder="Codigo" value={offers.discount_code} onChange={(e) => setOffers((c) => (c ? { ...c, discount_code: e.target.value } : c))} />
               </div>
             </article>
           </div>
-
           <div className="mt-5 flex flex-wrap gap-2">
-            <Button type="button" variant="outline" className="rounded-xl" onClick={() => setStep(2)}>
-              Volver al editor
-            </Button>
-            <Button type="button" className="rounded-xl" onClick={handleSaveOffersStep}>
-              Guardar ofertas
-            </Button>
+            <Button type="button" variant="outline" className="rounded-xl" onClick={() => setStep(2)}>Volver al editor</Button>
+            <Button type="button" variant="outline" className="rounded-xl" onClick={saveNowOffers}>Guardar ahora</Button>
             <Button
               type="button"
-              variant="outline"
               className="rounded-xl"
-              onClick={() => setFunnelPublished(funnel.id, true)}
+              onClick={() => {
+                saveNowLanding();
+                saveNowOffers();
+                setFunnelPublished(funnel.id, true);
+              }}
             >
               Publicar funnel
             </Button>

@@ -53,16 +53,21 @@ Legacy:
   - `product_type`
   - `payment_type`
   - `currency`
-3. Editar landing en paso 2 con editor drag&drop vertical y bloques permitidos:
-  - `hero`, `section`, `headline`, `text`, `image`, `video`, `button`, `testimonials`, `faq`, `cod_form`, `footer`
-4. Configurar ofertas en paso 3:
+3. Editar landing en paso 2 con editor visual dentro del layout actual:
+  - sidebar izquierda (biblioteca de bloques arrastrables)
+  - canvas central (drop/reorder)
+  - panel derecho (propiedades del bloque seleccionado)
+  - guardado automatico
+  - selector de preview desktop/tablet/mobile
+4. En mobile no se permite editar; solo se muestran metricas/analisis.
+5. Configurar ofertas en paso 3:
   - upsell
   - bundle
   - descuento
-5. Publicar funnel desde el editor.
-6. Checkout autogenerado desde producto en `/f/:slug/checkout`.
-7. Registrar pedido y ver tabla en `/orders`.
-8. Desde `/funnels` se puede borrar funnel completo (con producto, paginas y pedidos).
+6. Publicar funnel desde el editor.
+7. Checkout autogenerado desde producto en `/f/:slug/checkout`.
+8. Registrar pedido y ver tabla en `/orders`.
+9. Desde `/funnels` se puede borrar funnel completo (con producto, paginas y pedidos).
 
 ## Persistencia
 

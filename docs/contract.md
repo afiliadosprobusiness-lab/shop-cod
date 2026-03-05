@@ -68,10 +68,12 @@ Todas las rutas privadas pasan por auth y `DashboardLayout`.
 - Incluye:
   - wizard guiado por pasos
   - paso 1: seleccionar/crear producto unico + divisa
-  - paso 2: editor de landing con drag&drop vertical
+  - paso 2: editor visual con biblioteca izquierda + canvas central + propiedades derecha y drag&drop vertical
   - paso 3: configuracion de upsell, bundle y descuento
   - accion publicar/despublicar
   - enlaces publicos de landing/checkout/thank-you
+  - guardado automatico de cambios en pasos de edicion
+  - en mobile: modo solo metricas (sin edicion)
 
 ### `GET /orders`
 
@@ -250,3 +252,4 @@ Cambios breaking que requieren versionado/coordinacion:
 - 2026-03-05 | Se redefine el contrato operativo a sistema funnel-only de producto unico con rutas publicas `/f/:slug*`, editor simple por bloques y dashboard de pedidos por funnel | non-breaking | Alinea contrato al nuevo flujo principal sin eliminar rutas legacy de compatibilidad
 - 2026-03-05 | Se expande el editor basico con bloques `hero/section/footer/cod_form`, se agrega borrado de funnel y creacion con apertura directa del editor | non-breaking | Mejora UX operativa sin cambiar rutas ni romper modelos base
 - 2026-03-05 | `/funnels/:funnelId/editor` evoluciona a wizard guiado con paso de producto/divisa, landing drag&drop y paso de ofertas (upsell/bundle/descuento) | non-breaking | Mantiene rutas y persistencia local, mejora la experiencia paso a paso
+- 2026-03-05 | Paso 2 adopta editor visual de 3 paneles dentro del layout actual y se bloquea edicion en mobile (solo metricas) | non-breaking | Refuerza UX de escritorio sin romper rutas ni contratos de datos
