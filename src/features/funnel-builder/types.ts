@@ -2,6 +2,7 @@ import type { LandingBlockType } from "@/lib/funnel-system";
 
 export type BuilderBreakpoint = "desktop" | "tablet" | "mobile";
 export type BuilderSidebarTab = "elements" | "sections";
+export type BuilderDropPosition = "before" | "after" | "inside";
 
 export type BuilderElementType = LandingBlockType;
 export type BuilderNodeType = "page" | "section" | "column" | BuilderElementType;
@@ -63,3 +64,8 @@ export type BuilderDragPayload =
       kind: "canvas-element";
       elementId: string;
     };
+
+export interface BuilderDropIndicator {
+  targetId: string;
+  position: BuilderDropPosition;
+}

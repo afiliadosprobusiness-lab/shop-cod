@@ -68,11 +68,13 @@ Todas las rutas privadas pasan por auth y `DashboardLayout`.
 - Incluye:
   - wizard guiado por pasos
   - paso 1: seleccionar/crear producto + divisa (opcional, con accion de omitir)
-  - paso 2: editor visual modular (`EditorShell`, `TopBar`, `LeftSidebar`, `Canvas`, `PropertiesPanel`)
+  - paso 2: editor visual modular (`EditorShell`, `TopBar`, `LeftSidebar`, `CanvasWysiwyg`, `OverlayLayer`, `PropertiesPanel`)
   - modelo de pagina: `Page -> Sections -> Columns -> Elements`
-  - `Elements/Sections` con insercion por click y drag&drop al canvas
-  - seleccion + hover + outlines + handles contextuales + historial (undo/redo) de estructura/propiedades
-  - drag&drop interno para reordenar secciones y mover/reordenar elementos con drop indicators
+  - `Elements/Sections` con insercion por click al canvas
+  - canvas WYSIWYG de pagina real (hero/text/button/image/section/columns), no lista outline
+  - seleccion + hover por `data-node-id` sobre contenido real con overlays absolutos (tooltip/handles)
+  - historial (undo/redo) de estructura/propiedades
+  - scaffolding de drop indicators y mutaciones para drag&drop interno
   - `PropertiesPanel` contextual editable para `Text`, `Image`, `Button`, `Section` y `Columns`
   - shortcuts desktop de historial: `Ctrl/Cmd+Z`, `Ctrl/Cmd+Y`, `Ctrl/Cmd+Shift+Z`
   - autosave debounced en el editor de paso 2 con indicador `saving/saved/error`
@@ -272,3 +274,4 @@ Cambios breaking que requieren versionado/coordinacion:
 - 2026-03-05 | Paso 6 mueve autosave al builder con debounce + flush en acciones de salida/guardado | non-breaking | Reduce condiciones de carrera y mejora confiabilidad del guardado de landing
 - 2026-03-05 | Paso 1 del wizard permite omitir configuracion de producto para casos landing-only | non-breaking | Mantiene compatibilidad del modelo y habilita uso sin checkout de producto
 - 2026-03-05 | Se refuerza publicacion del funnel con feedback visual de estado y timestamp en paso 3 | non-breaking | Hace observable el resultado de publicar y reduce confusion de UX
+- 2026-03-05 | Inicio de migracion a canvas WYSIWYG real (Paso 1): render de pagina + overlay layer + seleccion por event delegation | non-breaking | Reemplaza experiencia tipo lista por edicion visual y prepara drag/drop de siguientes pasos

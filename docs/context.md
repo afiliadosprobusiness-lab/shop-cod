@@ -97,16 +97,18 @@ Se mantienen rutas legacy del repo para compatibilidad tecnica, pero no forman p
 2. El editor ahora usa arquitectura modular `Builder` (Paso 1-2 de refactor) con:
   - `EditorShell` de 3 paneles + topbar
   - `LeftSidebar` con tabs `Elements/Sections` + buscador
-  - `Canvas` con modelo JSON `Page -> Sections -> Columns -> Elements`
+  - `CanvasWysiwyg` + `OverlayLayer` con modelo JSON `Page -> Sections -> Columns -> Elements`
   - `PropertiesPanel` contextual por nodo seleccionado (editable en nodos clave)
   - `TopBar` con Undo/Redo, Save, Preview, selector desktop/tablet/mobile
-3. En la fase actual:
+3. En la fase actual (Paso 1 WYSIWYG):
+  - el canvas renderiza la landing real (hero, text, button, image, section, columns)
+  - seleccion/hover por event delegation (`data-node-id`) sobre contenido real
+  - overlays absolutos encima del contenido (borde hover/selected, tooltip de bloque, handles)
+  - empty state visual con CTA `Agregar seccion`
   - insercion por click desde `Elements` y presets desde `Sections`
-  - drag&drop desde `Elements` al canvas (drop zones en secciones/columnas)
-  - reordenamiento drag&drop de secciones y elementos dentro del canvas
   - seleccion de nodo + hover + outlines + handles contextuales (mover, duplicar, borrar)
   - panel de propiedades editable para `Text`, `Image`, `Button`, elemento `Section`, layout `Section` y `Columns`
-  - indicadores visuales de drop (linea/placeholder)
+  - scaffolding listo para drag/drop (drop indicator y mutaciones before/after/inside)
   - historial avanzado (undo/redo) para estructura y propiedades
   - merge inteligente de cambios de escritura en propiedades para evitar un paso por cada tecla
   - shortcuts de historial en desktop: `Ctrl/Cmd+Z`, `Ctrl/Cmd+Y`, `Ctrl/Cmd+Shift+Z`

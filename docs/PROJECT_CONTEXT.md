@@ -54,14 +54,16 @@ Legacy:
   - `payment_type`
   - `currency`
 3. Editar landing en paso 2 con editor visual dentro del layout actual:
-  - arquitectura modular `EditorShell` + `TopBar` + `LeftSidebar` + `Canvas` + `PropertiesPanel`
+  - arquitectura modular `EditorShell` + `TopBar` + `LeftSidebar` + `CanvasWysiwyg` + `OverlayLayer` + `PropertiesPanel`
   - modelo JSON: `Page -> Sections -> Columns -> Elements`
   - sidebar izquierda con tabs `Elements`/`Sections` y buscador
-  - insercion por click (bloques y presets) y por drag&drop desde sidebar
-  - canvas con seleccion + hover + outlines, estado vacio guiado y drop indicators
+  - insercion por click (bloques y presets)
+  - canvas WYSIWYG centrado que renderiza la pagina real (no lista de cards)
+  - seleccion + hover via event delegation y overlays absolutos (tooltip/outline/handles)
+  - estado vacio guiado con CTA `Agregar seccion`
   - panel derecho contextual editable para nodos clave (Text, Image, Button, Section, Columns)
   - handles contextuales sobre seleccion (mover/duplicar/borrar segun nodo)
-  - drag&drop para reordenar secciones y mover/reordenar elementos
+  - scaffolding preparado para drag/drop con drop indicator y mutaciones `before/after/inside`
   - undo/redo para estructura y propiedades con merge inteligente de escritura
   - shortcuts de historial: `Ctrl/Cmd+Z`, `Ctrl/Cmd+Y`, `Ctrl/Cmd+Shift+Z`
   - autosave debounced gestionado dentro del builder (indicador de estado)
@@ -92,6 +94,6 @@ Legacy:
 ## Notas Operativas
 
 - Los pedidos usan estados: `new`, `processing`, `shipped`, `completed`.
-- `products` es 1:1 con `funnels` (producto unico por funnel).
+- `products` es 0..1 por `funnel` (si existe, producto unico por funnel).
 - No hay backend API persistente para funnels/pedidos en runtime actual.
 - Este archivo resume `docs/context.md` y debe mantenerse alineado.

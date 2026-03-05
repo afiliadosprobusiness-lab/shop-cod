@@ -1,19 +1,16 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { LandingBlock } from "@/lib/funnel-system";
 import { EditorShell } from "@/features/funnel-builder/components/EditorShell";
-import { BuilderTopBar } from "@/features/funnel-builder/components/TopBar";
 import { LeftSidebar } from "@/features/funnel-builder/components/LeftSidebar";
-import { BuilderCanvas } from "@/features/funnel-builder/components/Canvas";
 import { PropertiesPanel } from "@/features/funnel-builder/components/PropertiesPanel";
-import { commitBuilderHistory, type BuilderHistoryCommitMeta } from "@/features/funnel-builder/history";
+import { BuilderTopBar } from "@/features/funnel-builder/components/TopBar";
+import { CanvasWysiwyg } from "@/features/funnel-builder/components/CanvasWysiwyg";
 import {
   addElementAsSection,
   addSectionPreset,
   BUILDER_LIBRARY_ITEMS,
-  duplicateNodeById,
   filterLibraryItems,
   filterSectionPresets,
-  findNodeById,
   insertElementAsSectionAt,
   insertElementToColumnIndex,
   landingSectionsFromPage,
@@ -24,42 +21,10 @@ import {
   removeNodeById,
   updateNodePropsById,
 } from "@/features/funnel-builder/model";
-import type {
-  BuilderBreakpoint,
-  BuilderDragPayload,
-  BuilderPageNode,
-  BuilderSidebarTab,
-} from "@/features/funnel-builder/types";
+import { useEditorState } from "@/features/funnel-builder/useEditorState";
+import type { BuilderPageNode } from "@/features/funnel-builder/types";
 
 type SaveState = "idle" | "saving" | "saved" | "error";
-
-interface EditorState {
-  selectedId: string | null;
-  hoveredId: string | null;
-  breakpoint: BuilderBreakpoint;
-  tab: BuilderSidebarTab;
-  query: string;
-  dragPayload: BuilderDragPayload | null;
-  history: BuilderPageNode[];
-  historyIndex: number;
-  lastCommit: BuilderHistoryCommitMeta | null;
-  dirty: boolean;
-}
-
-function buildInitialState(initialPage: BuilderPageNode): EditorState {
-  return {
-    selectedId: null,
-    hoveredId: null,
-    breakpoint: "desktop",
-    tab: "elements",
-    query: "",
-    dragPayload: null,
-    history: [initialPage],
-    historyIndex: 0,
-    lastCommit: null,
-    dirty: false,
-  };
-}
 
 function listElementIds(page: BuilderPageNode) {
   return page.children.flatMap((section) =>
@@ -95,8 +60,8 @@ export function BuilderLandingEditorStep1({
   const mountedRef = useRef(true);
   const [saveState, setSaveState] = useState<SaveState>("idle");
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
-  const [state, setState] = useState<EditorState>(() => buildInitialState(initialPage));
-  const currentPage = state.history[state.historyIndex];
+  const { state, setState, currentPage, selectedNode, canUndo, canRedo, reset, commitPage, undo, redo } =
+    useEditorState(initialPage);
 
   const filteredItems = useMemo(() => filterLibraryItems(state.query), [state.query]);
   const filteredPresets = useMemo(() => filterSectionPresets(state.query), [state.query]);
@@ -107,8 +72,8 @@ export function BuilderLandingEditorStep1({
     persistedSerializedRef.current = incomingSerialized;
     setSaveState("idle");
     setLastSavedAt(null);
-    setState(buildInitialState(initialPage));
-  }, [incomingSerialized, initialPage]);
+    reset(initialPage);
+  }, [incomingSerialized, initialPage, reset]);
 
   useEffect(() => {
     const nextSections = landingSectionsFromPage(currentPage);
@@ -141,7 +106,7 @@ export function BuilderLandingEditorStep1({
       setLastSavedAt(new Date().toISOString());
       setState((prev) => ({ ...prev, dirty: false }));
     }
-  }, [onPersist]);
+  }, [onPersist, setState]);
 
   const flushPendingSave = useCallback(async () => {
     if (saveTimerRef.current) {
@@ -192,13 +157,14 @@ export function BuilderLandingEditorStep1({
     saveTimerRef.current = window.setTimeout(() => {
       void flushPendingSave();
     }, 650);
+
     return () => {
       if (saveTimerRef.current) {
         window.clearTimeout(saveTimerRef.current);
         saveTimerRef.current = null;
       }
     };
-  }, [currentPage, flushPendingSave]);
+  }, [currentPage, flushPendingSave, setState]);
 
   useEffect(
     () => () => {
@@ -210,88 +176,6 @@ export function BuilderLandingEditorStep1({
     },
     [],
   );
-
-  const selectedNode = useMemo(
-    () => (state.selectedId ? findNodeById(currentPage, state.selectedId) : null),
-    [currentPage, state.selectedId],
-  );
-
-  const canUndo = state.historyIndex > 0;
-  const canRedo = state.historyIndex < state.history.length - 1;
-
-  const commitPage = (
-    nextPage: BuilderPageNode,
-    preferredSelectedId?: string | null,
-    options?: { mode?: "push" | "merge"; source?: "structure" | "props"; nodeId?: string | null },
-  ) => {
-    setState((prev) => {
-      const historyState = commitBuilderHistory(
-        {
-          history: prev.history,
-          historyIndex: prev.historyIndex,
-          lastCommit: prev.lastCommit,
-        },
-        nextPage,
-        {
-          mode: options?.mode ?? "push",
-          source: options?.source ?? "structure",
-          nodeId: options?.nodeId ?? preferredSelectedId ?? prev.selectedId ?? null,
-        },
-      );
-      const currentSelection = preferredSelectedId ?? prev.selectedId;
-      const selectedId =
-        currentSelection && findNodeById(nextPage, currentSelection) ? currentSelection : nextPage.id;
-      return {
-        ...prev,
-        dragPayload: null,
-        history: historyState.history,
-        historyIndex: historyState.historyIndex,
-        lastCommit: historyState.lastCommit,
-        selectedId,
-        dirty: true,
-      };
-    });
-  };
-
-  const handleUndo = useCallback(() => {
-    if (!canUndo) return;
-    setState((prev) => {
-      const nextIndex = prev.historyIndex - 1;
-      const nextPage = prev.history[nextIndex] ?? prev.history[0];
-      const nextSelected =
-        prev.selectedId && findNodeById(nextPage, prev.selectedId) ? prev.selectedId : nextPage.id;
-      return {
-        ...prev,
-        dragPayload: null,
-        historyIndex: nextIndex,
-        selectedId: nextSelected,
-        lastCommit: null,
-        dirty:
-          JSON.stringify(landingSectionsFromPage(nextPage)) !==
-          persistedSerializedRef.current,
-      };
-    });
-  }, [canUndo]);
-
-  const handleRedo = useCallback(() => {
-    if (!canRedo) return;
-    setState((prev) => {
-      const nextIndex = prev.historyIndex + 1;
-      const nextPage = prev.history[nextIndex] ?? prev.history[prev.history.length - 1];
-      const nextSelected =
-        prev.selectedId && findNodeById(nextPage, prev.selectedId) ? prev.selectedId : nextPage.id;
-      return {
-        ...prev,
-        dragPayload: null,
-        historyIndex: nextIndex,
-        selectedId: nextSelected,
-        lastCommit: null,
-        dirty:
-          JSON.stringify(landingSectionsFromPage(nextPage)) !==
-          persistedSerializedRef.current,
-      };
-    });
-  }, [canRedo]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -308,17 +192,17 @@ export function BuilderLandingEditorStep1({
       const key = event.key.toLowerCase();
       if (key === "z" && !event.shiftKey) {
         event.preventDefault();
-        handleUndo();
+        undo();
         return;
       }
       if (key === "y" || (key === "z" && event.shiftKey)) {
         event.preventDefault();
-        handleRedo();
+        redo();
       }
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [handleRedo, handleUndo]);
+  }, [redo, undo]);
 
   const applyDropAtSectionIndex = (index: number) => {
     const payload = state.dragPayload;
@@ -385,8 +269,8 @@ export function BuilderLandingEditorStep1({
           onBreakpointChange={(value) => setState((prev) => ({ ...prev, breakpoint: value }))}
           canUndo={canUndo}
           canRedo={canRedo}
-          onUndo={handleUndo}
-          onRedo={handleRedo}
+          onUndo={undo}
+          onRedo={redo}
           onSaveNow={() => void handleSaveNow()}
           previewHref={`/f/${funnelSlug}`}
           onBack={() => void handleBack()}
@@ -410,20 +294,29 @@ export function BuilderLandingEditorStep1({
         />
       }
       canvas={
-        <BuilderCanvas
+        <CanvasWysiwyg
           page={currentPage}
           breakpoint={state.breakpoint}
-          dragPayload={state.dragPayload}
           selectedId={state.selectedId}
           hoveredId={state.hoveredId}
+          dropIndicator={state.dropIndicator}
           onSelect={(id) => setState((prev) => ({ ...prev, selectedId: id }))}
           onHover={(id) => setState((prev) => ({ ...prev, hoveredId: id }))}
-          onDragPayloadChange={(payload) => setState((prev) => ({ ...prev, dragPayload: payload }))}
-          onDropAtSectionIndex={applyDropAtSectionIndex}
-          onDropAtColumnIndex={applyDropAtColumnIndex}
-          onMoveNode={(id, direction) => commitPage(moveNodeById(currentPage, id, direction))}
-          onDeleteNode={(id) => commitPage(removeNodeById(currentPage, id))}
-          onDuplicateNode={(id) => commitPage(duplicateNodeById(currentPage, id))}
+          onAddSection={() => commitPage(addElementAsSection(currentPage, "section"))}
+          onMoveSelected={(direction) => {
+            if (!state.selectedId) return;
+            commitPage(moveNodeById(currentPage, state.selectedId, direction), state.selectedId);
+          }}
+          onDeleteSelected={() => {
+            if (!state.selectedId) return;
+            commitPage(removeNodeById(currentPage, state.selectedId));
+          }}
+          onDropIndicatorChange={(indicator) =>
+            setState((prev) => ({
+              ...prev,
+              dropIndicator: indicator,
+            }))
+          }
         />
       }
       properties={
@@ -444,3 +337,8 @@ export function BuilderLandingEditorStep1({
 }
 
 export const BUILDER_STEP1_CATALOG = BUILDER_LIBRARY_ITEMS;
+
+// Paso 2/3 (scaffolding):
+// - applyDropAtSectionIndex / applyDropAtColumnIndex ya implementan mutaciones del modelo.
+// - CanvasWysiwyg expone onDropIndicatorChange para renderizar drop intent visual.
+// - En el siguiente paso solo faltaria conectar handlers dragstart/dragover/drop reales del canvas.
