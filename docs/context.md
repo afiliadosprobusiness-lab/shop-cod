@@ -95,11 +95,14 @@ Se mantienen rutas legacy del repo para compatibilidad tecnica, pero no forman p
 
 1. Paso 2 del wizard abre el editor de landing.
 2. El editor se muestra dentro del layout actual con:
-  - panel izquierdo (biblioteca de elementos drag&drop)
-  - canvas central (drop/reorder visual)
+  - panel izquierdo con tabs `Elements` y `Sections`
+  - buscador de bloques/secciones
+  - `Elements`: bloques drag&drop individuales
+  - `Sections`: presets basicos listos para insertar
+  - canvas central visual (drop/reorder + vista de diseno del bloque)
   - panel derecho (propiedades del bloque seleccionado)
   - guardado automatico con estado visible
-3. El editor soporta drag&drop vertical para reordenar bloques.
+3. El editor soporta drag&drop vertical para reordenar bloques y overlay visual al arrastrar.
 4. Bloques permitidos:
   - `hero`
   - `section`
@@ -113,6 +116,7 @@ Se mantienen rutas legacy del repo para compatibilidad tecnica, pero no forman p
   - `cod_form`
   - `footer`
 5. Se guarda JSON en `pages.content_json`.
+6. El canvas permite duplicar y eliminar bloques; el panel derecho permite mover arriba/abajo.
 
 ### Mobile Policy
 

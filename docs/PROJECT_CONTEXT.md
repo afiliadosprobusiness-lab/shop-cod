@@ -54,9 +54,13 @@ Legacy:
   - `payment_type`
   - `currency`
 3. Editar landing en paso 2 con editor visual dentro del layout actual:
-  - sidebar izquierda (biblioteca de bloques arrastrables)
-  - canvas central (drop/reorder)
+  - sidebar izquierda con tabs `Elements`/`Sections` y buscador
+  - `Elements`: bloques arrastrables individuales
+  - `Sections`: presets basicos para insertar rapido
+  - canvas central visual (drop/reorder + preview de diseno)
   - panel derecho (propiedades del bloque seleccionado)
+  - acciones por bloque: duplicar/eliminar
+  - reorden manual: subir/bajar desde propiedades
   - guardado automatico
   - selector de preview desktop/tablet/mobile
 4. En mobile no se permite editar; solo se muestran metricas/analisis.

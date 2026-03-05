@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   DndContext,
+  DragOverlay,
+  type DragStartEvent,
   type DragEndEvent,
   PointerSensor,
   closestCenter,
@@ -16,7 +18,7 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { AlertCircle, GripVertical, Monitor, Smartphone, Tablet } from "lucide-react";
+import { AlertCircle, Copy, GripVertical, Monitor, Search, Smartphone, Tablet, Trash2 } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -48,19 +50,40 @@ import { cn } from "@/lib/utils";
 type WizardStep = 1 | 2 | 3;
 type DeviceMode = "desktop" | "tablet" | "mobile";
 type SaveState = "idle" | "saving" | "saved" | "error";
+type LibraryTab = "elements" | "sections";
 
-const blockTypes: LandingBlockType[] = [
-  "hero",
-  "section",
-  "headline",
-  "text",
-  "image",
-  "video",
-  "button",
-  "testimonials",
-  "faq",
-  "cod_form",
-  "footer",
+interface LibraryElement {
+  type: LandingBlockType;
+  label: string;
+  description: string;
+}
+
+interface SectionPreset {
+  id: string;
+  label: string;
+  description: string;
+}
+
+const libraryElements: LibraryElement[] = [
+  { type: "hero", label: "Hero", description: "Encabezado principal con CTA." },
+  { type: "section", label: "Section", description: "Bloque para beneficios o detalles." },
+  { type: "headline", label: "Headline", description: "Titulo corto de impacto." },
+  { type: "text", label: "Text", description: "Parrafo explicativo." },
+  { type: "image", label: "Image", description: "Imagen del producto o uso." },
+  { type: "video", label: "Video", description: "Demo en video." },
+  { type: "button", label: "Button", description: "Boton de llamada a la accion." },
+  { type: "testimonials", label: "Testimonials", description: "Prueba social de clientes." },
+  { type: "faq", label: "FAQ", description: "Pregunta y respuesta." },
+  { type: "cod_form", label: "COD Form", description: "Formulario rapido contra entrega." },
+  { type: "footer", label: "Footer", description: "Pie de pagina simple." },
+];
+
+const sectionPresets: SectionPreset[] = [
+  { id: "hero-start", label: "Hero de conversion", description: "Hero + boton inicial para vender rapido." },
+  { id: "benefits", label: "Beneficios", description: "Titulo + texto + imagen de apoyo." },
+  { id: "social-proof", label: "Prueba social", description: "Headline + testimonios + CTA." },
+  { id: "faq-cod", label: "FAQ + COD", description: "Resuelve dudas y agrega formulario COD." },
+  { id: "closing", label: "Cierre", description: "Seccion final + boton + footer." },
 ];
 
 const blockLabel: Record<LandingBlockType, string> = {
@@ -77,21 +100,79 @@ const blockLabel: Record<LandingBlockType, string> = {
   footer: "Footer",
 };
 
+function createBlockId() {
+  return `blk_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+}
+
 function createBlock(type: LandingBlockType): LandingBlock {
-  const id = `blk_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  const id = createBlockId();
   if (type === "hero") {
-    return { id, type, title: "Hero principal", subtitle: "Subtitulo", text: "Comprar ahora", href: "#checkout" };
+    return {
+      id,
+      type,
+      title: "Oferta principal",
+      subtitle: "Explica en una frase clara por que tu producto vale la pena.",
+      text: "Comprar ahora",
+      href: "#checkout",
+    };
   }
-  if (type === "section") return { id, type, title: "Seccion", content: "Contenido" };
-  if (type === "headline") return { id, type, content: "Titulo de alto impacto" };
-  if (type === "text") return { id, type, content: "Texto descriptivo." };
-  if (type === "image") return { id, type, src: "https://images.unsplash.com/photo-1523275335684-37898b6baf30" };
+  if (type === "section") {
+    return {
+      id,
+      type,
+      title: "Beneficio clave",
+      content: "Explica el resultado que consigue el cliente.",
+    };
+  }
+  if (type === "headline") return { id, type, content: "Convierte mas con este producto" };
+  if (type === "text") {
+    return {
+      id,
+      type,
+      content: "Escribe aqui un texto corto y directo. Evita parrafos largos y enfoca la promesa principal.",
+    };
+  }
+  if (type === "image") {
+    return {
+      id,
+      type,
+      src: "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=1400&q=80&auto=format&fit=crop",
+    };
+  }
   if (type === "video") return { id, type, src: "https://www.youtube.com/embed/dQw4w9WgXcQ" };
-  if (type === "button") return { id, type, text: "Comprar ahora", href: "#checkout" };
-  if (type === "testimonials") return { id, type, content: "Cliente A: Excelente." };
-  if (type === "faq") return { id, type, question: "Pregunta frecuente", answer: "Respuesta breve." };
-  if (type === "cod_form") return { id, type, title: "Formulario COD", text: "Confirm Order" };
+  if (type === "button") return { id, type, text: "Ir al checkout", href: "#checkout" };
+  if (type === "testimonials") return { id, type, content: '"Me llego rapido y funciona perfecto." - Cliente verificado' };
+  if (type === "faq") return { id, type, question: "Cuanto tarda el envio?", answer: "Depende de tu ciudad. Normalmente entre 24 y 72 horas." };
+  if (type === "cod_form") return { id, type, title: "Pedido contra entrega", text: "Confirm Order" };
   return { id, type: "footer", content: "Copyright 2026 - Todos los derechos reservados." };
+}
+
+function createPresetBlocks(presetId: string): LandingBlock[] {
+  if (presetId === "hero-start") {
+    return [createBlock("hero"), { ...createBlock("button"), text: "Comprar ahora", href: "#checkout" }];
+  }
+  if (presetId === "benefits") {
+    return [
+      { ...createBlock("headline"), content: "Beneficios que el cliente siente desde el dia 1" },
+      { ...createBlock("section"), title: "Por que funciona", content: "Beneficio 1\nBeneficio 2\nBeneficio 3" },
+      createBlock("image"),
+    ];
+  }
+  if (presetId === "social-proof") {
+    return [
+      { ...createBlock("headline"), content: "Clientes reales, resultados reales" },
+      createBlock("testimonials"),
+      { ...createBlock("button"), text: "Quiero este producto" },
+    ];
+  }
+  if (presetId === "faq-cod") {
+    return [createBlock("faq"), createBlock("faq"), createBlock("cod_form")];
+  }
+  return [
+    { ...createBlock("section"), title: "Ultimo paso", content: "Recuerda la oferta y refuerza urgencia en una frase." },
+    { ...createBlock("button"), text: "Finalizar compra" },
+    createBlock("footer"),
+  ];
 }
 
 function SaveStatus({ state, at }: { state: SaveState; at: string | null }) {
@@ -102,21 +183,163 @@ function SaveStatus({ state, at }: { state: SaveState; at: string | null }) {
   return <p className="text-xs text-muted-foreground">Sin cambios pendientes</p>;
 }
 
-function LibraryItem({ type }: { type: LandingBlockType }) {
-  const { setNodeRef, listeners, attributes, isDragging } = useDraggable({ id: `lib-${type}` });
+function LibraryItem({ element }: { element: LibraryElement }) {
+  const { setNodeRef, listeners, attributes, isDragging } = useDraggable({ id: `lib-${element.type}` });
   return (
     <button
       ref={setNodeRef}
       type="button"
       className={cn(
-        "w-full rounded-xl border border-border bg-card px-3 py-2 text-left text-sm hover:border-primary/40",
+        "w-full rounded-xl border border-border bg-card px-3 py-2 text-left transition-colors hover:border-primary/45 hover:bg-secondary/20",
         isDragging ? "opacity-50" : "",
       )}
       {...listeners}
       {...attributes}
     >
-      + {blockLabel[type]}
+      <p className="text-sm font-medium">{element.label}</p>
+      <p className="mt-1 text-xs text-muted-foreground">{element.description}</p>
     </button>
+  );
+}
+
+function SectionPresetCard({ preset, onAdd }: { preset: SectionPreset; onAdd: (presetId: string) => void }) {
+  return (
+    <article className="rounded-xl border border-border bg-card p-3">
+      <p className="text-sm font-semibold">{preset.label}</p>
+      <p className="mt-1 text-xs text-muted-foreground">{preset.description}</p>
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        className="mt-3 h-8 rounded-lg text-xs"
+        onClick={() => onAdd(preset.id)}
+      >
+        Agregar preset
+      </Button>
+    </article>
+  );
+}
+
+function BlockPreview({ block }: { block: LandingBlock }) {
+  if (block.type === "hero") {
+    return (
+      <div className="overflow-hidden rounded-xl border border-primary/25 bg-gradient-to-br from-primary/20 via-secondary/30 to-background p-5">
+        <h3 className="text-2xl font-semibold leading-tight">{block.title || "Hero principal"}</h3>
+        <p className="mt-2 max-w-xl text-sm text-muted-foreground">{block.subtitle || "Subtitulo del hero"}</p>
+        <div className="mt-4 inline-flex rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground">
+          {block.text || "Comprar ahora"}
+        </div>
+      </div>
+    );
+  }
+
+  if (block.type === "section") {
+    return (
+      <div className="rounded-xl border border-border bg-card p-4">
+        <h4 className="text-lg font-semibold">{block.title || "Seccion"}</h4>
+        <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-muted-foreground">{block.content || "Contenido"}</p>
+      </div>
+    );
+  }
+
+  if (block.type === "headline") {
+    return (
+      <div className="rounded-xl border border-border bg-card p-5 text-center">
+        <h3 className="text-2xl font-bold leading-tight">{block.content || "Headline"}</h3>
+      </div>
+    );
+  }
+
+  if (block.type === "text") {
+    return (
+      <div className="rounded-xl border border-border bg-card p-5">
+        <p className="whitespace-pre-wrap text-sm leading-7 text-muted-foreground">{block.content || "Texto descriptivo"}</p>
+      </div>
+    );
+  }
+
+  if (block.type === "image") {
+    return (
+      <div className="overflow-hidden rounded-xl border border-border bg-card">
+        {block.src ? (
+          <img src={block.src} alt="Preview bloque imagen" className="h-52 w-full object-cover" />
+        ) : (
+          <div className="flex h-52 items-center justify-center text-sm text-muted-foreground">Agrega URL de imagen</div>
+        )}
+      </div>
+    );
+  }
+
+  if (block.type === "video") {
+    return (
+      <div className="rounded-xl border border-border bg-card p-3">
+        <div className="aspect-video overflow-hidden rounded-lg border border-border bg-background">
+          {block.src ? (
+            <iframe
+              title="Preview bloque video"
+              src={block.src}
+              className="h-full w-full"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowFullScreen
+            />
+          ) : (
+            <div className="flex h-full items-center justify-center text-sm text-muted-foreground">Agrega URL embed de video</div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  if (block.type === "button") {
+    return (
+      <div className="rounded-xl border border-border bg-card p-5 text-center">
+        <span className="inline-flex rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground">
+          {block.text || "Boton"}
+        </span>
+        <p className="mt-2 text-xs text-muted-foreground">{block.href || "#checkout"}</p>
+      </div>
+    );
+  }
+
+  if (block.type === "testimonials") {
+    return (
+      <div className="rounded-xl border border-border bg-card p-5">
+        <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Testimonials</p>
+        <p className="mt-2 text-sm leading-6">{block.content || "Testimonio"}</p>
+      </div>
+    );
+  }
+
+  if (block.type === "faq") {
+    return (
+      <div className="rounded-xl border border-border bg-card p-5">
+        <p className="text-sm font-semibold">{block.question || "Pregunta frecuente"}</p>
+        <p className="mt-2 text-sm leading-6 text-muted-foreground">{block.answer || "Respuesta breve"}</p>
+      </div>
+    );
+  }
+
+  if (block.type === "cod_form") {
+    return (
+      <div className="rounded-xl border border-border bg-card p-5">
+        <p className="text-sm font-semibold">{block.title || "Formulario COD"}</p>
+        <div className="mt-3 grid gap-2 sm:grid-cols-2">
+          <div className="h-9 rounded-lg border border-border bg-background px-3 py-2 text-xs text-muted-foreground">Nombre</div>
+          <div className="h-9 rounded-lg border border-border bg-background px-3 py-2 text-xs text-muted-foreground">Telefono</div>
+          <div className="h-9 rounded-lg border border-border bg-background px-3 py-2 text-xs text-muted-foreground sm:col-span-2">Direccion</div>
+          <div className="h-9 rounded-lg border border-border bg-background px-3 py-2 text-xs text-muted-foreground sm:col-span-2">Ciudad</div>
+        </div>
+        <span className="mt-3 inline-flex rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground">
+          {block.text || "Confirm Order"}
+        </span>
+      </div>
+    );
+  }
+
+  return (
+    <footer className="rounded-xl border border-border bg-card p-4 text-center">
+      <p className="text-xs text-muted-foreground">{block.content || "Copyright 2026 - Todos los derechos reservados."}</p>
+    </footer>
   );
 }
 
@@ -125,47 +348,65 @@ function CanvasCard({
   selected,
   onSelect,
   onDelete,
+  onDuplicate,
 }: {
   block: LandingBlock;
   selected: boolean;
   onSelect: () => void;
   onDelete: () => void;
+  onDuplicate: () => void;
 }) {
   const { setNodeRef, transform, transition, attributes, listeners } = useSortable({ id: block.id });
   return (
     <article
       ref={setNodeRef}
       style={{ transform: CSS.Transform.toString(transform), transition }}
-      className={cn("rounded-xl border bg-card p-3", selected ? "border-primary" : "border-border")}
+      className={cn("rounded-xl border p-3 transition-colors", selected ? "border-primary bg-primary/5" : "border-border bg-secondary/10")}
       onClick={onSelect}
     >
-      <div className="mb-2 flex items-center justify-between gap-2">
+      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <button
             type="button"
             aria-label="Mover bloque"
-            className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-secondary/20"
+            className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-card text-muted-foreground hover:text-foreground"
             {...listeners}
             {...attributes}
           >
             <GripVertical className="h-4 w-4" />
           </button>
-          <span className="rounded-full border border-border bg-secondary/20 px-2 py-1 text-xs">{blockLabel[block.type]}</span>
+          <span className="rounded-full border border-border bg-card px-2 py-1 text-xs font-medium">{blockLabel[block.type]}</span>
         </div>
-        <Button
-          type="button"
-          size="sm"
-          variant="ghost"
-          className="rounded-lg text-destructive hover:text-destructive"
-          onClick={(event) => {
-            event.stopPropagation();
-            onDelete();
-          }}
-        >
-          Eliminar
-        </Button>
+        <div className="flex items-center gap-1">
+          <Button
+            type="button"
+            size="icon"
+            variant="ghost"
+            className="h-8 w-8 rounded-lg"
+            onClick={(event) => {
+              event.stopPropagation();
+              onDuplicate();
+            }}
+            aria-label="Duplicar bloque"
+          >
+            <Copy className="h-4 w-4" />
+          </Button>
+          <Button
+            type="button"
+            size="icon"
+            variant="ghost"
+            className="h-8 w-8 rounded-lg text-destructive hover:text-destructive"
+            onClick={(event) => {
+              event.stopPropagation();
+              onDelete();
+            }}
+            aria-label="Eliminar bloque"
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </div>
       </div>
-      <p className="text-sm text-foreground">{block.title || block.content || block.text || block.question || "Bloque visual"}</p>
+      <BlockPreview block={block} />
     </article>
   );
 }
@@ -177,6 +418,9 @@ export default function FunnelWorkspacePage() {
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
   const [step, setStep] = useState<WizardStep>(1);
   const [deviceMode, setDeviceMode] = useState<DeviceMode>("desktop");
+  const [libraryTab, setLibraryTab] = useState<LibraryTab>("elements");
+  const [libraryQuery, setLibraryQuery] = useState("");
+  const [activeDragId, setActiveDragId] = useState<string | null>(null);
   const [productName, setProductName] = useState("");
   const [productPrice, setProductPrice] = useState("0");
   const [productType, setProductType] = useState<ProductType>("physical");
@@ -199,6 +443,26 @@ export default function FunnelWorkspacePage() {
     () => landingSections.find((item) => item.id === selectedBlockId) ?? null,
     [landingSections, selectedBlockId],
   );
+  const selectedBlockIndex = useMemo(
+    () => landingSections.findIndex((item) => item.id === selectedBlockId),
+    [landingSections, selectedBlockId],
+  );
+  const filteredElements = useMemo(() => {
+    const q = libraryQuery.trim().toLowerCase();
+    if (!q) return libraryElements;
+    return libraryElements.filter(
+      (item) =>
+        item.label.toLowerCase().includes(q) || item.description.toLowerCase().includes(q),
+    );
+  }, [libraryQuery]);
+  const filteredPresets = useMemo(() => {
+    const q = libraryQuery.trim().toLowerCase();
+    if (!q) return sectionPresets;
+    return sectionPresets.filter(
+      (item) =>
+        item.label.toLowerCase().includes(q) || item.description.toLowerCase().includes(q),
+    );
+  }, [libraryQuery]);
   const { setNodeRef: setCanvasDropRef, isOver } = useDroppable({ id: "canvas-drop" });
 
   useEffect(() => {
@@ -214,6 +478,12 @@ export default function FunnelWorkspacePage() {
     setSelectedBlockId(sections[0]?.id ?? null);
     setOffers(getFunnelOffers(funnel.id));
   }, [funnel]);
+
+  useEffect(() => {
+    if (!selectedBlockId) return;
+    if (landingSections.some((item) => item.id === selectedBlockId)) return;
+    setSelectedBlockId(landingSections[0]?.id ?? null);
+  }, [landingSections, selectedBlockId]);
 
   useEffect(() => {
     if (!funnel || isMobile || step !== 2) return;
@@ -285,8 +555,19 @@ export default function FunnelWorkspacePage() {
   }
 
   const canContinue = Boolean(productName.trim()) && Number(productPrice) > 0;
+  const canvasWidthClass =
+    deviceMode === "desktop"
+      ? "mx-auto max-w-[1040px]"
+      : deviceMode === "tablet"
+        ? "mx-auto max-w-[760px]"
+        : "mx-auto max-w-[420px]";
+
+  const onDragStart = (event: DragStartEvent) => {
+    setActiveDragId(String(event.active.id));
+  };
 
   const onDragEnd = (event: DragEndEvent) => {
+    setActiveDragId(null);
     const active = String(event.active.id);
     const over = event.over ? String(event.over.id) : null;
     if (!over) return;
@@ -315,6 +596,40 @@ export default function FunnelWorkspacePage() {
     });
   };
 
+  const addPreset = (presetId: string) => {
+    const blocks = createPresetBlocks(presetId);
+    setLandingSections((current) => [...current, ...blocks]);
+    setSelectedBlockId(blocks[0]?.id ?? null);
+  };
+
+  const duplicateBlock = (block: LandingBlock) => {
+    const clone: LandingBlock = { ...block, id: createBlockId() };
+    setLandingSections((current) => {
+      const index = current.findIndex((item) => item.id === block.id);
+      if (index < 0) return [...current, clone];
+      return [...current.slice(0, index + 1), clone, ...current.slice(index + 1)];
+    });
+    setSelectedBlockId(clone.id);
+  };
+
+  const removeBlock = (blockId: string) => {
+    setLandingSections((current) => current.filter((item) => item.id !== blockId));
+    if (selectedBlockId === blockId) {
+      setSelectedBlockId(null);
+    }
+  };
+
+  const moveSelected = (direction: "up" | "down") => {
+    if (!selectedBlockId) return;
+    setLandingSections((current) => {
+      const index = current.findIndex((item) => item.id === selectedBlockId);
+      if (index < 0) return current;
+      const target = direction === "up" ? index - 1 : index + 1;
+      if (target < 0 || target >= current.length) return current;
+      return arrayMove(current, index, target);
+    });
+  };
+
   const updateSelected = (patch: Partial<LandingBlock>) => {
     if (!selectedBlock) return;
     setLandingSections((current) => current.map((item) => (item.id === selectedBlock.id ? { ...item, ...patch } : item)));
@@ -340,6 +655,10 @@ export default function FunnelWorkspacePage() {
       setOffersSaveState("error");
     }
   };
+
+  const activeDragElement = activeDragId?.startsWith("lib-")
+    ? libraryElements.find((item) => `lib-${item.type}` === activeDragId)
+    : null;
 
   return (
     <main className="mx-auto w-full max-w-[1500px] space-y-5 px-4 py-6 sm:px-6 lg:px-8">
@@ -428,9 +747,9 @@ export default function FunnelWorkspacePage() {
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <div className="inline-flex rounded-lg border border-border bg-background p-1">
-                <button type="button" className={cn("rounded-md px-2 py-1", deviceMode === "desktop" ? "bg-primary/15 text-primary" : "")} onClick={() => setDeviceMode("desktop")}><Monitor className="h-4 w-4" /></button>
-                <button type="button" className={cn("rounded-md px-2 py-1", deviceMode === "tablet" ? "bg-primary/15 text-primary" : "")} onClick={() => setDeviceMode("tablet")}><Tablet className="h-4 w-4" /></button>
-                <button type="button" className={cn("rounded-md px-2 py-1", deviceMode === "mobile" ? "bg-primary/15 text-primary" : "")} onClick={() => setDeviceMode("mobile")}><Smartphone className="h-4 w-4" /></button>
+                <button type="button" className={cn("rounded-md px-2 py-1", deviceMode === "desktop" ? "bg-primary/15 text-primary" : "")} onClick={() => setDeviceMode("desktop")} aria-label="Vista desktop"><Monitor className="h-4 w-4" /></button>
+                <button type="button" className={cn("rounded-md px-2 py-1", deviceMode === "tablet" ? "bg-primary/15 text-primary" : "")} onClick={() => setDeviceMode("tablet")} aria-label="Vista tablet"><Tablet className="h-4 w-4" /></button>
+                <button type="button" className={cn("rounded-md px-2 py-1", deviceMode === "mobile" ? "bg-primary/15 text-primary" : "")} onClick={() => setDeviceMode("mobile")} aria-label="Vista mobile"><Smartphone className="h-4 w-4" /></button>
               </div>
               <Button type="button" variant="outline" size="sm" className="rounded-lg" onClick={saveNowLanding}>Guardar ahora</Button>
               <Button type="button" variant="outline" size="sm" className="rounded-lg" onClick={() => setStep(1)}>Volver</Button>
@@ -438,45 +757,100 @@ export default function FunnelWorkspacePage() {
             </div>
           </div>
 
-          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
-            <div className="grid gap-3 lg:grid-cols-[260px_minmax(0,1fr)_300px]">
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={onDragStart} onDragEnd={onDragEnd}>
+            <div className="grid gap-3 lg:grid-cols-[280px_minmax(0,1fr)_320px]">
               <aside className="rounded-xl border border-border bg-secondary/15 p-3">
                 <p className="text-sm font-semibold">Build Your Page</p>
-                <p className="mt-1 text-xs text-muted-foreground">Arrastra elementos al canvas.</p>
-                <div className="mt-3 space-y-2">{blockTypes.map((type) => <LibraryItem key={type} type={type} />)}</div>
+                <p className="mt-1 text-xs text-muted-foreground">Arrastra elementos o agrega presets.</p>
+                <div className="mt-3 inline-flex w-full rounded-lg border border-border bg-background p-1">
+                  <button
+                    type="button"
+                    className={cn(
+                      "flex-1 rounded-md px-2 py-1 text-sm",
+                      libraryTab === "elements" ? "bg-primary/15 text-primary" : "text-muted-foreground",
+                    )}
+                    onClick={() => setLibraryTab("elements")}
+                  >
+                    Elements
+                  </button>
+                  <button
+                    type="button"
+                    className={cn(
+                      "flex-1 rounded-md px-2 py-1 text-sm",
+                      libraryTab === "sections" ? "bg-primary/15 text-primary" : "text-muted-foreground",
+                    )}
+                    onClick={() => setLibraryTab("sections")}
+                  >
+                    Sections
+                  </button>
+                </div>
+                <div className="relative mt-3">
+                  <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    value={libraryQuery}
+                    onChange={(event) => setLibraryQuery(event.target.value)}
+                    className="pl-9"
+                    placeholder="Buscar bloque o seccion"
+                  />
+                </div>
+                {libraryTab === "elements" ? (
+                  <div className="mt-3 space-y-2">
+                    {filteredElements.map((element) => <LibraryItem key={element.type} element={element} />)}
+                    {!filteredElements.length ? (
+                      <p className="rounded-lg border border-border bg-card px-3 py-4 text-xs text-muted-foreground">
+                        No hay elementos para esta busqueda.
+                      </p>
+                    ) : null}
+                  </div>
+                ) : (
+                  <div className="mt-3 space-y-2">
+                    {filteredPresets.map((preset) => <SectionPresetCard key={preset.id} preset={preset} onAdd={addPreset} />)}
+                    {!filteredPresets.length ? (
+                      <p className="rounded-lg border border-border bg-card px-3 py-4 text-xs text-muted-foreground">
+                        No hay secciones para esta busqueda.
+                      </p>
+                    ) : null}
+                  </div>
+                )}
               </aside>
 
               <section className="rounded-xl border border-border bg-background p-3">
+                <div className="mb-2 flex items-center justify-between">
+                  <p className="text-sm font-semibold">Canvas</p>
+                  <p className="text-xs text-muted-foreground">Reordena con drag & drop</p>
+                </div>
                 <div
                   ref={setCanvasDropRef}
                   className={cn(
                     "min-h-[620px] rounded-xl border border-dashed p-3 transition-colors",
-                    isOver ? "border-primary/60 bg-primary/5" : "border-border",
-                    deviceMode === "desktop" ? "mx-auto max-w-[980px]" : deviceMode === "tablet" ? "mx-auto max-w-[760px]" : "mx-auto max-w-[420px]",
+                    isOver ? "border-primary/65 bg-primary/5" : "border-border bg-secondary/5",
                   )}
                 >
-                  {landingSections.length ? (
-                    <SortableContext items={landingSections.map((s) => s.id)} strategy={verticalListSortingStrategy}>
-                      <div className="space-y-3">
-                        {landingSections.map((block) => (
-                          <CanvasCard
-                            key={block.id}
-                            block={block}
-                            selected={selectedBlockId === block.id}
-                            onSelect={() => setSelectedBlockId(block.id)}
-                            onDelete={() => {
-                              setLandingSections((c) => c.filter((i) => i.id !== block.id));
-                              if (selectedBlockId === block.id) setSelectedBlockId(null);
-                            }}
-                          />
-                        ))}
+                  <div className={cn("min-h-[595px]", canvasWidthClass)}>
+                    {landingSections.length ? (
+                      <SortableContext items={landingSections.map((s) => s.id)} strategy={verticalListSortingStrategy}>
+                        <div className="space-y-3">
+                          {landingSections.map((block) => (
+                            <CanvasCard
+                              key={block.id}
+                              block={block}
+                              selected={selectedBlockId === block.id}
+                              onSelect={() => setSelectedBlockId(block.id)}
+                              onDelete={() => removeBlock(block.id)}
+                              onDuplicate={() => duplicateBlock(block)}
+                            />
+                          ))}
+                        </div>
+                      </SortableContext>
+                    ) : (
+                      <div className="flex min-h-[580px] flex-col items-center justify-center rounded-lg border border-dashed border-border text-center">
+                        <p className="text-sm font-medium">Tu canvas esta vacio</p>
+                        <p className="mt-1 text-sm text-muted-foreground">
+                          Arrastra un bloque desde la izquierda o agrega una seccion base.
+                        </p>
                       </div>
-                    </SortableContext>
-                  ) : (
-                    <div className="flex min-h-[580px] items-center justify-center rounded-lg border border-dashed border-border text-sm text-muted-foreground">
-                      Arrastra un bloque desde la izquierda.
-                    </div>
-                  )}
+                    )}
+                  </div>
                 </div>
               </section>
 
@@ -485,8 +859,19 @@ export default function FunnelWorkspacePage() {
                 {!selectedBlock ? (
                   <p className="mt-2 text-xs text-muted-foreground">Selecciona un bloque del canvas.</p>
                 ) : (
-                  <div className="mt-3 space-y-2">
-                    <div className="rounded-lg border border-border bg-card px-2 py-1 text-xs">{blockLabel[selectedBlock.type]}</div>
+                  <div className="mt-3 space-y-3">
+                    <div className="rounded-lg border border-border bg-card px-2 py-1 text-xs">
+                      {blockLabel[selectedBlock.type]} ({selectedBlockIndex + 1}/{landingSections.length})
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2">
+                      <Button type="button" variant="outline" size="sm" className="rounded-lg" disabled={selectedBlockIndex <= 0} onClick={() => moveSelected("up")}>
+                        Subir
+                      </Button>
+                      <Button type="button" variant="outline" size="sm" className="rounded-lg" disabled={selectedBlockIndex < 0 || selectedBlockIndex >= landingSections.length - 1} onClick={() => moveSelected("down")}>
+                        Bajar
+                      </Button>
+                    </div>
 
                     {(selectedBlock.type === "hero" || selectedBlock.type === "section" || selectedBlock.type === "cod_form") && (
                       <>
@@ -542,6 +927,14 @@ export default function FunnelWorkspacePage() {
                 )}
               </aside>
             </div>
+            <DragOverlay>
+              {activeDragElement ? (
+                <div className="rounded-xl border border-primary/45 bg-card px-3 py-2 shadow-lg">
+                  <p className="text-sm font-medium">{activeDragElement.label}</p>
+                  <p className="mt-0.5 text-xs text-muted-foreground">{activeDragElement.description}</p>
+                </div>
+              ) : null}
+            </DragOverlay>
           </DndContext>
         </section>
       ) : null}
