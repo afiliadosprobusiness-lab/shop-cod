@@ -1,7 +1,6 @@
 import { useDraggable } from "@dnd-kit/core";
 import { CSS } from "@dnd-kit/utilities";
 import { Code2, Layers3, Plus, Settings2, Sparkles, Wand2 } from "lucide-react";
-import { BuilderBlockCard, BuilderSidebar } from "@/builders/shared";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -53,26 +52,27 @@ function PaletteItem({
       {...listeners}
       style={style}
       onDoubleClick={() => onAddBlock(type)}
-      className={cn("w-full text-left", isDragging ? "opacity-60" : "")}
+      className={cn(
+        "w-full rounded-xl border border-slate-700 bg-slate-950/80 p-3 text-left transition-colors hover:border-cyan-400/40",
+        isDragging ? "opacity-60" : "",
+      )}
     >
-      <BuilderBlockCard interactive className="rounded-2xl border-slate-700/70 bg-slate-900/80 p-3 shadow-none">
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <p className="text-sm font-semibold text-slate-100">{label}</p>
-            <p className="mt-1 text-xs leading-5 text-slate-400">{description}</p>
-          </div>
-          <span className="inline-flex h-8 w-8 items-center justify-center rounded-xl border border-slate-700 bg-slate-950 text-slate-200">
-            <Plus className="h-4 w-4" />
-          </span>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-sm font-medium text-slate-100">{label}</p>
+          <p className="mt-1 text-xs leading-5 text-slate-400">{description}</p>
         </div>
-      </BuilderBlockCard>
+        <span className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-slate-700 bg-slate-900 text-slate-200">
+          <Plus className="h-4 w-4" />
+        </span>
+      </div>
     </button>
   );
 }
 
 function EmptyInspector({ label }: { label: string }) {
   return (
-    <div className="rounded-2xl border border-dashed border-slate-700 bg-slate-900/70 p-4 text-sm text-slate-400">
+    <div className="rounded-xl border border-dashed border-slate-700 bg-slate-950/70 p-4 text-sm text-slate-400">
       {label}
     </div>
   );
@@ -97,14 +97,21 @@ export function PageBuilderSidebar({
   );
 
   return (
-    <BuilderSidebar
-      eyebrow="Builder panel"
-      description="Elements, layers y contenido del nodo activo."
-      icon={<Sparkles className="h-5 w-5 text-cyan-200" />}
-      className="max-w-sm xl:w-[19rem]"
-    >
-      <Tabs defaultValue="elements" className="mt-4">
-        <TabsList className="grid h-auto w-full grid-cols-3 gap-1 rounded-xl border border-slate-700 bg-slate-900 p-1">
+    <aside className="w-full rounded-2xl border border-slate-700/80 bg-[#0a1020] p-3 shadow-[0_24px_80px_rgba(2,6,23,0.35)] xl:w-[18rem]">
+      <header className="mb-3 rounded-xl border border-slate-700 bg-slate-950/70 p-3">
+        <div className="flex items-center gap-2">
+          <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-cyan-400/20 text-cyan-200">
+            <Sparkles className="h-4 w-4" />
+          </span>
+          <div>
+            <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-cyan-300">Left panel</p>
+            <p className="text-xs text-slate-400">Elements, layers y contenido</p>
+          </div>
+        </div>
+      </header>
+
+      <Tabs defaultValue="elements" className="mt-2">
+        <TabsList className="grid h-auto w-full grid-cols-3 gap-1 rounded-xl border border-slate-700 bg-slate-950/80 p-1">
           <TabsTrigger value="elements" className="rounded-lg px-2 text-[11px]">
             Elements
           </TabsTrigger>
@@ -117,16 +124,16 @@ export function PageBuilderSidebar({
         </TabsList>
 
         <TabsContent value="elements" className="space-y-4">
-          <div className="max-h-[62vh] space-y-4 overflow-y-auto pr-1">
+          <div className="max-h-[72vh] space-y-4 overflow-y-auto pr-1">
             {Object.entries(groupedCatalog).map(([group, items]) => (
-              <div key={group} className="space-y-3">
+              <div key={group} className="space-y-2.5">
                 <div className="flex items-center gap-2">
                   <Wand2 className="h-4 w-4 text-cyan-200" />
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">
                     {group}
                   </p>
                 </div>
-                <div className="space-y-2.5">
+                <div className="space-y-2">
                   {items.map((item) => (
                     <PaletteItem
                       key={item.type}
@@ -143,48 +150,46 @@ export function PageBuilderSidebar({
         </TabsContent>
 
         <TabsContent value="layers" className="space-y-3">
-          <div className="max-h-[62vh] space-y-2 overflow-y-auto pr-1">
+          <div className="max-h-[72vh] space-y-2 overflow-y-auto pr-1">
             {layers.map(({ block, depth }) => (
               <button
                 key={block.id}
                 type="button"
                 onClick={() => onSelect(block.id)}
                 className={cn(
-                  "flex w-full items-center gap-3 rounded-xl border px-3 py-2.5 text-left transition-colors",
+                  "flex w-full items-center gap-2 rounded-xl border px-3 py-2 text-left transition-colors",
                   selectedId === block.id
-                    ? "border-cyan-400/40 bg-cyan-500/10"
-                    : "border-slate-700 bg-slate-900/70 hover:border-slate-500",
+                    ? "border-cyan-400/50 bg-cyan-400/10"
+                    : "border-slate-700 bg-slate-950/70 hover:border-slate-500",
                 )}
               >
                 <span
-                  className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-700 bg-slate-950 text-slate-200"
+                  className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-slate-700 bg-slate-900 text-slate-300"
                   style={{ marginLeft: `${depth * 10}px` }}
                 >
                   <Layers3 className="h-4 w-4" />
                 </span>
                 <div className="min-w-0">
-                  <p className="text-sm font-semibold text-slate-100">{block.type}</p>
-                  <p className="truncate text-xs text-slate-400">{block.id}</p>
+                  <p className="truncate text-xs font-semibold text-slate-100">{block.type}</p>
+                  <p className="truncate text-[11px] text-slate-400">{block.id}</p>
                 </div>
               </button>
             ))}
           </div>
         </TabsContent>
 
-        <TabsContent value="settings" className="space-y-4">
+        <TabsContent value="settings" className="space-y-3">
           {!selectedBlock ? (
             <EmptyInspector label="Selecciona un bloque para editar contenido y revisar su JSON." />
           ) : (
             <>
-              <div className="rounded-2xl border border-slate-700 bg-slate-900/80 p-4">
+              <div className="rounded-xl border border-slate-700 bg-slate-950/70 p-3">
                 <div className="flex items-center gap-2">
                   <Settings2 className="h-4 w-4 text-cyan-200" />
-                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">
-                    Nodo activo
-                  </p>
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">Bloque activo</p>
                 </div>
-                <p className="mt-3 text-sm font-semibold text-slate-100">{selectedBlock.type}</p>
-                <p className="mt-1 break-all text-xs text-slate-400">{selectedBlock.id}</p>
+                <p className="mt-2 text-sm font-semibold text-slate-100">{selectedBlock.type}</p>
+                <p className="mt-1 break-all text-[11px] text-slate-400">{selectedBlock.id}</p>
               </div>
 
               <div className="max-h-[34vh] space-y-3 overflow-y-auto pr-1">
@@ -198,10 +203,10 @@ export function PageBuilderSidebar({
                     field.toLowerCase().includes("summary");
 
                   return (
-                    <div key={`${selectedBlock.id}-${field}`} className="space-y-2">
+                    <div key={`${selectedBlock.id}-${field}`} className="space-y-1.5">
                       <Label
                         htmlFor={`content-${selectedBlock.id}-${field}`}
-                        className="text-xs uppercase tracking-[0.14em] text-slate-400"
+                        className="text-[10px] uppercase tracking-[0.16em] text-slate-400"
                       >
                         {field}
                       </Label>
@@ -210,14 +215,14 @@ export function PageBuilderSidebar({
                           id={`content-${selectedBlock.id}-${field}`}
                           value={value}
                           onChange={(event) => onUpdateContent(field, event.target.value)}
-                          className="min-h-[90px] border-slate-700 bg-slate-900/70 text-slate-100"
+                          className="min-h-[84px] border-slate-700 bg-slate-950/80 text-slate-100"
                         />
                       ) : (
                         <Input
                           id={`content-${selectedBlock.id}-${field}`}
                           value={value}
                           onChange={(event) => onUpdateContent(field, event.target.value)}
-                          className="border-slate-700 bg-slate-900/70 text-slate-100"
+                          className="h-9 border-slate-700 bg-slate-950/80 text-slate-100"
                         />
                       )}
                     </div>
@@ -227,19 +232,17 @@ export function PageBuilderSidebar({
             </>
           )}
 
-          <div className="rounded-2xl border border-slate-700 bg-slate-900/80 p-4">
+          <div className="rounded-xl border border-slate-700 bg-slate-950/70 p-3">
             <div className="flex items-center gap-2">
               <Code2 className="h-4 w-4 text-cyan-200" />
-              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">
-                page_json
-              </p>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">page_json</p>
             </div>
-            <pre className="mt-3 max-h-48 overflow-auto rounded-xl border border-slate-700 bg-slate-950 p-3 text-[11px] leading-5 text-slate-300">
+            <pre className="mt-2 max-h-44 overflow-auto rounded-lg border border-slate-700 bg-slate-950 p-2 text-[10px] leading-5 text-slate-300">
               {pageJson}
             </pre>
           </div>
         </TabsContent>
       </Tabs>
-    </BuilderSidebar>
+    </aside>
   );
 }

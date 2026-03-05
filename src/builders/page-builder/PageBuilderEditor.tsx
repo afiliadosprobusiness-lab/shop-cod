@@ -118,33 +118,36 @@ export function PageBuilderEditor({
           />
         }
       >
-        <div className="grid grid-cols-1 gap-5 xl:grid-cols-[19rem_minmax(0,1fr)_20rem]">
-          <PageBuilderSidebar
-            blocks={blocks}
-            selectedBlock={selectedBlock}
-            selectedId={selectedId}
-            pageJson={pageJson}
-            onSelect={setSelectedId}
-            onAddBlock={addBlock}
-            onUpdateContent={updateSelectedContent}
-          />
+        <div className="relative overflow-hidden rounded-2xl border border-slate-700/80 bg-[#070d1a] p-3 shadow-[0_34px_120px_rgba(2,6,23,0.5)]">
+          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_0%_0%,rgba(14,165,233,0.1),transparent_35%),radial-gradient(circle_at_100%_100%,rgba(56,189,248,0.08),transparent_35%)]" />
+          <div className="relative grid grid-cols-1 gap-3 xl:grid-cols-[18rem_minmax(0,1fr)_19rem]">
+            <PageBuilderSidebar
+              blocks={blocks}
+              selectedBlock={selectedBlock}
+              selectedId={selectedId}
+              pageJson={pageJson}
+              onSelect={setSelectedId}
+              onAddBlock={addBlock}
+              onUpdateContent={updateSelectedContent}
+            />
 
-          <PageBuilderCanvas
-            blocks={blocks}
-            selectedId={selectedId}
-            device={device}
-            onSelect={setSelectedId}
-            onDelete={deleteBlock}
-            onDuplicate={duplicateBlock}
-            onResize={resizeBlock}
-            onInlineChange={updateInlineContent}
-          />
+            <PageBuilderCanvas
+              blocks={blocks}
+              selectedId={selectedId}
+              device={device}
+              onSelect={setSelectedId}
+              onDelete={deleteBlock}
+              onDuplicate={duplicateBlock}
+              onResize={resizeBlock}
+              onInlineChange={updateInlineContent}
+            />
 
-          <PageBuilderStylePanel
-            selectedBlock={selectedBlock}
-            onUpdateStyle={updateSelectedStyle}
-            onUpdateLayout={updateSelectedLayout}
-          />
+            <PageBuilderStylePanel
+              selectedBlock={selectedBlock}
+              onUpdateStyle={updateSelectedStyle}
+              onUpdateLayout={updateSelectedLayout}
+            />
+          </div>
         </div>
       </BuilderEditorShell>
 
