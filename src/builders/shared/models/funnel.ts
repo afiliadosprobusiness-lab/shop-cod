@@ -59,6 +59,8 @@ export interface FunnelPage {
 export interface FunnelConnection {
   from: string;
   to: string;
+  sourceHandleId: string | null;
+  sourceLabel: string;
 }
 
 export interface FunnelGraph {
@@ -253,12 +255,12 @@ export function createDefaultFunnelGraph(name = "Main Funnel"): FunnelGraph {
       createFunnelPage(thankyou, funnelId),
     ],
     connections: [
-      { from: landing.id, to: product.id },
-      { from: product.id, to: checkout.id },
-      { from: checkout.id, to: upsell.id },
-      { from: checkout.id, to: downsell.id },
-      { from: upsell.id, to: thankyou.id },
-      { from: downsell.id, to: thankyou.id },
+      { from: landing.id, to: product.id, sourceHandleId: null, sourceLabel: "node" },
+      { from: product.id, to: checkout.id, sourceHandleId: null, sourceLabel: "node" },
+      { from: checkout.id, to: upsell.id, sourceHandleId: null, sourceLabel: "node" },
+      { from: checkout.id, to: downsell.id, sourceHandleId: null, sourceLabel: "node" },
+      { from: upsell.id, to: thankyou.id, sourceHandleId: null, sourceLabel: "node" },
+      { from: downsell.id, to: thankyou.id, sourceHandleId: null, sourceLabel: "node" },
     ],
   };
 }
@@ -306,6 +308,16 @@ export function deletePage(graph: FunnelGraph, nodeId: string) {
 }
 
 export function connectNodes(graph: FunnelGraph, from: string, to: string) {
+  return connectNodesWithSource(graph, from, to, null, "node");
+}
+
+export function connectNodesWithSource(
+  graph: FunnelGraph,
+  from: string,
+  to: string,
+  sourceHandleId: string | null,
+  sourceLabel: string,
+) {
   if (from === to) {
     return graph;
   }
@@ -318,7 +330,10 @@ export function connectNodes(graph: FunnelGraph, from: string, to: string) {
   }
 
   const exists = graph.connections.some(
-    (connection) => connection.from === from && connection.to === to,
+    (connection) =>
+      connection.from === from &&
+      connection.to === to &&
+      connection.sourceHandleId === sourceHandleId,
   );
 
   if (exists) {
@@ -327,19 +342,51 @@ export function connectNodes(graph: FunnelGraph, from: string, to: string) {
 
   return {
     ...graph,
-    connections: [...graph.connections, { from, to }],
+    connections: [
+      ...graph.connections,
+      {
+        from,
+        to,
+        sourceHandleId,
+        sourceLabel: sourceLabel.trim() || "node",
+      },
+    ],
   };
 }
 
 export function connectPages(graph: FunnelGraph, from: string, to: string) {
-  return connectNodes(graph, from, to);
+  return connectNodesWithSource(graph, from, to, null, "node");
+}
+
+export function connectPagesBySource(
+  graph: FunnelGraph,
+  from: string,
+  to: string,
+  sourceHandleId: string | null,
+  sourceLabel: string,
+) {
+  return connectNodesWithSource(graph, from, to, sourceHandleId, sourceLabel);
 }
 
 export function disconnectNodes(graph: FunnelGraph, from: string, to: string) {
+  return disconnectNodesBySource(graph, from, to, null);
+}
+
+export function disconnectNodesBySource(
+  graph: FunnelGraph,
+  from: string,
+  to: string,
+  sourceHandleId: string | null,
+) {
   return {
     ...graph,
     connections: graph.connections.filter(
-      (connection) => !(connection.from === from && connection.to === to),
+      (connection) =>
+        !(
+          connection.from === from &&
+          connection.to === to &&
+          (sourceHandleId === null || connection.sourceHandleId === sourceHandleId)
+        ),
     ),
   };
 }

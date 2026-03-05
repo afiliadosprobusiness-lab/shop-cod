@@ -61,7 +61,7 @@
 - Modulos internos: `/products`, `/funnels`, `/stores`, `/orders`, `/analytics`, `/contacts`, `/offers`, `/apps` y `/settings` reutilizan el mismo layout compartido, pero ya muestran vistas funcionales del negocio
 - Productos: `/products` ahora muestra tabla con buscador, filtros, duplicado, borrado y metricas reactivas segun catalogo y pedidos reales
 - Funnels: `/funnels` ahora muestra listado con preview, conversion y visitas, e incluye wizard fullscreen de 3 pasos (plantilla -> datos -> confirmacion) con fallback automatico a plantilla en blanco y sin demos precargados por defecto
-- Workspace de funnel: `/funnels/:funnelId/editor` concentra `Resumen`, `Construir y Disenar`, `Configuracion` e `Idiomas`, y permite agregar paginas con selector por tipo desde el builder; las tarjetas de nodo ahora usan layout por acciones con accesos directos a configuracion, edicion, preview, clonado y borrado
+- Workspace de funnel: `/funnels/:funnelId/editor` concentra `Resumen`, `Construir y Disenar`, `Configuracion` e `Idiomas`, y permite agregar paginas con selector por tipo desde el builder; las tarjetas de nodo ahora usan layout por acciones con accesos directos a configuracion, edicion, preview, clonado y borrado, y las filas `LINKS` se generan desde CTAs reales del page editor
 - Tiendas: `/stores` ahora muestra listado con preview, metodo de pago y cantidad de paginas, e incluye wizard de 3 pasos para crear tiendas con plantilla, pagos, configuracion y borrado, sin demos precargados por defecto
 - Dashboard interno de tienda: `/stores/:storeId` muestra navegacion interna por secciones y un resumen con metricas, top productos y fuentes de trafico derivadas del estado local
 - Pedidos: `/orders` lista pedidos reales que entran desde el checkout COD y permite actualizar su estado
@@ -128,8 +128,8 @@
 - El modulo visual del page builder vive en `src/builders/page-builder` y persiste su arbol de bloques dentro del mismo draft del editor, sincronizado por pagina del funnel.
 - El page builder ahora se organiza en `canvas`, `sidebar`, `topbar`, `renderer`, `block-engine` y `state-manager`.
 - El page builder ya soporta drag/drop desde sidebar, reordenamiento, duplicado, resize por bloque, nesting, tabs `Elements/Layers/Styles/Settings` y serializacion `page_json`.
-- El modulo visual del funnel builder vive en `src/builders/funnel-builder` y persiste nodos/conexiones junto con `pages[]` (id, funnelId, type, contentJson, settings) y los layouts por `pageId`.
-- El funnel builder ahora soporta canvas infinito con zoom/pan/drag mediante handle, nodos duplicables/eliminables, conexion visual, selector de producto por nodo (`selectedProductId`) y tipos de pagina extendidos (`product`, `checkout`, `upsell`, `downsell`, `thankyou`, `leadCapture`, `article`, `blank`).
+- El modulo visual del funnel builder vive en `src/builders/funnel-builder` y persiste nodos/conexiones junto con `pages[]` (id, funnelId, type, contentJson, settings) y los layouts por `pageId`; las conexiones ahora guardan `sourceHandleId` y `sourceLabel` para wiring por CTA.
+- El funnel builder ahora soporta canvas infinito con zoom/pan/drag mediante handle, nodos duplicables/eliminables, conexion visual por nodo o por CTA, selector de producto por nodo (`selectedProductId`) y tipos de pagina extendidos (`product`, `checkout`, `upsell`, `downsell`, `thankyou`, `leadCapture`, `article`, `blank`).
 - Cada nodo del funnel expone bloques de accion (abrir editor, visitas, selector de producto, estado de links) y barra inferior de iconos (`configuracion`, `editar`, `preview`, `clonar`, `eliminar`); `configuracion` abre modal tabulado con `Detalles`, `SEO` y `HTML personalizado`.
 - El modulo visual del store builder vive en `src/builders/store-builder` y persiste productos, bundles, order bumps, colecciones y checkout dentro del mismo draft.
 - Los tres builders delegan modelos, renderer y shells reutilizables a `src/builders/shared`.

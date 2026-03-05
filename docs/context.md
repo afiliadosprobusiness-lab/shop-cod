@@ -327,6 +327,7 @@ ShopCOD is a frontend SPA for COD-focused funnel selling. It uses Firebase Authe
   - duplicate and delete node actions from per-card icon controls
   - SVG node connections with disconnect controls
   - per-node action cards with: page-open block, visits block, product selector, links state block, and icon action row (`settings`, `edit`, `preview`, `duplicate`, `delete`)
+  - `LINKS` rows are generated from CTA-like elements in each page `contentJson` (button/form/product) and can connect independently by row
   - tabbed page settings modal (`Detalles`, `SEO`, `HTML personalizado`) persisted per page
   - per-node analytics badges (visits, clicks, conversion rate)
   - supported node types for product, checkout, upsell, downsell, thank you, lead capture, article, and blank page
@@ -420,7 +421,7 @@ ShopCOD is a frontend SPA for COD-focused funnel selling. It uses Firebase Authe
 ### Funnel Builder Module
 
 - `src/builders/funnel-builder/schema.ts` re-exports the shared funnel model and helpers.
-- `src/builders/funnel-builder/FunnelBuilderEditor.tsx` renders the interactive canvas, action-based node cards, page settings modal, pan/zoom, duplicate/delete actions, preview actions, and connection UX.
+- `src/builders/funnel-builder/FunnelBuilderEditor.tsx` renders the interactive light-canvas builder, action-based node cards, CTA-link wiring by source handle, page settings modal, pan/zoom, duplicate/delete actions, preview actions, and connection UX.
 
 ### Store Builder Module
 
@@ -450,7 +451,7 @@ ShopCOD is a frontend SPA for COD-focused funnel selling. It uses Firebase Authe
   - store commercial profile
   - page builder nested layout JSON
   - page builder layouts keyed by `pageId`
-  - funnel graph nodes (`selectedProductId` per node), per-page records (`contentJson` + `settings`), and connections
+  - funnel graph nodes (`selectedProductId` per node), per-page records (`contentJson` + `settings`), and connections (`sourceHandleId` + `sourceLabel`) for CTA-level wiring
   - store builder products, bundles, collections, and checkout settings
   - timestamps
 - Additional browser storage also persists:

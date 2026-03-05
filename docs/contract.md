@@ -506,6 +506,8 @@ interface FunnelPage {
 interface FunnelConnection {
   from: string;
   to: string;
+  sourceHandleId: string | null;
+  sourceLabel: string;
 }
 ```
 
@@ -602,6 +604,8 @@ Rules:
 - `funnelBuilder` stores the visual funnel graph, node connections, and `pages[]` records.
 - The funnel builder must support page add, delete, duplicate, and connection actions on the visual graph.
 - Funnel nodes must persist `selectedProductId` (or `null`) for product association controls shown in the card.
+- Funnel node cards must derive CTA link rows from each page `contentJson` (for CTA-like blocks such as button/form/product) and allow per-row connection wiring.
+- `FunnelConnection.sourceHandleId` must represent the originating CTA row when a link is created from a CTA entry, or `null` for generic node links.
 - Funnel page settings edited from node configuration modals must persist in `FunnelPage.settings`.
 - Each `FunnelPage.contentJson` stores the serialized page document for that funnel page and acts as the frontend mirror of the persisted `content_json` field.
 - `storeBuilder` stores products, bundles, collections, checkout domains, currencies, and order bumps.
@@ -803,3 +807,4 @@ The following are breaking changes and must be versioned or coordinated before i
 - 2026-03-04 | Se elimina el seed de funnels demo por defecto y se limpia automaticamente el legado local (`funnel-101`, `funnel-102`) | non-breaking | Evita que aparezcan funnels pre-cargados en nuevos workspaces
 - 2026-03-05 | `GET /stores` deja de sembrar tiendas demo y limpia automaticamente el legado local (`store-201`, `store-202`) | non-breaking | Evita cards demo en workspaces nuevos y sanea catálogos ya persistidos sin cambiar rutas ni modelos
 - 2026-03-05 | El funnel builder adopta tarjetas por acciones con barra de iconos y modal de configuración por página, persistiendo `selectedProductId` y `FunnelPage.settings` | non-breaking | Mejora UX operativa del builder sin cambiar rutas ni romper el flujo de edición existente
+- 2026-03-05 | El funnel builder conecta CTAs del page editor por enlace individual (`sourceHandleId`) y migra la UI a un canvas claro estilo lightfunnels | non-breaking | Habilita wiring por CTA (button/form/product) sin romper contratos de ruta ni persistencia previa

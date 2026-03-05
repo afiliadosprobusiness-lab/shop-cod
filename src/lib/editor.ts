@@ -375,6 +375,12 @@ function normalizeFunnelConnection(
   return {
     from: connection.from,
     to: connection.to,
+    sourceHandleId:
+      typeof connection.sourceHandleId === "string" ? connection.sourceHandleId : null,
+    sourceLabel:
+      typeof connection.sourceLabel === "string" && connection.sourceLabel.trim()
+        ? connection.sourceLabel.trim()
+        : "node",
   };
 }
 
