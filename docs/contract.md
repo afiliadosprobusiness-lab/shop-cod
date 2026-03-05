@@ -2,7 +2,7 @@
 
 ## Scope
 
-This repository is a frontend SPA built with Vite, React, TypeScript, Tailwind CSS, shadcn-ui, and React Router.
+This repository is a frontend SPA built with Vite, React, TypeScript, Tailwind CSS, shadcn-ui, React Router, and Zustand-backed local editor state.
 
 Firebase is used for authentication and the shared superadmin client registry.
 Vercel is the target hosting platform for the frontend build and routing.
@@ -142,8 +142,9 @@ All routes below are protected by Firebase auth state and render inside the shar
 - Includes:
   - a store list with template preview, payment method, and page count
   - no preloaded demo stores in a fresh browser state
-  - `Nueva tienda` CTA
-  - a 3-step creation wizard inside the same route
+  - `Crear tienda` CTA
+  - a fullscreen 3-step creation wizard (template selection, payment type, store identity)
+  - create action persists the store, initializes its local draft, and redirects to `/stores/:storeId`
 
 ### `GET /stores/:storeId`
 
@@ -152,9 +153,9 @@ All routes below are protected by Firebase auth state and render inside the shar
 - Route param:
   - `storeId: string`
 - Includes:
-  - internal section navigation for `Resumen`, `Productos`, `Colecciones`, `Pedidos`, `Pages`, `Idiomas`, and `Configuracion`
-  - summary metric cards for visitors, orders, sales, and conversion rate
-  - summary tables for top products and traffic sources
+  - ecommerce-style store header with breadcrumb, URL, preview/template actions, publish status, and section tabs (`Resumen`, `Productos`, `Colecciones`, `Pedidos`, `Pages`, `Idiomas`, `Configuracion`)
+  - summary metric cards for visitors, orders, sales, conversion rate, and average order value
+  - summary tables for conversion stages and additional offers plus top products and traffic sources
   - local operational views derived from the current store draft
 
 ### `GET /orders`
@@ -213,7 +214,7 @@ All routes below are protected by Firebase auth state and render inside the shar
   - exposes a drag-and-drop funnel workspace with block library, funnel map, quick insertion, and conversion guidance
   - includes builder modes for store setup, funnel ordering, and page refinement within the same route
   - store setup uses a dedicated store builder for products, bundles, collections, checkout order bumps, multi-currency, and multi-domain configuration
-  - page refinement uses a visual page builder with sidebar tabs (`Elements`, `Layers`, `Styles`, `Settings`), top bar controls, nested containers, duplicate/resize controls, and inline editing without full reloads
+  - page refinement uses a visual page builder with three panels: left (`Elements`, `Layers`, `Settings`), center canvas, and right style editor, with top bar controls, nested containers, duplicate/resize controls, and inline editing without full reloads
   - funnel ordering supports a node-based flow editor with pan, zoom, drag, node duplication/deletion, visible page previews, node connections, analytics badges, and page-level routing per node
   - each funnel node card now exposes action blocks (edit area, visits block, product selector, links status) plus bottom icon actions for settings, edit, preview, duplicate, and delete
   - node settings open a tabbed page-configuration modal (`Detalles`, `SEO`, `HTML personalizado`) persisted in funnel page settings
@@ -424,6 +425,7 @@ interface PageBuilderBlock {
   type: PageBuilderBlockType;
   content: Record<string, string>;
   style: {
+    // Legacy tokens (kept for backward compatibility)
     backgroundColor: string;
     textColor: string;
     align: "left" | "center" | "right";
@@ -435,12 +437,55 @@ interface PageBuilderBlock {
     borderStyle: "none" | "solid" | "dashed";
     borderWidth: "none" | "thin" | "medium";
     borderColor: string;
+
+    // Advanced style editor shape (used by the redesigned builder)
+    spacing: {
+      margin: { top: number; right: number; bottom: number; left: number; unit: "px" };
+      padding: { top: number; right: number; bottom: number; left: number; unit: "px" };
+    };
+    typography: {
+      family: string;
+      size: number;
+      weight: number;
+      lineHeight: number;
+      letterSpacing: number;
+    };
+    background: {
+      color: string;
+      imageUrl: string;
+      size: "auto" | "cover" | "contain";
+      position: string;
+    };
+    border: {
+      style: "none" | "solid" | "dashed";
+      width: number;
+      color: string;
+      radius: number;
+    };
+    shadow: {
+      enabled: boolean;
+      x: number;
+      y: number;
+      blur: number;
+      spread: number;
+      color: string;
+    };
   };
   layout: {
+    // Legacy layout tokens (kept for compatibility)
     width: "full" | "wide" | "narrow";
     gap: "tight" | "normal" | "loose";
     columns: number;
     minHeight: "auto" | "sm" | "md" | "lg";
+
+    // Advanced layout controls used in style editor
+    dimensions: {
+      width: string;
+      height: string;
+      minHeight: string;
+      maxWidth: string;
+    };
+    gapPx: number;
   };
   children: PageBuilderBlock[];
 }
@@ -604,6 +649,9 @@ Rules:
 - `pageBuilder` stores the visual page layout as nested JSON blocks.
 - `pageBuilderPages` stores page-builder layouts keyed by `pageId`.
 - Only `section`, `container`, and `columns` may hold nested `children`.
+- The page builder UI must expose three panels: left (`Elements`, `Layers`, `Settings`), center canvas, right style editor.
+- The style editor must support editing margin, padding, width, height, typography, background, borders, and shadow.
+- Page builder state/history management must be handled by Zustand and commit immutable updates to only the modified branch of the JSON tree.
 - `funnelBuilder` stores the visual funnel graph, node connections, and `pages[]` records.
 - The funnel builder must support page add, delete, duplicate, and connection actions on the visual graph.
 - Funnel nodes must persist `selectedProductId` (or `null`) for product association controls shown in the card.
@@ -812,3 +860,5 @@ The following are breaking changes and must be versioned or coordinated before i
 - 2026-03-05 | El funnel builder adopta tarjetas por acciones con barra de iconos y modal de configuración por página, persistiendo `selectedProductId` y `FunnelPage.settings` | non-breaking | Mejora UX operativa del builder sin cambiar rutas ni romper el flujo de edición existente
 - 2026-03-05 | El funnel builder conecta CTAs del page editor por enlace individual (`sourceHandleId`) y migra la UI a un canvas claro estilo lightfunnels | non-breaking | Habilita wiring por CTA (button/form/product) sin romper contratos de ruta ni persistencia previa
 - 2026-03-05 | `GET /funnels/:funnelId/editor` abre Page Builder real al editar nodos y sincroniza CTAs del editor en `LINKS` en tiempo real | non-breaking | Hace funcionales editar y preview sin cambiar rutas ni romper persistencia del funnel graph
+- 2026-03-05 | `GET /stores` adopta wizard fullscreen de 3 pasos y redirige la creacion a `/stores/:storeId`, mientras `GET /stores/:storeId` alinea su UI al dashboard ecommerce con tabs y tablas operativas | non-breaking | Mejora UX del flujo de tiendas sin romper rutas ni modelos persistidos
+- 2026-03-05 | El Page Builder adopta arquitectura SaaS de 3 paneles con style editor dedicado y `state-manager` en Zustand con updates granulares | non-breaking | Moderniza UX visual y el modelo de estilos/layout sin romper rutas ni persistencia de drafts existentes

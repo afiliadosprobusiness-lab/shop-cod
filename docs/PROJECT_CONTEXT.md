@@ -15,6 +15,7 @@
 - React Router
 - Framer Motion
 - dnd-kit
+- Zustand
 - TanStack Query
 - Firebase Auth
 - Firebase Firestore (registro compartido de clientes superadmin)
@@ -62,8 +63,8 @@
 - Productos: `/products` ahora muestra tabla con buscador, filtros, duplicado, borrado y metricas reactivas segun catalogo y pedidos reales
 - Funnels: `/funnels` ahora muestra listado con preview, conversion y visitas, e incluye wizard fullscreen de 3 pasos (plantilla -> datos -> confirmacion) con fallback automatico a plantilla en blanco y sin demos precargados por defecto
 - Workspace de funnel: `/funnels/:funnelId/editor` concentra `Resumen`, `Construir y Disenar`, `Configuracion` e `Idiomas`, permite agregar paginas con selector por tipo y abrir `PageBuilderEditor` real al pulsar editar en un nodo; los CTAs creados en el editor (`button`, `form`, `product`) se sincronizan en tiempo real en `LINKS` para conectar al siguiente paso, y preview de nodo abre `/preview/:funnelId`
-- Tiendas: `/stores` ahora muestra listado con preview, metodo de pago y cantidad de paginas, e incluye wizard de 3 pasos para crear tiendas con plantilla, pagos, configuracion y borrado, sin demos precargados por defecto
-- Dashboard interno de tienda: `/stores/:storeId` muestra navegacion interna por secciones y un resumen con metricas, top productos y fuentes de trafico derivadas del estado local
+- Tiendas: `/stores` ahora muestra listado con preview, metodo de pago y cantidad de paginas, e incluye wizard fullscreen de 3 pasos (plantilla -> pagos -> nombre/URL/moneda) alineado al flujo de funnels; al crear, redirige directo al dashboard de la tienda
+- Dashboard interno de tienda: `/stores/:storeId` ahora usa un layout tipo ecommerce con breadcrumb, cabecera de tienda, acciones de preview/personalizacion/publicacion, tabs superiores por seccion y resumen con metricas/tablas operativas derivadas del estado local
 - Pedidos: `/orders` lista pedidos reales que entran desde el checkout COD y permite actualizar su estado
 - Analiticas: `/analytics` consolida KPIs en tiempo real usando pedidos, contactos, productos, funnels y tiendas persistidos localmente
 - Contactos: `/contacts` guarda los clientes capturados por el formulario COD y su historial comercial
@@ -113,8 +114,8 @@
 - El workspace dedicado de funnel vive en `src/pages/funnel/FunnelWorkspacePage.tsx`.
 - El modelo, templates y almacenamiento local de funnels viven en `src/lib/funnels.ts`.
 - La configuracion persistida del workspace funnel vive en `src/lib/funnel-workspace.ts`.
-- El modulo real de tiendas vive en `src/pages/dashboard/StoresPage.tsx`.
-- El panel interno por tienda vive en `src/pages/dashboard/StoreDashboardPage.tsx`.
+- El modulo real de tiendas vive en `src/pages/dashboard/StoresPage.tsx` y usa wizard fullscreen de 3 pasos con redireccion post-creacion a `/stores/:storeId`.
+- El panel interno por tienda vive en `src/pages/dashboard/StoreDashboardPage.tsx` con cabecera ecommerce, tabs superiores y resumen operativo.
 - El modelo, templates, selector de pagos, almacenamiento local y analytics derivados de tiendas viven en `src/lib/stores.ts`; el catalogo inicia vacio y limpia automaticamente seeds legacy (`store-201`, `store-202`) si existen en `localStorage`.
 - Los pedidos, contactos, ofertas, configuracion global y el snapshot de analytics en tiempo real viven en `src/lib/platform-data.ts`.
 - `src/lib/superadmin.ts` mantiene el registro local de clientes gestionados por el root, filtra cuentas demo legacy, registra workspaces autenticados, hidrata/sincroniza con Firestore cuando esta disponible, reintenta sync tras fallos temporales y evita borrar o degradar la cuenta superadmin.
@@ -126,8 +127,9 @@
 - El checkout demo guarda pedidos y contactos reales en `localStorage`, y esos datos alimentan `Pedidos`, `Analiticas` y `Contactos`.
 - `platform-data` ahora hace sincronizacion remota opcional con Firestore (mismo proyecto Firebase) cuando la configuracion esta disponible; `localStorage` sigue siendo el fallback inmediato.
 - El modulo visual del page builder vive en `src/builders/page-builder` y persiste su arbol de bloques dentro del mismo draft del editor, sincronizado por pagina del funnel.
-- El page builder ahora se organiza en `canvas`, `sidebar`, `topbar`, `renderer`, `block-engine` y `state-manager`.
-- El page builder ya soporta drag/drop desde sidebar, reordenamiento, duplicado, resize por bloque, nesting, tabs `Elements/Layers/Styles/Settings` y serializacion `page_json`.
+- El page builder ahora se organiza en `canvas`, `sidebar`, `style-panel`, `topbar`, `renderer`, `block-engine` y `state-manager`.
+- El page builder ya soporta layout profesional de 3 paneles (izquierda `Elements/Layers/Settings`, canvas central, style editor derecho), drag/drop desde sidebar, reordenamiento, duplicado, resize por bloque, nesting, hover highlights y serializacion `page_json`.
+- El `state-manager` del page builder fue migrado a `Zustand` con undo/redo y actualizaciones granulares de nodos (sin reconstruir todo el arbol en cada cambio).
 - El modulo visual del funnel builder vive en `src/builders/funnel-builder` y persiste nodos/conexiones junto con `pages[]` (id, funnelId, type, contentJson, settings) y los layouts por `pageId`; las conexiones ahora guardan `sourceHandleId` y `sourceLabel` para wiring por CTA.
 - El funnel builder ahora soporta canvas infinito con zoom/pan/drag mediante handle, nodos duplicables/eliminables, conexion visual por nodo o por CTA, selector de producto por nodo (`selectedProductId`) y tipos de pagina extendidos (`product`, `checkout`, `upsell`, `downsell`, `thankyou`, `leadCapture`, `article`, `blank`).
 - El drag de tarjetas del funnel ahora se puede iniciar desde la cabecera de cada tarjeta y las conexiones CTA invalidas se limpian automaticamente si ese CTA ya no existe en el page editor.

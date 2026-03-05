@@ -1,9 +1,12 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import { type DragEndEvent, type DragStartEvent } from "@dnd-kit/core";
+import { useStore } from "zustand";
+import { createStore, type StoreApi } from "zustand/vanilla";
 import {
   canAcceptChildren,
   createDefaultPageBuilderBlocks,
   createPageBuilderBlock,
+  normalizePageBuilderBlocks,
   serializePageBuilderDocument,
   type PageBuilderBlock,
   type PageBuilderBlockType,
@@ -30,9 +33,18 @@ export type PageBuilderDragMeta =
   | { kind: "block"; blockId: string }
   | null;
 
-function serializeBlocks(blocks: PageBuilderBlock[]) {
-  return JSON.stringify(blocks);
+interface PageBuilderStoreState {
+  history: BuilderHistory;
+  selectedId: string | null;
+  device: PageBuilderDevice;
+  activeDrag: PageBuilderDragMeta;
 }
+
+const widthTokenMap: Record<PageBuilderBlock["layout"]["width"], string> = {
+  full: "100%",
+  wide: "1080px",
+  narrow: "760px",
+};
 
 function cycleWidth(width: PageBuilderBlock["layout"]["width"]): PageBuilderBlock["layout"]["width"] {
   if (width === "narrow") {
@@ -44,6 +56,81 @@ function cycleWidth(width: PageBuilderBlock["layout"]["width"]): PageBuilderBloc
   }
 
   return "narrow";
+}
+
+function getCurrentBlocks(state: PageBuilderStoreState) {
+  return state.history.timeline[state.history.index] || [];
+}
+
+function createPageBuilderStore(seedBlocks: PageBuilderBlock[]): StoreApi<PageBuilderStoreState> {
+  return createStore<PageBuilderStoreState>(() => ({
+    history: {
+      timeline: [seedBlocks],
+      index: 0,
+    },
+    selectedId: seedBlocks[0]?.id || null,
+    device: "desktop",
+    activeDrag: null,
+  }));
+}
+
+function resolveDefaultInsertTarget(blocks: PageBuilderBlock[], selectedId: string | null) {
+  if (!selectedId) {
+    return {
+      parentId: null,
+      index: blocks.length,
+    };
+  }
+
+  const selected = findPageBuilderBlock(blocks, selectedId);
+
+  if (selected && canAcceptChildren(selected.type)) {
+    return {
+      parentId: selected.id,
+      index: selected.children.length,
+    };
+  }
+
+  const location = findPageBuilderBlockLocation(blocks, selectedId);
+
+  if (!location) {
+    return {
+      parentId: null,
+      index: blocks.length,
+    };
+  }
+
+  return {
+    parentId: location.parentId,
+    index: location.index + 1,
+  };
+}
+
+function resolveTargetFromDrop(
+  blocks: PageBuilderBlock[],
+  overId: string,
+  overData: Record<string, unknown>,
+) {
+  if (overData.kind === "slot") {
+    return {
+      parentId: typeof overData.parentId === "string" ? overData.parentId : null,
+      index: typeof overData.index === "number" ? overData.index : 0,
+    };
+  }
+
+  const location = findPageBuilderBlockLocation(blocks, overId);
+
+  if (!location) {
+    return {
+      parentId: null,
+      index: blocks.length,
+    };
+  }
+
+  return {
+    parentId: location.parentId,
+    index: location.index,
+  };
 }
 
 export interface UsePageBuilderStateArgs {
@@ -62,37 +149,24 @@ export function usePageBuilderState({
   onBlocksChange,
 }: UsePageBuilderStateArgs) {
   const initialSeedRef = useRef<PageBuilderBlock[]>(
-    initialBlocks.length ? initialBlocks : createDefaultPageBuilderBlocks(seed),
+    normalizePageBuilderBlocks(
+      initialBlocks.length ? initialBlocks : createDefaultPageBuilderBlocks(seed),
+      seed,
+    ),
   );
   const previousEditorKeyRef = useRef<string | null>(null);
+  const previousBlocksRef = useRef<PageBuilderBlock[] | null>(null);
+  const skipNextOnChangeRef = useRef(true);
 
-  const [history, setHistory] = useState<BuilderHistory>(() => ({
-    timeline: [initialSeedRef.current],
-    index: 0,
-  }));
-  const [selectedId, setSelectedId] = useState<string | null>(initialSeedRef.current[0]?.id || null);
-  const [device, setDevice] = useState<PageBuilderDevice>("desktop");
-  const [activeDrag, setActiveDrag] = useState<PageBuilderDragMeta>(null);
+  const storeRef = useRef<StoreApi<PageBuilderStoreState>>(
+    createPageBuilderStore(initialSeedRef.current),
+  );
 
-  useEffect(() => {
-    if (previousEditorKeyRef.current === editorKey) {
-      return;
-    }
-
-    previousEditorKeyRef.current = editorKey;
-
-    const seedBlocks = initialBlocks.length ? initialBlocks : createDefaultPageBuilderBlocks(seed);
-
-    initialSeedRef.current = seedBlocks;
-
-    setHistory({
-      timeline: [seedBlocks],
-      index: 0,
-    });
-    setSelectedId(seedBlocks[0]?.id || null);
-    setDevice("desktop");
-    setActiveDrag(null);
-  }, [editorKey, initialBlocks, seed]);
+  const store = storeRef.current;
+  const history = useStore(store, (state) => state.history);
+  const selectedId = useStore(store, (state) => state.selectedId);
+  const device = useStore(store, (state) => state.device);
+  const activeDrag = useStore(store, (state) => state.activeDrag);
 
   const blocks = useMemo(() => history.timeline[history.index] || [], [history]);
   const selectedBlock = selectedId ? findPageBuilderBlock(blocks, selectedId) : null;
@@ -109,123 +183,122 @@ export function usePageBuilderState({
 
   const commitBlocks = useCallback(
     (nextBlocks: PageBuilderBlock[], nextSelectedId?: string | null) => {
-      const currentBlocks = history.timeline[history.index] || [];
+      const state = store.getState();
+      const currentBlocks = getCurrentBlocks(state);
 
-      if (serializeBlocks(currentBlocks) === serializeBlocks(nextBlocks)) {
-        if (nextSelectedId !== undefined) {
-          setSelectedId(nextSelectedId);
+      if (nextBlocks === currentBlocks) {
+        if (nextSelectedId !== undefined && nextSelectedId !== state.selectedId) {
+          store.setState({ selectedId: nextSelectedId });
         }
         return;
       }
 
-      const nextTimeline = [...history.timeline.slice(0, history.index + 1), nextBlocks];
-
-      setHistory({
-        timeline: nextTimeline,
-        index: nextTimeline.length - 1,
-      });
+      const trimmedTimeline = state.history.timeline.slice(0, state.history.index + 1);
+      const nextTimeline = [...trimmedTimeline, nextBlocks];
+      let resolvedSelectedId = state.selectedId;
 
       if (nextSelectedId !== undefined) {
-        setSelectedId(nextSelectedId);
-      } else if (selectedId && !findPageBuilderBlock(nextBlocks, selectedId)) {
-        setSelectedId(nextBlocks[0]?.id || null);
+        resolvedSelectedId = nextSelectedId;
+      } else if (resolvedSelectedId && !findPageBuilderBlock(nextBlocks, resolvedSelectedId)) {
+        resolvedSelectedId = nextBlocks[0]?.id || null;
       }
 
-      onBlocksChange(nextBlocks);
+      store.setState({
+        history: {
+          timeline: nextTimeline,
+          index: nextTimeline.length - 1,
+        },
+        selectedId: resolvedSelectedId,
+      });
     },
-    [history, onBlocksChange, selectedId],
+    [store],
+  );
+
+  const setSelectedId = useCallback(
+    (id: string | null) => {
+      store.setState({ selectedId: id });
+    },
+    [store],
+  );
+
+  const setDevice = useCallback(
+    (nextDevice: PageBuilderDevice) => {
+      store.setState({ device: nextDevice });
+    },
+    [store],
   );
 
   const undo = useCallback(() => {
-    if (!canUndo) {
+    const state = store.getState();
+
+    if (state.history.index <= 0) {
       return;
     }
 
-    const nextIndex = history.index - 1;
-    const nextBlocks = history.timeline[nextIndex];
+    const nextIndex = state.history.index - 1;
+    const nextBlocks = state.history.timeline[nextIndex] || [];
+    let resolvedSelected = state.selectedId;
 
-    setHistory({
-      timeline: history.timeline,
-      index: nextIndex,
-    });
-
-    if (selectedId && !findPageBuilderBlock(nextBlocks, selectedId)) {
-      setSelectedId(nextBlocks[0]?.id || null);
+    if (resolvedSelected && !findPageBuilderBlock(nextBlocks, resolvedSelected)) {
+      resolvedSelected = nextBlocks[0]?.id || null;
     }
 
-    onBlocksChange(nextBlocks);
-  }, [canUndo, history, onBlocksChange, selectedId]);
+    store.setState({
+      history: {
+        timeline: state.history.timeline,
+        index: nextIndex,
+      },
+      selectedId: resolvedSelected,
+    });
+  }, [store]);
 
   const redo = useCallback(() => {
-    if (!canRedo) {
+    const state = store.getState();
+
+    if (state.history.index >= state.history.timeline.length - 1) {
       return;
     }
 
-    const nextIndex = history.index + 1;
-    const nextBlocks = history.timeline[nextIndex];
+    const nextIndex = state.history.index + 1;
+    const nextBlocks = state.history.timeline[nextIndex] || [];
+    let resolvedSelected = state.selectedId;
 
-    setHistory({
-      timeline: history.timeline,
-      index: nextIndex,
+    if (resolvedSelected && !findPageBuilderBlock(nextBlocks, resolvedSelected)) {
+      resolvedSelected = nextBlocks[0]?.id || null;
+    }
+
+    store.setState({
+      history: {
+        timeline: state.history.timeline,
+        index: nextIndex,
+      },
+      selectedId: resolvedSelected,
     });
-
-    if (selectedId && !findPageBuilderBlock(nextBlocks, selectedId)) {
-      setSelectedId(nextBlocks[0]?.id || null);
-    }
-
-    onBlocksChange(nextBlocks);
-  }, [canRedo, history, onBlocksChange, selectedId]);
-
-  const resolveDefaultInsertTarget = useMemo(() => {
-    if (!selectedId) {
-      return {
-        parentId: null,
-        index: blocks.length,
-      };
-    }
-
-    const selected = findPageBuilderBlock(blocks, selectedId);
-
-    if (selected && canAcceptChildren(selected.type)) {
-      return {
-        parentId: selected.id,
-        index: selected.children.length,
-      };
-    }
-
-    const location = findPageBuilderBlockLocation(blocks, selectedId);
-
-    if (!location) {
-      return {
-        parentId: null,
-        index: blocks.length,
-      };
-    }
-
-    return {
-      parentId: location.parentId,
-      index: location.index + 1,
-    };
-  }, [blocks, selectedId]);
+  }, [store]);
 
   const addBlock = useCallback(
     (type: PageBuilderBlockType) => {
+      const state = store.getState();
+      const currentBlocks = getCurrentBlocks(state);
+      const target = resolveDefaultInsertTarget(currentBlocks, state.selectedId);
       const nextBlock = createPageBuilderBlock(type, seed);
       const nextBlocks = insertPageBuilderBlock(
-        blocks,
-        resolveDefaultInsertTarget.parentId,
-        resolveDefaultInsertTarget.index,
+        currentBlocks,
+        target.parentId,
+        target.index,
         nextBlock,
       );
 
       commitBlocks(nextBlocks, nextBlock.id);
     },
-    [blocks, commitBlocks, resolveDefaultInsertTarget, seed],
+    [commitBlocks, seed, store],
   );
 
   const deleteBlock = useCallback(
     (id: string) => {
-      const result = removePageBuilderBlock(blocks, id);
+      const state = store.getState();
+      const currentBlocks = getCurrentBlocks(state);
+      const result = removePageBuilderBlock(currentBlocks, id);
 
       if (!result.removed) {
         return;
@@ -233,12 +306,14 @@ export function usePageBuilderState({
 
       commitBlocks(result.blocks, result.blocks[0]?.id || null);
     },
-    [blocks, commitBlocks],
+    [commitBlocks, store],
   );
 
   const duplicateBlock = useCallback(
     (id: string) => {
-      const result = duplicatePageBuilderBlock(blocks, id);
+      const state = store.getState();
+      const currentBlocks = getCurrentBlocks(state);
+      const result = duplicatePageBuilderBlock(currentBlocks, id);
 
       if (!result.duplicated) {
         return;
@@ -246,12 +321,14 @@ export function usePageBuilderState({
 
       commitBlocks(result.blocks, result.duplicated.id);
     },
-    [blocks, commitBlocks],
+    [commitBlocks, store],
   );
 
   const updateInlineContent = useCallback(
     (id: string, field: string, value: string) => {
-      const nextBlocks = updatePageBuilderBlock(blocks, id, (block) => ({
+      const state = store.getState();
+      const currentBlocks = getCurrentBlocks(state);
+      const nextBlocks = updatePageBuilderBlock(currentBlocks, id, (block) => ({
         ...block,
         content: {
           ...block.content,
@@ -261,113 +338,96 @@ export function usePageBuilderState({
 
       commitBlocks(nextBlocks);
     },
-    [blocks, commitBlocks],
+    [commitBlocks, store],
   );
 
   const updateSelectedContent = useCallback(
     (field: string, value: string) => {
-      if (!selectedBlock) {
+      const state = store.getState();
+      if (!state.selectedId) {
         return;
       }
 
-      updateInlineContent(selectedBlock.id, field, value);
+      updateInlineContent(state.selectedId, field, value);
     },
-    [selectedBlock, updateInlineContent],
+    [store, updateInlineContent],
   );
 
   const updateSelectedStyle = useCallback(
-    (field: keyof PageBuilderBlock["style"], value: string) => {
-      if (!selectedBlock) {
+    (nextStyle: PageBuilderBlock["style"]) => {
+      const state = store.getState();
+      if (!state.selectedId) {
         return;
       }
 
-      const nextBlocks = updatePageBuilderBlock(blocks, selectedBlock.id, (block) => ({
+      const currentBlocks = getCurrentBlocks(state);
+      const nextBlocks = updatePageBuilderBlock(currentBlocks, state.selectedId, (block) => ({
         ...block,
-        style: {
-          ...block.style,
-          [field]: value,
-        },
+        style: nextStyle,
       }));
 
       commitBlocks(nextBlocks);
     },
-    [blocks, commitBlocks, selectedBlock],
+    [commitBlocks, store],
   );
 
   const updateSelectedLayout = useCallback(
-    (field: keyof PageBuilderBlock["layout"], value: string) => {
-      if (!selectedBlock) {
+    (nextLayout: PageBuilderBlock["layout"]) => {
+      const state = store.getState();
+      if (!state.selectedId) {
         return;
       }
 
-      const nextValue =
-        field === "columns"
-          ? Math.max(2, Number.parseInt(value || "2", 10) || 2)
-          : value;
-
-      const nextBlocks = updatePageBuilderBlock(blocks, selectedBlock.id, (block) => ({
+      const currentBlocks = getCurrentBlocks(state);
+      const nextBlocks = updatePageBuilderBlock(currentBlocks, state.selectedId, (block) => ({
         ...block,
         layout: {
-          ...block.layout,
-          [field]: nextValue,
+          ...nextLayout,
+          columns: Math.max(2, Number.parseInt(String(nextLayout.columns || 2), 10) || 2),
+          gapPx: Math.max(0, Number.parseInt(String(nextLayout.gapPx || 0), 10) || 0),
         },
       }));
 
       commitBlocks(nextBlocks);
     },
-    [blocks, commitBlocks, selectedBlock],
+    [commitBlocks, store],
   );
 
   const resizeBlock = useCallback(
     (id: string) => {
-      const nextBlocks = updatePageBuilderBlock(blocks, id, (block) => ({
-        ...block,
-        layout: {
-          ...block.layout,
-          width: cycleWidth(block.layout.width),
-        },
-      }));
+      const state = store.getState();
+      const currentBlocks = getCurrentBlocks(state);
+      const nextBlocks = updatePageBuilderBlock(currentBlocks, id, (block) => {
+        const nextWidth = cycleWidth(block.layout.width);
+        return {
+          ...block,
+          layout: {
+            ...block.layout,
+            width: nextWidth,
+            dimensions: {
+              ...block.layout.dimensions,
+              maxWidth: widthTokenMap[nextWidth],
+            },
+          },
+        };
+      });
 
       commitBlocks(nextBlocks, id);
     },
-    [blocks, commitBlocks],
+    [commitBlocks, store],
   );
 
-  const resolveTargetFromDrop = useCallback(
-    (overId: string, overData: Record<string, unknown>) => {
-      if (overData.kind === "slot") {
-        return {
-          parentId: typeof overData.parentId === "string" ? overData.parentId : null,
-          index: typeof overData.index === "number" ? overData.index : 0,
-        };
-      }
-
-      const location = findPageBuilderBlockLocation(blocks, overId);
-
-      if (!location) {
-        return {
-          parentId: null,
-          index: blocks.length,
-        };
-      }
-
-      return {
-        parentId: location.parentId,
-        index: location.index,
-      };
+  const handleDragStart = useCallback(
+    (event: DragStartEvent) => {
+      const activeData = event.active.data.current as PageBuilderDragMeta;
+      store.setState({ activeDrag: activeData });
     },
-    [blocks],
+    [store],
   );
-
-  const handleDragStart = useCallback((event: DragStartEvent) => {
-    const activeData = event.active.data.current as PageBuilderDragMeta;
-
-    setActiveDrag(activeData);
-  }, []);
 
   const handleDragEnd = useCallback(
     (event: DragEndEvent) => {
-      setActiveDrag(null);
+      store.setState({ activeDrag: null });
 
       const activeData = event.active.data.current as PageBuilderDragMeta;
       const overData = event.over?.data.current as Record<string, unknown> | undefined;
@@ -377,12 +437,14 @@ export function usePageBuilderState({
         return;
       }
 
-      const target = resolveTargetFromDrop(String(overId), overData);
+      const state = store.getState();
+      const currentBlocks = getCurrentBlocks(state);
+      const target = resolveTargetFromDrop(currentBlocks, String(overId), overData);
 
       if (activeData.kind === "palette") {
         const nextBlock = createPageBuilderBlock(activeData.blockType, seed);
         const nextBlocks = insertPageBuilderBlock(
-          blocks,
+          currentBlocks,
           target.parentId,
           target.index,
           nextBlock,
@@ -393,7 +455,7 @@ export function usePageBuilderState({
       }
 
       const nextBlocks = movePageBuilderBlock(
-        blocks,
+        currentBlocks,
         activeData.blockId,
         target.parentId,
         target.index,
@@ -401,8 +463,50 @@ export function usePageBuilderState({
 
       commitBlocks(nextBlocks, activeData.blockId);
     },
-    [blocks, commitBlocks, resolveTargetFromDrop, seed],
+    [commitBlocks, seed, store],
   );
+
+  useEffect(() => {
+    if (previousEditorKeyRef.current === editorKey) {
+      return;
+    }
+
+    previousEditorKeyRef.current = editorKey;
+
+    const seedBlocks = normalizePageBuilderBlocks(
+      initialBlocks.length ? initialBlocks : createDefaultPageBuilderBlocks(seed),
+      seed,
+    );
+
+    initialSeedRef.current = seedBlocks;
+    previousBlocksRef.current = seedBlocks;
+    skipNextOnChangeRef.current = true;
+
+    store.setState({
+      history: {
+        timeline: [seedBlocks],
+        index: 0,
+      },
+      selectedId: seedBlocks[0]?.id || null,
+      device: "desktop",
+      activeDrag: null,
+    });
+  }, [editorKey, initialBlocks, seed, store]);
+
+  useEffect(() => {
+    if (skipNextOnChangeRef.current) {
+      skipNextOnChangeRef.current = false;
+      previousBlocksRef.current = blocks;
+      return;
+    }
+
+    if (previousBlocksRef.current === blocks) {
+      return;
+    }
+
+    previousBlocksRef.current = blocks;
+    onBlocksChange(blocks);
+  }, [blocks, onBlocksChange]);
 
   return {
     blocks,

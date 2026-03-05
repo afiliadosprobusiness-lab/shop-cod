@@ -1,5 +1,6 @@
 /* eslint-disable react-refresh/only-export-components */
 
+import { type CSSProperties } from "react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
@@ -67,131 +68,132 @@ function isStoreOrderBump(block: BuilderRenderableBlock): block is StoreOrderBum
   return "productId" in block && "price" in block && "description" in block && !("id" in block);
 }
 
-function getPaddingClass(padding: PageBuilderBlock["style"]["padding"]) {
-  if (padding === "compact") {
-    return "p-4";
-  }
+const legacyPaddingMap: Record<PageBuilderBlock["style"]["padding"], number> = {
+  compact: 12,
+  comfortable: 20,
+  spacious: 32,
+};
 
-  if (padding === "spacious") {
-    return "p-8";
-  }
+const legacyMarginMap: Record<PageBuilderBlock["style"]["margin"], number> = {
+  none: 0,
+  sm: 8,
+  md: 16,
+  lg: 28,
+};
 
-  return "p-6";
-}
+const legacyFontSizeMap: Record<PageBuilderBlock["style"]["fontSize"], number> = {
+  sm: 14,
+  base: 16,
+  lg: 20,
+  xl: 28,
+};
 
-function getMarginClass(margin: PageBuilderBlock["style"]["margin"]) {
-  if (margin === "none") {
-    return "my-0";
-  }
+const legacyBorderWidthMap: Record<PageBuilderBlock["style"]["borderWidth"], number> = {
+  none: 0,
+  thin: 1,
+  medium: 2,
+};
 
-  if (margin === "sm") {
-    return "my-2";
-  }
+const legacyWidthMap: Record<PageBuilderBlock["layout"]["width"], string> = {
+  full: "100%",
+  wide: "1080px",
+  narrow: "760px",
+};
 
-  if (margin === "lg") {
-    return "my-8";
-  }
+const legacyMinHeightMap: Record<PageBuilderBlock["layout"]["minHeight"], string> = {
+  auto: "0px",
+  sm: "96px",
+  md: "180px",
+  lg: "280px",
+};
 
-  return "my-4";
-}
+const legacyGapMap: Record<PageBuilderBlock["layout"]["gap"], number> = {
+  tight: 10,
+  normal: 18,
+  loose: 28,
+};
 
-function getRadiusClass(radius: PageBuilderBlock["style"]["radius"]) {
-  if (radius === "soft") {
-    return "rounded-2xl";
-  }
+const legacyFontFamilyMap: Record<PageBuilderBlock["style"]["fontFamily"], string> = {
+  sans: "Sora, 'Segoe UI', sans-serif",
+  serif: "'Fraunces', Georgia, serif",
+  mono: "'JetBrains Mono', ui-monospace, monospace",
+};
 
-  if (radius === "pill") {
-    return "rounded-[2rem]";
-  }
+const legacyRadiusMap: Record<PageBuilderBlock["style"]["radius"], number> = {
+  soft: 12,
+  rounded: 22,
+  pill: 999,
+};
 
-  return "rounded-3xl";
-}
-
-function getAlignClass(align: PageBuilderBlock["style"]["align"]) {
-  if (align === "center") {
-    return "text-center";
-  }
-
-  if (align === "right") {
-    return "text-right";
-  }
-
-  return "text-left";
-}
-
-function getFontFamilyClass(fontFamily: PageBuilderBlock["style"]["fontFamily"]) {
-  if (fontFamily === "serif") {
-    return "font-serif";
-  }
-
-  if (fontFamily === "mono") {
-    return "font-mono";
-  }
-
-  return "font-sans";
-}
-
-function getFontSizeClass(fontSize: PageBuilderBlock["style"]["fontSize"]) {
-  if (fontSize === "sm") {
-    return "text-sm";
-  }
-
-  if (fontSize === "lg") {
-    return "text-lg";
-  }
-
-  if (fontSize === "xl") {
-    return "text-xl";
-  }
-
-  return "text-base";
-}
-
-function getWidthClass(
-  width: PageBuilderBlock["layout"]["width"],
-  device: PageBuilderDevice,
+function getBoxValues(
+  box: PageBuilderBlock["style"]["spacing"]["padding"] | undefined,
+  fallback: number,
 ) {
-  if (device === "mobile") {
-    return "w-full";
-  }
-
-  if (width === "narrow") {
-    return "max-w-2xl";
-  }
-
-  if (width === "wide") {
-    return "max-w-5xl";
-  }
-
-  return "max-w-full";
+  return {
+    top: box?.top ?? fallback,
+    right: box?.right ?? fallback,
+    bottom: box?.bottom ?? fallback,
+    left: box?.left ?? fallback,
+  };
 }
 
-function getMinHeightClass(minHeight: PageBuilderBlock["layout"]["minHeight"]) {
-  if (minHeight === "sm") {
-    return "min-h-24";
-  }
-
-  if (minHeight === "md") {
-    return "min-h-40";
-  }
-
-  if (minHeight === "lg") {
-    return "min-h-64";
-  }
-
-  return "min-h-0";
+function getBlockGap(block: PageBuilderBlock) {
+  return block.layout.gapPx ?? legacyGapMap[block.layout.gap];
 }
 
-function getBorderWidthValue(borderWidth: PageBuilderBlock["style"]["borderWidth"]) {
-  if (borderWidth === "medium") {
-    return "2px";
+function getBlockWrapperStyle(block: PageBuilderBlock, device: PageBuilderDevice): CSSProperties {
+  const margin = getBoxValues(block.style.spacing?.margin, legacyMarginMap[block.style.margin]);
+  const padding = getBoxValues(block.style.spacing?.padding, legacyPaddingMap[block.style.padding]);
+  const typography = block.style.typography;
+  const border = block.style.border;
+  const shadow = block.style.shadow;
+  const dimensions = block.layout.dimensions;
+  const background = block.style.background;
+
+  const backgroundColor = background?.color || block.style.backgroundColor;
+  const imageUrl = background?.imageUrl || "";
+  const borderStyle = border?.style || block.style.borderStyle;
+  const borderWidth = border?.width ?? legacyBorderWidthMap[block.style.borderWidth];
+  const borderColor = border?.color || block.style.borderColor;
+  const borderRadius = border?.radius ?? legacyRadiusMap[block.style.radius];
+  const width = device === "mobile" ? "100%" : dimensions?.width || "100%";
+  const maxWidth = device === "mobile" ? "100%" : dimensions?.maxWidth || legacyWidthMap[block.layout.width];
+  const minHeight = dimensions?.minHeight || legacyMinHeightMap[block.layout.minHeight];
+  const height = dimensions?.height || "auto";
+
+  const style: CSSProperties = {
+    backgroundColor,
+    color: block.style.textColor,
+    textAlign: block.style.align,
+    fontFamily: typography?.family || legacyFontFamilyMap[block.style.fontFamily],
+    fontSize: `${typography?.size ?? legacyFontSizeMap[block.style.fontSize]}px`,
+    fontWeight: typography?.weight ?? 500,
+    lineHeight: typography?.lineHeight ?? 1.5,
+    letterSpacing: `${typography?.letterSpacing ?? 0}px`,
+    margin: `${margin.top}px ${margin.right}px ${margin.bottom}px ${margin.left}px`,
+    padding: `${padding.top}px ${padding.right}px ${padding.bottom}px ${padding.left}px`,
+    borderStyle,
+    borderWidth: `${borderWidth}px`,
+    borderColor,
+    borderRadius: `${borderRadius}px`,
+    width,
+    maxWidth,
+    minHeight,
+    height,
+  };
+
+  if (imageUrl.trim()) {
+    style.backgroundImage = `url(${imageUrl})`;
+    style.backgroundPosition = background?.position || "center";
+    style.backgroundSize = background?.size || "cover";
+    style.backgroundRepeat = "no-repeat";
   }
 
-  if (borderWidth === "none") {
-    return "0px";
+  if (shadow?.enabled) {
+    style.boxShadow = `${shadow.x}px ${shadow.y}px ${shadow.blur}px ${shadow.spread}px ${shadow.color}`;
   }
 
-  return "1px";
+  return style;
 }
 
 function EditableField({
@@ -240,31 +242,18 @@ function EditableField({
 
 function renderPageBlock(block: PageBuilderBlock, options?: RenderBlockOptions) {
   const device = options?.device || "desktop";
-  const wrapperClass = [
-    "mx-auto overflow-hidden border bg-slate-950/70 shadow-[0_20px_50px_rgba(15,23,42,0.22)]",
-    getPaddingClass(block.style.padding),
-    getMarginClass(block.style.margin),
-    getRadiusClass(block.style.radius),
-    getAlignClass(block.style.align),
-    getFontFamilyClass(block.style.fontFamily),
-    getFontSizeClass(block.style.fontSize),
-    getWidthClass(block.layout.width, device),
-    getMinHeightClass(block.layout.minHeight),
-  ].join(" ");
-
-  const inlineStyle = {
-    backgroundColor: block.style.backgroundColor,
-    color: block.style.textColor,
-    borderColor: block.style.borderColor,
-    borderStyle: block.style.borderStyle,
-    borderWidth: getBorderWidthValue(block.style.borderWidth),
-  };
+  const blockGap = getBlockGap(block);
+  const wrapperClass = cn(
+    "mx-auto overflow-hidden border bg-slate-950/70 transition-colors duration-150",
+    options?.isSelected ? "ring-1 ring-sky-300/60" : "",
+  );
+  const wrapperStyle = getBlockWrapperStyle(block, device);
 
   switch (block.type) {
     case "text":
       return (
-        <section className={wrapperClass} style={inlineStyle}>
-          <div className="space-y-3">
+        <section className={wrapperClass} style={wrapperStyle}>
+          <div className="space-y-3" style={{ gap: `${Math.max(12, blockGap / 2)}px` }}>
             <h3 className="text-2xl font-bold leading-tight sm:text-3xl">
               <EditableField
                 block={block}
@@ -289,11 +278,11 @@ function renderPageBlock(block: PageBuilderBlock, options?: RenderBlockOptions) 
 
     case "image":
       return (
-        <section className={wrapperClass} style={inlineStyle}>
+        <section className={wrapperClass} style={wrapperStyle}>
           <div className="overflow-hidden rounded-2xl border border-white/10 bg-slate-900/60">
             <div className="aspect-[16/9] w-full bg-gradient-to-br from-slate-800 via-slate-900 to-slate-950">
               <img
-                src={block.content.src}
+                src={block.content.src || ""}
                 alt={block.content.alt || "Imagen del bloque"}
                 className="h-full w-full object-cover"
               />
@@ -312,7 +301,7 @@ function renderPageBlock(block: PageBuilderBlock, options?: RenderBlockOptions) 
 
     case "button":
       return (
-        <section className={wrapperClass} style={inlineStyle}>
+        <section className={wrapperClass} style={wrapperStyle}>
           <div className="space-y-3">
             <div className="inline-flex rounded-full border border-white/15 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] opacity-70">
               <EditableField
@@ -340,8 +329,8 @@ function renderPageBlock(block: PageBuilderBlock, options?: RenderBlockOptions) 
 
     case "container":
       return (
-        <section className={wrapperClass} style={inlineStyle}>
-          <div className="space-y-3">
+        <section className={wrapperClass} style={wrapperStyle}>
+          <div className="space-y-3" style={{ gap: `${Math.max(10, blockGap / 2)}px` }}>
             <div className="inline-flex rounded-full border border-white/15 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] opacity-70">
               Container
             </div>
@@ -373,8 +362,8 @@ function renderPageBlock(block: PageBuilderBlock, options?: RenderBlockOptions) 
 
     case "section":
       return (
-        <section className={wrapperClass} style={inlineStyle}>
-          <div className="space-y-4">
+        <section className={wrapperClass} style={wrapperStyle}>
+          <div className="space-y-4" style={{ gap: `${Math.max(12, blockGap / 2)}px` }}>
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="inline-flex rounded-full border border-white/15 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] opacity-70">
                 Section
@@ -413,7 +402,7 @@ function renderPageBlock(block: PageBuilderBlock, options?: RenderBlockOptions) 
 
     case "columns":
       return (
-        <section className={wrapperClass} style={inlineStyle}>
+        <section className={wrapperClass} style={wrapperStyle}>
           <div className="space-y-4">
             <div>
               <p className="text-[11px] font-semibold uppercase tracking-[0.16em] opacity-70">
@@ -437,7 +426,13 @@ function renderPageBlock(block: PageBuilderBlock, options?: RenderBlockOptions) 
                 />
               </p>
             </div>
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div
+              className="grid"
+              style={{
+                gap: `${Math.max(10, blockGap / 2)}px`,
+                gridTemplateColumns: `repeat(${Math.max(device === "mobile" ? 1 : 2, block.layout.columns)}, minmax(0, 1fr))`,
+              }}
+            >
               {Array.from({ length: Math.max(2, block.layout.columns) }).map((_, index) => (
                 <div
                   key={`${block.id}-preview-${index}`}
@@ -453,7 +448,7 @@ function renderPageBlock(block: PageBuilderBlock, options?: RenderBlockOptions) 
 
     case "divider":
       return (
-        <section className={wrapperClass} style={inlineStyle}>
+        <section className={wrapperClass} style={wrapperStyle}>
           <div className="flex items-center gap-3">
             <div className="h-px flex-1 bg-white/20" />
             <span className="text-[11px] font-semibold uppercase tracking-[0.16em] opacity-60">
@@ -472,7 +467,7 @@ function renderPageBlock(block: PageBuilderBlock, options?: RenderBlockOptions) 
 
     case "video":
       return (
-        <section className={wrapperClass} style={inlineStyle}>
+        <section className={wrapperClass} style={wrapperStyle}>
           <div className="space-y-3">
             <div className="aspect-video rounded-2xl border border-white/10 bg-slate-900/60" />
             <h3 className="text-lg font-semibold">
@@ -498,7 +493,7 @@ function renderPageBlock(block: PageBuilderBlock, options?: RenderBlockOptions) 
 
     case "product":
       return (
-        <section className={wrapperClass} style={inlineStyle}>
+        <section className={wrapperClass} style={wrapperStyle}>
           <div className="grid gap-4 sm:grid-cols-[0.85fr_1.15fr]">
             <div className="rounded-3xl bg-white/10 p-5">
               <div className="aspect-square rounded-2xl bg-slate-900/70" />
@@ -545,7 +540,7 @@ function renderPageBlock(block: PageBuilderBlock, options?: RenderBlockOptions) 
 
     case "form":
       return (
-        <section className={wrapperClass} style={inlineStyle}>
+        <section className={wrapperClass} style={wrapperStyle}>
           <div className="space-y-4">
             <div>
               <h3 className="text-xl font-bold">
@@ -590,7 +585,7 @@ function renderPageBlock(block: PageBuilderBlock, options?: RenderBlockOptions) 
 
     case "countdown":
       return (
-        <section className={wrapperClass} style={inlineStyle}>
+        <section className={wrapperClass} style={wrapperStyle}>
           <div className="space-y-4">
             <p className="text-[11px] font-semibold uppercase tracking-[0.16em] opacity-70">
               <EditableField
@@ -626,7 +621,7 @@ function renderPageBlock(block: PageBuilderBlock, options?: RenderBlockOptions) 
 
     case "testimonial":
       return (
-        <section className={wrapperClass} style={inlineStyle}>
+        <section className={wrapperClass} style={wrapperStyle}>
           <div className="space-y-4">
             <div className="text-4xl leading-none opacity-40">"</div>
             <blockquote className="text-lg font-medium leading-8">

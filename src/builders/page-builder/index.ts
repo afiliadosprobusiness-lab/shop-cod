@@ -3,6 +3,8 @@ export {
   createPageBuilderDocument,
   createDefaultPageBuilderBlocks,
   createPageBuilderBlock,
+  normalizePageBuilderBlock,
+  normalizePageBuilderBlocks,
   pageBuilderBlockTypes,
   serializePageBuilderDocument,
   type PageBuilderDocument,

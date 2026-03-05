@@ -88,8 +88,21 @@ function clonePageBuilderBlock(
     ...block,
     id: cloneBlockId(block.type),
     content: { ...block.content },
-    style: { ...block.style },
-    layout: { ...block.layout },
+    style: {
+      ...block.style,
+      spacing: {
+        margin: { ...block.style.spacing.margin },
+        padding: { ...block.style.spacing.padding },
+      },
+      typography: { ...block.style.typography },
+      background: { ...block.style.background },
+      border: { ...block.style.border },
+      shadow: { ...block.style.shadow },
+    },
+    layout: {
+      ...block.layout,
+      dimensions: { ...block.layout.dimensions },
+    },
     children: clonedChildren,
     // preserve deterministic shape from the current type
     type: freshBlock.type,

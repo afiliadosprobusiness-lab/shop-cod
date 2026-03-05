@@ -14,6 +14,7 @@ ShopCOD is a frontend SPA for COD-focused funnel selling. It uses Firebase Authe
 - shadcn-ui / Radix UI
 - Framer Motion
 - dnd-kit
+- Zustand
 - TanStack Query
 - Firebase Web SDK (Auth + Firestore sync for superadmin registry)
 - Vitest + Testing Library
@@ -264,7 +265,7 @@ ShopCOD is a frontend SPA for COD-focused funnel selling. It uses Firebase Authe
   - payment method
   - page count
   - without preloaded demo stores by default
-3. The user clicks `Nueva tienda` to open the creation wizard inside the same route.
+3. The user clicks `Crear tienda` to open a fullscreen 3-step creation wizard.
 4. Step 1 lets the user select one of the available templates:
   - `One Product`
   - `Catalog`
@@ -276,15 +277,15 @@ ShopCOD is a frontend SPA for COD-focused funnel selling. It uses Firebase Authe
   - `name`
   - `slug`
   - `currency`
-7. On save, the app stores the new store in browser `localStorage`, initializes a compatible editor draft, and keeps the new item visible in the list.
-8. `Ver panel` opens `/stores/:storeId` for the internal dashboard.
-9. `Abrir editor` opens `/editor/:storeId` using the same store id and draft.
+7. On save, the app stores the new store in browser `localStorage`, initializes a compatible editor draft, and redirects directly to `/stores/:storeId`.
+8. The stores list keeps the created item visible when returning to `/stores`.
+9. `Ver panel` opens `/stores/:storeId` from any existing store card.
 
 ### Store Dashboard Flow
 
 1. User opens `/stores/:storeId`.
 2. The route loads the local store and ensures a compatible local draft exists.
-3. The page renders internal navigation sections:
+3. The page renders an ecommerce-style internal header with breadcrumb, store URL, preview/template actions, publish status, and section tabs:
   - `Resumen`
   - `Productos`
   - `Colecciones`
@@ -292,14 +293,12 @@ ShopCOD is a frontend SPA for COD-focused funnel selling. It uses Firebase Authe
   - `Pages`
   - `Idiomas`
   - `Configuracion`
-4. `Resumen` shows basic analytics:
+4. `Resumen` shows operational analytics:
   - visitors
   - orders
   - sales
   - conversion rate
-5. The summary also renders two basic analytics tables:
-  - top products
-  - traffic sources
+5. The summary also renders conversion and offers tables, plus top products and traffic source blocks.
 6. The remaining sections expose operational views derived from the local draft and store model.
 
 ### Editor Flow
@@ -317,12 +316,13 @@ ShopCOD is a frontend SPA for COD-focused funnel selling. It uses Firebase Authe
   - contextual insertion suggestions
   - heuristic conversion score and quick-win guidance
 5. `Page builder` mounts a dedicated module at `src/builders/page-builder` with:
-  - `sidebar` tabs: Elements, Layers, Styles, Settings
+  - `left panel` tabs: Elements, Layers, Settings
+  - `right panel` dedicated style editor (margin, padding, width, height, typography, background, borders, shadow)
   - `topbar` controls: undo, redo, responsive desktop/tablet/mobile, save, preview, publish
   - `canvas` tree: drag, drop, reorder, duplicate, resize, nested containers, inline editing, hover controls
   - `renderer/renderBlock(block)` for block-by-block rendering
   - `block-engine` for schema, catalog, tree ops, and page JSON serialization
-  - `state-manager` for history, selection, device mode, drag state, and hot updates
+  - `state-manager` with Zustand store for history, selection, device mode, drag state, and granular node updates
 6. The visual page layout is stored as nested JSON blocks alongside the funnel draft and serialized into each funnel page record.
 7. `Funnel builder` mounts a dedicated module at `src/builders/funnel-builder` with:
   - infinite-feel canvas with pan and zoom
@@ -380,8 +380,8 @@ ShopCOD is a frontend SPA for COD-focused funnel selling. It uses Firebase Authe
 - `src/pages/dashboard/FunnelsPage.tsx` renders the funnels list and full-screen multi-step funnel creation wizard.
 - `src/pages/funnel/FunnelWorkspacePage.tsx` renders the dedicated funnel workspace with summary, builder, settings, and languages tabs.
 - `FunnelWorkspacePage` now opens `PageBuilderEditor` inline when a node action triggers edit, and persists page-level `contentJson` changes in real time so CTA rows remain connectable in the funnel canvas.
-- `src/pages/dashboard/StoresPage.tsx` renders the stores list and the 3-step store creation wizard.
-- `src/pages/dashboard/StoreDashboardPage.tsx` renders the per-store internal dashboard and section navigation.
+- `src/pages/dashboard/StoresPage.tsx` renders the stores list and a fullscreen 3-step store creation wizard aligned with the funnels flow, then redirects to the new store dashboard.
+- `src/pages/dashboard/StoreDashboardPage.tsx` renders the per-store internal dashboard with ecommerce-style header, section tabs, and summary analytics blocks.
 - `src/pages/dashboard/OrdersPage.tsx` renders real COD orders and operational status updates.
 - `src/pages/dashboard/AnalyticsPage.tsx` renders real-time KPI snapshots from persisted platform data.
 - `src/pages/dashboard/ContactsPage.tsx` renders the persisted buyers/leads base from COD submissions.
@@ -416,10 +416,11 @@ ShopCOD is a frontend SPA for COD-focused funnel selling. It uses Firebase Authe
 ### Page Builder Module
 
 - `src/builders/page-builder/sidebar/*` renders the left inspector and draggable element library.
+- `src/builders/page-builder/style-panel/*` renders the dedicated right-side style editor.
 - `src/builders/page-builder/topbar/*` renders history, preview/publish, and responsive controls.
 - `src/builders/page-builder/canvas/*` renders the nested visual canvas and drop zones.
 - `src/builders/page-builder/block-engine/*` contains the page schema, element catalog, immutable tree helpers, and `page_json` serialization helpers.
-- `src/builders/page-builder/state-manager/*` contains the editor state hook for history, selection, device mode, and drag-drop mutations.
+- `src/builders/page-builder/state-manager/*` contains the Zustand-backed editor store hook for history, selection, device mode, and drag-drop mutations.
 - `src/builders/page-builder/blocks/*` remains as compatibility re-exports for the current internal import surface.
 - `src/builders/page-builder/renderer/renderBlock.tsx` delegates to the shared block renderer.
 

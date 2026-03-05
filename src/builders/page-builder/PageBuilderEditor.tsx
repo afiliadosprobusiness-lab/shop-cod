@@ -13,6 +13,7 @@ import { BuilderEditorShell } from "@/builders/shared";
 import { PageBuilderCanvas } from "./canvas/PageBuilderCanvas";
 import { renderBlock } from "./renderer/renderBlock";
 import { PageBuilderSidebar } from "./sidebar/PageBuilderSidebar";
+import { PageBuilderStylePanel } from "./style-panel/PageBuilderStylePanel";
 import { type PageBuilderBlock, type PageBuilderSeed, createPageBuilderBlock } from "./block-engine/schema";
 import { findPageBuilderBlock } from "./block-engine/tree";
 import { usePageBuilderState } from "./state-manager";
@@ -117,7 +118,7 @@ export function PageBuilderEditor({
           />
         }
       >
-        <div className="flex flex-col gap-5 xl:flex-row">
+        <div className="grid grid-cols-1 gap-5 xl:grid-cols-[19rem_minmax(0,1fr)_20rem]">
           <PageBuilderSidebar
             blocks={blocks}
             selectedBlock={selectedBlock}
@@ -126,8 +127,6 @@ export function PageBuilderEditor({
             onSelect={setSelectedId}
             onAddBlock={addBlock}
             onUpdateContent={updateSelectedContent}
-            onUpdateStyle={updateSelectedStyle}
-            onUpdateLayout={updateSelectedLayout}
           />
 
           <PageBuilderCanvas
@@ -139,6 +138,12 @@ export function PageBuilderEditor({
             onDuplicate={duplicateBlock}
             onResize={resizeBlock}
             onInlineChange={updateInlineContent}
+          />
+
+          <PageBuilderStylePanel
+            selectedBlock={selectedBlock}
+            onUpdateStyle={updateSelectedStyle}
+            onUpdateLayout={updateSelectedLayout}
           />
         </div>
       </BuilderEditorShell>
