@@ -138,6 +138,7 @@ All routes below are protected by Firebase auth state and render inside the shar
 - Components: `DashboardLayout` + `StoresPage`.
 - Includes:
   - a store list with template preview, payment method, and page count
+  - no preloaded demo stores in a fresh browser state
   - `Nueva tienda` CTA
   - a 3-step creation wizard inside the same route
 
@@ -211,6 +212,8 @@ All routes below are protected by Firebase auth state and render inside the shar
   - store setup uses a dedicated store builder for products, bundles, collections, checkout order bumps, multi-currency, and multi-domain configuration
   - page refinement uses a visual page builder with sidebar tabs (`Elements`, `Layers`, `Styles`, `Settings`), top bar controls, nested containers, duplicate/resize controls, and inline editing without full reloads
   - funnel ordering supports a node-based flow editor with pan, zoom, drag, node duplication/deletion, visible page previews, node connections, analytics badges, and page-level routing per node
+  - each funnel node card now exposes action blocks (edit area, visits block, product selector, links status) plus bottom icon actions for settings, edit, preview, duplicate, and delete
+  - node settings open a tabbed page-configuration modal (`Detalles`, `SEO`, `HTML personalizado`) persisted in funnel page settings
 
 ### `GET /preview/:storeId`
 
@@ -475,6 +478,7 @@ interface FunnelNode {
   pageId: string;
   type: FunnelNodeType;
   position: { x: number; y: number };
+  selectedProductId: string | null;
   analytics: {
     visits: number;
     clicks: number;
@@ -487,6 +491,16 @@ interface FunnelPage {
   funnelId: string;
   type: FunnelNodeType;
   contentJson: string;
+  settings: {
+    path: string;
+    title: string;
+    seoTitle: string;
+    seoDescription: string;
+    seoKeywords: string;
+    featuredImageUrl: string;
+    headScripts: string;
+    footerScripts: string;
+  };
 }
 
 interface FunnelConnection {
@@ -587,6 +601,8 @@ Rules:
 - Only `section`, `container`, and `columns` may hold nested `children`.
 - `funnelBuilder` stores the visual funnel graph, node connections, and `pages[]` records.
 - The funnel builder must support page add, delete, duplicate, and connection actions on the visual graph.
+- Funnel nodes must persist `selectedProductId` (or `null`) for product association controls shown in the card.
+- Funnel page settings edited from node configuration modals must persist in `FunnelPage.settings`.
 - Each `FunnelPage.contentJson` stores the serialized page document for that funnel page and acts as the frontend mirror of the persisted `content_json` field.
 - `storeBuilder` stores products, bundles, collections, checkout domains, currencies, and order bumps.
 - `src/builders/shared/components/blocks/renderBlock.tsx` provides the shared `renderBlock(block)` engine used by Page Builder, Funnel Builder, and Store Builder UI.
@@ -700,7 +716,7 @@ Rules:
 - The browser can still read user-created stores from the local catalog for editor-adjacent flows.
 - The products module seeds demo products until a browser-local product catalog is written.
 - The funnels module starts with an empty catalog until a browser-local funnel is created.
-- The stores module seeds demo stores until a browser-local store catalog is written.
+- The stores module starts with an empty catalog and auto-removes legacy demo rows (`store-201`, `store-202`) if they still exist in browser storage.
 - No custom backend persistence exists yet.
 
 ## Environment Contract
@@ -785,3 +801,5 @@ The following are breaking changes and must be versioned or coordinated before i
 - 2026-03-04 | El registro superadmin usa `uid` estable, reintenta sync cloud tras fallos temporales y resincroniza el perfil al guardar `GET /settings` | non-breaking | Corrige visibilidad y consistencia de cuentas reales entre workspaces y panel root
 - 2026-03-04 | `GET /funnels` adopta wizard fullscreen y se agrega `GET /funnels/:funnelId/editor` como workspace dedicado | non-breaking | Mantiene compatibilidad con editor legacy y separa flujo moderno de funnels
 - 2026-03-04 | Se elimina el seed de funnels demo por defecto y se limpia automaticamente el legado local (`funnel-101`, `funnel-102`) | non-breaking | Evita que aparezcan funnels pre-cargados en nuevos workspaces
+- 2026-03-05 | `GET /stores` deja de sembrar tiendas demo y limpia automaticamente el legado local (`store-201`, `store-202`) | non-breaking | Evita cards demo en workspaces nuevos y sanea catálogos ya persistidos sin cambiar rutas ni modelos
+- 2026-03-05 | El funnel builder adopta tarjetas por acciones con barra de iconos y modal de configuración por página, persistiendo `selectedProductId` y `FunnelPage.settings` | non-breaking | Mejora UX operativa del builder sin cambiar rutas ni romper el flujo de edición existente

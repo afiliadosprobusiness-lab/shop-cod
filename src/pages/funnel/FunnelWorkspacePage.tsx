@@ -512,6 +512,9 @@ export default function FunnelWorkspacePage() {
                   onOpenPage={(node) =>
                     toast.info(`${getNodeLabel(node.type)} listo para edicion visual en la siguiente iteracion.`)
                   }
+                  onPreviewPage={(node) =>
+                    toast.info(`Preview de ${getNodeLabel(node.type)} en esta ruta disponible en la siguiente iteracion.`)
+                  }
                 />
                 <button
                   type="button"

@@ -1708,6 +1708,7 @@ export default function EditorPage() {
                 graph={funnelGraph}
                 onGraphChange={handleFunnelGraphChange}
                 onOpenPage={openFunnelNodePage}
+                onPreviewPage={() => openPreview()}
               />
             </div>
           </div>

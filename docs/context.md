@@ -260,6 +260,7 @@ ShopCOD is a frontend SPA for COD-focused funnel selling. It uses Firebase Authe
   - template preview
   - payment method
   - page count
+  - without preloaded demo stores by default
 3. The user clicks `Nueva tienda` to open the creation wizard inside the same route.
 4. Step 1 lets the user select one of the available templates:
   - `One Product`
@@ -322,9 +323,11 @@ ShopCOD is a frontend SPA for COD-focused funnel selling. It uses Firebase Authe
 6. The visual page layout is stored as nested JSON blocks alongside the funnel draft and serialized into each funnel page record.
 7. `Funnel builder` mounts a dedicated module at `src/builders/funnel-builder` with:
   - infinite-feel canvas with pan and zoom
-  - draggable page nodes
-  - duplicate and delete node actions
+  - draggable page nodes with dedicated drag handles
+  - duplicate and delete node actions from per-card icon controls
   - SVG node connections with disconnect controls
+  - per-node action cards with: page-open block, visits block, product selector, links state block, and icon action row (`settings`, `edit`, `preview`, `duplicate`, `delete`)
+  - tabbed page settings modal (`Detalles`, `SEO`, `HTML personalizado`) persisted per page
   - per-node analytics badges (visits, clicks, conversion rate)
   - supported node types for product, checkout, upsell, downsell, thank you, lead capture, article, and blank page
   - click-on-node transition into the `Page builder`
@@ -417,7 +420,7 @@ ShopCOD is a frontend SPA for COD-focused funnel selling. It uses Firebase Authe
 ### Funnel Builder Module
 
 - `src/builders/funnel-builder/schema.ts` re-exports the shared funnel model and helpers.
-- `src/builders/funnel-builder/FunnelBuilderEditor.tsx` renders the interactive canvas, node cards, previews, analytics, pan/zoom, duplicate/delete actions, and connection UX.
+- `src/builders/funnel-builder/FunnelBuilderEditor.tsx` renders the interactive canvas, action-based node cards, page settings modal, pan/zoom, duplicate/delete actions, preview actions, and connection UX.
 
 ### Store Builder Module
 
@@ -447,7 +450,7 @@ ShopCOD is a frontend SPA for COD-focused funnel selling. It uses Firebase Authe
   - store commercial profile
   - page builder nested layout JSON
   - page builder layouts keyed by `pageId`
-  - funnel graph nodes, per-page records, and connections
+  - funnel graph nodes (`selectedProductId` per node), per-page records (`contentJson` + `settings`), and connections
   - store builder products, bundles, collections, and checkout settings
   - timestamps
 - Additional browser storage also persists:
@@ -461,7 +464,7 @@ ShopCOD is a frontend SPA for COD-focused funnel selling. It uses Firebase Authe
 - A browser-side store catalog is also stored in `localStorage` for dashboard and editor-adjacent flows.
 - A browser-side product catalog is also stored in `localStorage` with seeded fallback data for the products module.
 - A browser-side funnel catalog is stored in `localStorage` and starts empty until the user creates funnels.
-- A browser-side store catalog for `/stores` is also stored in `localStorage` with seeded fallback data for the stores module.
+- A browser-side store catalog for `/stores` is stored in `localStorage`, starts empty by default, and auto-cleans legacy demo rows (`store-201`, `store-202`) when detected.
 - No custom backend or database persistence exists yet.
 
 ## Variables De Entorno

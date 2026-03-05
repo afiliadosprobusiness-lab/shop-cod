@@ -61,8 +61,8 @@
 - Modulos internos: `/products`, `/funnels`, `/stores`, `/orders`, `/analytics`, `/contacts`, `/offers`, `/apps` y `/settings` reutilizan el mismo layout compartido, pero ya muestran vistas funcionales del negocio
 - Productos: `/products` ahora muestra tabla con buscador, filtros, duplicado, borrado y metricas reactivas segun catalogo y pedidos reales
 - Funnels: `/funnels` ahora muestra listado con preview, conversion y visitas, e incluye wizard fullscreen de 3 pasos (plantilla -> datos -> confirmacion) con fallback automatico a plantilla en blanco y sin demos precargados por defecto
-- Workspace de funnel: `/funnels/:funnelId/editor` concentra `Resumen`, `Construir y Disenar`, `Configuracion` e `Idiomas`, y permite agregar paginas con selector por tipo desde el builder
-- Tiendas: `/stores` ahora muestra listado con preview, metodo de pago y cantidad de paginas, e incluye wizard de 3 pasos para crear tiendas con plantilla, pagos, configuracion y borrado
+- Workspace de funnel: `/funnels/:funnelId/editor` concentra `Resumen`, `Construir y Disenar`, `Configuracion` e `Idiomas`, y permite agregar paginas con selector por tipo desde el builder; las tarjetas de nodo ahora usan layout por acciones con accesos directos a configuracion, edicion, preview, clonado y borrado
+- Tiendas: `/stores` ahora muestra listado con preview, metodo de pago y cantidad de paginas, e incluye wizard de 3 pasos para crear tiendas con plantilla, pagos, configuracion y borrado, sin demos precargados por defecto
 - Dashboard interno de tienda: `/stores/:storeId` muestra navegacion interna por secciones y un resumen con metricas, top productos y fuentes de trafico derivadas del estado local
 - Pedidos: `/orders` lista pedidos reales que entran desde el checkout COD y permite actualizar su estado
 - Analiticas: `/analytics` consolida KPIs en tiempo real usando pedidos, contactos, productos, funnels y tiendas persistidos localmente
@@ -115,7 +115,7 @@
 - La configuracion persistida del workspace funnel vive en `src/lib/funnel-workspace.ts`.
 - El modulo real de tiendas vive en `src/pages/dashboard/StoresPage.tsx`.
 - El panel interno por tienda vive en `src/pages/dashboard/StoreDashboardPage.tsx`.
-- El modelo, templates, selector de pagos, almacenamiento local y analytics derivados de tiendas viven en `src/lib/stores.ts`.
+- El modelo, templates, selector de pagos, almacenamiento local y analytics derivados de tiendas viven en `src/lib/stores.ts`; el catalogo inicia vacio y limpia automaticamente seeds legacy (`store-201`, `store-202`) si existen en `localStorage`.
 - Los pedidos, contactos, ofertas, configuracion global y el snapshot de analytics en tiempo real viven en `src/lib/platform-data.ts`.
 - `src/lib/superadmin.ts` mantiene el registro local de clientes gestionados por el root, filtra cuentas demo legacy, registra workspaces autenticados, hidrata/sincroniza con Firestore cuando esta disponible, reintenta sync tras fallos temporales y evita borrar o degradar la cuenta superadmin.
 - `src/lib/plans.ts` centraliza limites y desbloqueos por plan para `Starter`, `Pro` y `Scale`.
@@ -128,8 +128,9 @@
 - El modulo visual del page builder vive en `src/builders/page-builder` y persiste su arbol de bloques dentro del mismo draft del editor, sincronizado por pagina del funnel.
 - El page builder ahora se organiza en `canvas`, `sidebar`, `topbar`, `renderer`, `block-engine` y `state-manager`.
 - El page builder ya soporta drag/drop desde sidebar, reordenamiento, duplicado, resize por bloque, nesting, tabs `Elements/Layers/Styles/Settings` y serializacion `page_json`.
-- El modulo visual del funnel builder vive en `src/builders/funnel-builder` y persiste nodos/conexiones junto con `pages[]` (id, funnelId, type, contentJson) y los layouts por `pageId`.
-- El funnel builder ahora soporta canvas infinito con zoom/pan/drag, nodos duplicables/eliminables, conexion visual y tipos de pagina extendidos (`product`, `checkout`, `upsell`, `downsell`, `thankyou`, `leadCapture`, `article`, `blank`).
+- El modulo visual del funnel builder vive en `src/builders/funnel-builder` y persiste nodos/conexiones junto con `pages[]` (id, funnelId, type, contentJson, settings) y los layouts por `pageId`.
+- El funnel builder ahora soporta canvas infinito con zoom/pan/drag mediante handle, nodos duplicables/eliminables, conexion visual, selector de producto por nodo (`selectedProductId`) y tipos de pagina extendidos (`product`, `checkout`, `upsell`, `downsell`, `thankyou`, `leadCapture`, `article`, `blank`).
+- Cada nodo del funnel expone bloques de accion (abrir editor, visitas, selector de producto, estado de links) y barra inferior de iconos (`configuracion`, `editar`, `preview`, `clonar`, `eliminar`); `configuracion` abre modal tabulado con `Detalles`, `SEO` y `HTML personalizado`.
 - El modulo visual del store builder vive en `src/builders/store-builder` y persiste productos, bundles, order bumps, colecciones y checkout dentro del mismo draft.
 - Los tres builders delegan modelos, renderer y shells reutilizables a `src/builders/shared`.
 - Este archivo resume `docs/context.md` y debe mantenerse alineado con esa fuente de verdad.

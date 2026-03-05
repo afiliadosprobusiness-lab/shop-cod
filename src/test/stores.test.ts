@@ -12,6 +12,60 @@ describe("stores storage", () => {
     window.localStorage.clear();
   });
 
+  it("starts empty when there is no local catalog", () => {
+    expect(loadStores()).toEqual([]);
+  });
+
+  it("removes legacy demo stores from persisted data", () => {
+    window.localStorage.setItem(
+      "shopcod-stores-v1",
+      JSON.stringify([
+        {
+          id: "store-201",
+          name: "Glow Market",
+          slug: "glow-market",
+          currency: "USD",
+          pages: [
+            { id: "page-home-1", name: "Home", type: "home" },
+            { id: "page-product-1", name: "Producto", type: "product" },
+            { id: "page-checkout-1", name: "Checkout", type: "checkout" },
+            { id: "page-thankyou-1", name: "Thank you", type: "thankyou" },
+          ],
+          paymentMethod: "separateCheckout",
+          templateId: "catalog",
+          createdAt: "2026-03-02T15:00:00.000Z",
+          updatedAt: "2026-03-03T18:40:00.000Z",
+        },
+        {
+          id: "store-real-1",
+          name: "Real Store",
+          slug: "real-store",
+          currency: "USD",
+          pages: [
+            { id: "page-home-2", name: "Home", type: "home" },
+            { id: "page-product-2", name: "Producto", type: "product" },
+            { id: "page-checkout-2", name: "Checkout", type: "checkout" },
+            { id: "page-thankyou-2", name: "Thank you", type: "thankyou" },
+          ],
+          paymentMethod: "separateCheckout",
+          templateId: "singleProduct",
+          createdAt: "2026-03-04T10:00:00.000Z",
+          updatedAt: "2026-03-04T12:00:00.000Z",
+        },
+      ]),
+    );
+
+    const stores = loadStores();
+    const persistedStores = JSON.parse(
+      window.localStorage.getItem("shopcod-stores-v1") ?? "[]",
+    ) as Array<{ id: string }>;
+
+    expect(stores).toHaveLength(1);
+    expect(stores[0]?.id).toBe("store-real-1");
+    expect(persistedStores).toHaveLength(1);
+    expect(persistedStores[0]?.id).toBe("store-real-1");
+  });
+
   it("persists a store and initializes the editor draft", () => {
     const store = saveStore({
       name: "Nova COD",

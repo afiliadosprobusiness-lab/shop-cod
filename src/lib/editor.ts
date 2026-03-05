@@ -354,6 +354,8 @@ function normalizeFunnelNode(candidate: unknown): VisualFunnelNode | null {
           ? node.analytics.conversionRate
           : 0,
     },
+    selectedProductId:
+      typeof node.selectedProductId === "string" ? node.selectedProductId : null,
   };
 }
 
@@ -397,6 +399,53 @@ function normalizeFunnelPage(candidate: unknown): VisualFunnelPage | null {
     funnelId: page.funnelId,
     type: page.type,
     contentJson: typeof page.contentJson === "string" ? page.contentJson : "",
+    settings: normalizeFunnelPageSettings(page.settings, page.id, page.type),
+  };
+}
+
+function normalizeFunnelPageSettings(
+  candidate: unknown,
+  pageId: string,
+  type: VisualFunnelNode["type"],
+) {
+  const suffix = pageId.split("-").at(-1) || "page";
+  const defaultTitleByType: Record<VisualFunnelNode["type"], string> = {
+    landing: "Landing page",
+    product: "Product page",
+    checkout: "Checkout page",
+    upsell: "Upsell page",
+    downsell: "Downsell page",
+    thankyou: "Thank you page",
+    leadCapture: "Lead capture page",
+    article: "Article page",
+    blank: "Blank page",
+  };
+  const defaults = {
+    path: suffix.toLowerCase(),
+    title: defaultTitleByType[type],
+    seoTitle: "",
+    seoDescription: "",
+    seoKeywords: "",
+    featuredImageUrl: "",
+    headScripts: "",
+    footerScripts: "",
+  };
+
+  if (!candidate || typeof candidate !== "object") {
+    return defaults;
+  }
+
+  const settings = candidate as Partial<VisualFunnelPage["settings"]>;
+
+  return {
+    path: typeof settings.path === "string" && settings.path.trim() ? settings.path.trim() : defaults.path,
+    title: typeof settings.title === "string" && settings.title.trim() ? settings.title.trim() : defaults.title,
+    seoTitle: typeof settings.seoTitle === "string" ? settings.seoTitle : "",
+    seoDescription: typeof settings.seoDescription === "string" ? settings.seoDescription : "",
+    seoKeywords: typeof settings.seoKeywords === "string" ? settings.seoKeywords : "",
+    featuredImageUrl: typeof settings.featuredImageUrl === "string" ? settings.featuredImageUrl : "",
+    headScripts: typeof settings.headScripts === "string" ? settings.headScripts : "",
+    footerScripts: typeof settings.footerScripts === "string" ? settings.footerScripts : "",
   };
 }
 

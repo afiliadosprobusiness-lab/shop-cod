@@ -15,11 +15,16 @@ export {
   isFunnelNodeType,
   syncFunnelPagesFromNodes,
   upsertFunnelPageContent,
+  updateFunnelPageSettings,
+  updateNodeSelectedProduct,
+  updateNodeType,
   updateNodePosition,
+  createDefaultFunnelPageSettings,
   type FunnelConnection,
   type FunnelGraph,
   type FunnelNode,
   type FunnelNodeType,
+  type FunnelPageSettings,
   type FunnelPage,
 } from "./schema";
 export { FunnelBuilderEditor } from "./FunnelBuilderEditor";

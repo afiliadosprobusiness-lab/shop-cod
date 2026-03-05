@@ -1,12 +1,16 @@
-import { useMemo, useRef, useState } from "react";
+﻿import { useMemo, useRef, useState } from "react";
 import {
   ArrowRight,
   Copy,
-  Link2,
+  Eye,
+  Grip,
+  Home,
   MousePointer2,
   Move,
+  Package2,
   PencilLine,
   Plus,
+  Settings2,
   Trash2,
   Unlink2,
   ZoomIn,
@@ -18,27 +22,38 @@ import {
   BuilderEditorShell,
   BuilderSidebar,
   BuilderToolbar,
-  renderBlock,
 } from "@/builders/shared";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Textarea } from "@/components/ui/textarea";
+import { loadProducts } from "@/lib/products";
 import { cn } from "@/lib/utils";
 import {
   addPage,
   connectPages,
   deletePage,
-  duplicatePage,
   disconnectNodes,
+  duplicatePage,
   funnelNodeTypes,
+  getFunnelPage,
+  updateFunnelPageSettings,
   updateNodePosition,
+  updateNodeSelectedProduct,
+  updateNodeType,
   type FunnelGraph,
   type FunnelNode,
   type FunnelNodeType,
+  type FunnelPageSettings,
 } from "./schema";
 
 interface FunnelBuilderEditorProps {
   graph: FunnelGraph;
   onGraphChange: (graph: FunnelGraph) => void;
   onOpenPage: (node: FunnelNode) => void;
+  onPreviewPage?: (node: FunnelNode) => void;
 }
 
 const nodeMeta: Record<
@@ -46,55 +61,57 @@ const nodeMeta: Record<
   {
     label: string;
     accent: string;
-    badge: string;
+    iconBadge: string;
   }
 > = {
   landing: {
-    label: "Landing",
-    accent: "from-sky-400 to-cyan-300",
-    badge: "Top of funnel",
+    label: "Landing Page",
+    accent: "from-sky-300 to-cyan-300",
+    iconBadge: "Landing",
   },
   product: {
-    label: "Product",
-    accent: "from-violet-400 to-indigo-400",
-    badge: "Offer detail",
+    label: "Product Page",
+    accent: "from-violet-300 to-indigo-300",
+    iconBadge: "Product",
   },
   checkout: {
-    label: "Checkout",
-    accent: "from-emerald-400 to-teal-300",
-    badge: "Core conversion",
+    label: "Checkout Page",
+    accent: "from-emerald-300 to-teal-300",
+    iconBadge: "Checkout",
   },
   upsell: {
-    label: "Upsell",
+    label: "Upsell Page",
     accent: "from-amber-300 to-orange-300",
-    badge: "AOV booster",
+    iconBadge: "Upsell",
   },
   downsell: {
-    label: "Downsell",
+    label: "Downsell Page",
     accent: "from-rose-300 to-pink-300",
-    badge: "Recovery path",
+    iconBadge: "Downsell",
   },
   thankyou: {
-    label: "Thank you",
-    accent: "from-slate-300 to-slate-100",
-    badge: "Confirmation",
+    label: "Thank You Page",
+    accent: "from-lime-300 to-emerald-300",
+    iconBadge: "Thank you",
   },
   leadCapture: {
-    label: "Lead capture",
-    accent: "from-lime-300 to-emerald-300",
-    badge: "Lead collection",
+    label: "Lead Capture Page",
+    accent: "from-cyan-300 to-sky-300",
+    iconBadge: "Lead",
   },
   article: {
-    label: "Article",
+    label: "Article Page",
     accent: "from-fuchsia-300 to-violet-300",
-    badge: "Content path",
+    iconBadge: "Article",
   },
   blank: {
-    label: "Blank page",
-    accent: "from-zinc-300 to-zinc-100",
-    badge: "Empty canvas",
+    label: "Blank Page",
+    accent: "from-slate-300 to-slate-200",
+    iconBadge: "Blank",
   },
 };
+
+type SettingsTabId = "details" | "seo" | "custom-html";
 
 interface ViewportState {
   x: number;
@@ -108,9 +125,13 @@ function clampZoom(value: number) {
 
 function getNodeCenter(node: FunnelNode) {
   return {
-    x: node.position.x + 140,
-    y: node.position.y + 68,
+    x: node.position.x + 150,
+    y: node.position.y + 84,
   };
+}
+
+function getTypeLabel(type: FunnelNodeType) {
+  return nodeMeta[type].label;
 }
 
 function ConnectionLine({
@@ -133,20 +154,15 @@ function ConnectionLine({
       <path
         d={path}
         fill="none"
-        stroke="rgba(56,189,248,0.88)"
-        strokeWidth="4"
+        stroke="rgba(37,99,235,0.55)"
+        strokeWidth="3"
         strokeLinecap="round"
       />
-      <foreignObject
-        x={midX - 22}
-        y={(start.y + end.y) / 2 - 22}
-        width="44"
-        height="44"
-      >
+      <foreignObject x={midX - 18} y={(start.y + end.y) / 2 - 18} width="36" height="36">
         <button
           type="button"
           onClick={onDisconnect}
-          className="flex h-11 w-11 items-center justify-center rounded-full border border-white/10 bg-slate-950/80 text-slate-300 transition-colors hover:border-rose-300/40 hover:text-rose-200"
+          className="flex h-9 w-9 items-center justify-center rounded-full border border-slate-300 bg-white text-slate-600 transition-colors hover:border-rose-300 hover:text-rose-600"
           aria-label="Desconectar nodos"
         >
           <Unlink2 className="h-4 w-4" />
@@ -158,74 +174,172 @@ function ConnectionLine({
 
 function FunnelNodeCard({
   node,
+  products,
+  outgoingConnectionsCount,
+  hasIncomingConnections,
   isConnecting,
   onOpenPage,
   onDelete,
   onDuplicate,
-  onStartConnection,
+  onOpenSettings,
+  onPreview,
+  onToggleConnection,
+  onProductChange,
+  onDragStart,
 }: {
   node: FunnelNode;
+  products: Array<{ id: string; name: string }>;
+  outgoingConnectionsCount: number;
+  hasIncomingConnections: boolean;
   isConnecting: boolean;
   onOpenPage: (node: FunnelNode) => void;
   onDelete: (nodeId: string) => void;
   onDuplicate: (nodeId: string) => void;
-  onStartConnection: (nodeId: string) => void;
+  onOpenSettings: (nodeId: string) => void;
+  onPreview: (node: FunnelNode) => void;
+  onToggleConnection: (nodeId: string) => void;
+  onProductChange: (nodeId: string, productId: string | null) => void;
+  onDragStart: (event: React.PointerEvent<HTMLButtonElement>) => void;
 }) {
   const meta = nodeMeta[node.type];
 
   return (
-    <BuilderBlockCard className="w-[280px] bg-slate-950/85">
-      <button type="button" onClick={() => onOpenPage(node)} className="block w-full text-left">
-        {renderBlock(node, { funnelMeta: meta })}
+    <BuilderBlockCard className="w-[300px] border-blue-400 bg-white p-3 text-slate-900 shadow-[0_14px_45px_rgba(15,23,42,0.22)]">
+      {!hasIncomingConnections ? (
+        <div className="-mt-8 mb-2 flex w-fit items-center gap-2 rounded-t-xl rounded-b-md bg-blue-600 px-3 py-2 text-xs font-semibold text-white">
+          <button
+            type="button"
+            onPointerDown={onDragStart}
+            className="inline-flex h-4 w-4 items-center justify-center rounded-sm text-white/80 transition hover:text-white"
+            aria-label="Mover pagina"
+          >
+            <Grip className="h-3.5 w-3.5" />
+          </button>
+          <Home className="h-3.5 w-3.5" />
+          Starting Page
+        </div>
+      ) : (
+        <div className="mb-2">
+          <button
+            type="button"
+            onPointerDown={onDragStart}
+            className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-slate-300 text-slate-600 transition hover:border-slate-400 hover:text-slate-800"
+            aria-label="Mover pagina"
+          >
+            <Grip className="h-4 w-4" />
+          </button>
+        </div>
+      )}
+
+      <button
+        type="button"
+        onClick={() => onOpenPage(node)}
+        className="flex w-full items-center gap-3 rounded-xl border border-slate-300 bg-slate-100 px-3 py-2 text-left transition-colors hover:border-blue-300 hover:bg-blue-50"
+      >
+        <span className="inline-flex h-6 w-6 items-center justify-center rounded-md border border-blue-300 bg-blue-50 text-blue-600">
+          <Package2 className="h-3.5 w-3.5" />
+        </span>
+        <span className="truncate text-base font-medium">{meta.label}</span>
       </button>
 
-      <div className="mt-4 grid gap-2 sm:grid-cols-3">
-        <Button
-          type="button"
-          variant="secondary"
-          size="sm"
-          onClick={() => onOpenPage(node)}
-          className="bg-white text-slate-950 hover:bg-slate-100"
-        >
-          <PencilLine className="h-4 w-4" />
-          Editar
-        </Button>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={() => onDuplicate(node.id)}
-          className="border-white/10 bg-white/[0.03] text-white hover:bg-white/[0.06]"
-        >
-          <Copy className="h-4 w-4" />
-          Duplicar
-        </Button>
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          onClick={() => onDelete(node.id)}
-          className="text-slate-300 hover:bg-white/[0.05] hover:text-white"
-        >
-          <Trash2 className="h-4 w-4" />
-          Eliminar
-        </Button>
+      <div className="mt-3 overflow-hidden rounded-xl border border-slate-300 bg-white">
+        <div className="grid grid-cols-[5.5rem_minmax(0,1fr)] gap-4 p-4">
+          <div className="h-24 rounded-md bg-slate-100" />
+          <div className="space-y-2 pt-1">
+            <div className="h-2 rounded bg-slate-100" />
+            <div className="h-2 rounded bg-slate-100" />
+            <div className="h-2 rounded bg-slate-100" />
+            <div className="h-2 rounded bg-slate-100" />
+          </div>
+        </div>
       </div>
 
-      <div className="mt-2">
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={() => onStartConnection(node.id)}
-          className={cn(
-            "w-full border-white/10 bg-white/[0.03] text-white hover:bg-white/[0.06]",
-            isConnecting ? "border-sky-300/50 bg-sky-500/10" : "",
-          )}
+      <div className="mt-3 flex w-full items-center justify-center rounded-xl border border-slate-300 bg-slate-100 px-3 py-3 text-center">
+        <div>
+          <p className="text-2xl font-semibold">{node.analytics.visits}</p>
+          <p className="text-xs text-slate-500">Visits</p>
+        </div>
+      </div>
+
+      <div className="mt-3 rounded-xl border border-slate-300 bg-white px-3 py-2">
+        <label htmlFor={`node-product-${node.id}`} className="sr-only">
+          Producto asociado
+        </label>
+        <select
+          id={`node-product-${node.id}`}
+          value={node.selectedProductId ?? ""}
+          onChange={(event) => onProductChange(node.id, event.target.value || null)}
+          className="h-8 w-full border-0 bg-transparent text-sm font-medium text-slate-900 outline-none"
         >
-          <Link2 className="h-4 w-4" />
-          {isConnecting ? "Conectando pagina..." : "Conectar pagina"}
-        </Button>
+          <option value="">
+            {products.length ? "Seleccionar producto..." : "No hay productos"}
+          </option>
+          {products.map((product) => (
+            <option key={product.id} value={product.id}>
+              {product.name}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <button
+        type="button"
+        onClick={() => onToggleConnection(node.id)}
+        className={cn(
+          "mt-3 flex w-full items-center justify-center rounded-xl border px-3 py-3 text-xs font-semibold uppercase tracking-[0.16em] transition-colors",
+          isConnecting
+            ? "border-blue-400 bg-blue-50 text-blue-700"
+            : "border-slate-300 bg-white text-slate-500 hover:border-blue-300 hover:text-blue-700",
+        )}
+      >
+        {isConnecting
+          ? "Select target page"
+          : outgoingConnectionsCount > 0
+            ? `${outgoingConnectionsCount} Links`
+            : "No links"}
+      </button>
+
+      <div className="mt-3 grid grid-cols-5 gap-2 rounded-xl border border-slate-300 bg-slate-100 p-2">
+        <button
+          type="button"
+          onClick={() => onOpenSettings(node.id)}
+          className="inline-flex h-9 items-center justify-center rounded-lg border border-slate-300 bg-white text-slate-600 transition-colors hover:border-blue-300 hover:text-blue-700"
+          aria-label="Configurar pagina"
+        >
+          <Settings2 className="h-4 w-4" />
+        </button>
+        <button
+          type="button"
+          onClick={() => onOpenPage(node)}
+          className="inline-flex h-9 items-center justify-center rounded-lg border border-slate-300 bg-white text-slate-600 transition-colors hover:border-blue-300 hover:text-blue-700"
+          aria-label="Editar pagina"
+        >
+          <PencilLine className="h-4 w-4" />
+        </button>
+        <button
+          type="button"
+          onClick={() => onPreview(node)}
+          className="inline-flex h-9 items-center justify-center rounded-lg border border-slate-300 bg-white text-slate-600 transition-colors hover:border-blue-300 hover:text-blue-700"
+          aria-label="Preview de pagina"
+        >
+          <Eye className="h-4 w-4" />
+        </button>
+        <button
+          type="button"
+          onClick={() => onDuplicate(node.id)}
+          className="inline-flex h-9 items-center justify-center rounded-lg border border-slate-300 bg-white text-slate-600 transition-colors hover:border-blue-300 hover:text-blue-700"
+          aria-label="Clonar pagina"
+        >
+          <Copy className="h-4 w-4" />
+        </button>
+        <button
+          type="button"
+          onClick={() => onDelete(node.id)}
+          className="inline-flex h-9 items-center justify-center rounded-lg border border-slate-300 bg-white text-slate-600 transition-colors hover:border-rose-300 hover:text-rose-600"
+          aria-label="Eliminar pagina"
+        >
+          <Trash2 className="h-4 w-4" />
+        </button>
       </div>
     </BuilderBlockCard>
   );
@@ -235,6 +349,7 @@ export function FunnelBuilderEditor({
   graph,
   onGraphChange,
   onOpenPage,
+  onPreviewPage,
 }: FunnelBuilderEditorProps) {
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const [viewport, setViewport] = useState<ViewportState>({
@@ -250,11 +365,44 @@ export function FunnelBuilderEditor({
     originY: number;
   } | null>(null);
   const [connectionStartId, setConnectionStartId] = useState<string | null>(null);
+  const [activeSettingsNodeId, setActiveSettingsNodeId] = useState<string | null>(null);
+  const [settingsTab, setSettingsTab] = useState<SettingsTabId>("details");
+  const products = useMemo(
+    () => loadProducts().map((product) => ({ id: product.id, name: product.name })),
+    [],
+  );
 
   const nodeMap = useMemo(
     () => new Map(graph.nodes.map((node) => [node.id, node])),
     [graph.nodes],
   );
+  const incomingCountByNode = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const connection of graph.connections) {
+      map.set(connection.to, (map.get(connection.to) || 0) + 1);
+    }
+    return map;
+  }, [graph.connections]);
+  const outgoingCountByNode = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const connection of graph.connections) {
+      map.set(connection.from, (map.get(connection.from) || 0) + 1);
+    }
+    return map;
+  }, [graph.connections]);
+
+  const activeSettingsNode = useMemo(
+    () =>
+      activeSettingsNodeId
+        ? graph.nodes.find((node) => node.id === activeSettingsNodeId) ?? null
+        : null,
+    [activeSettingsNodeId, graph.nodes],
+  );
+  const activeSettingsPage = useMemo(
+    () => (activeSettingsNode ? getFunnelPage(graph, activeSettingsNode.pageId) : null),
+    [activeSettingsNode, graph],
+  );
+  const activeSettings = activeSettingsPage?.settings ?? null;
 
   const handleAddNode = (type: FunnelNodeType) => {
     const { graph: nextGraph, node } = addPage(graph, type, {
@@ -267,13 +415,13 @@ export function FunnelBuilderEditor({
   };
 
   const startNodeDrag = (
-    event: React.PointerEvent<HTMLDivElement>,
+    event: React.PointerEvent<HTMLButtonElement>,
     nodeId: string,
   ) => {
     event.stopPropagation();
     event.preventDefault();
     setDraggingNodeId(nodeId);
-    (event.currentTarget as HTMLDivElement).setPointerCapture(event.pointerId);
+    event.currentTarget.setPointerCapture(event.pointerId);
   };
 
   const handleCanvasPointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
@@ -303,8 +451,8 @@ export function FunnelBuilderEditor({
         return;
       }
 
-      const nextX = (event.clientX - bounds.left - viewport.x) / viewport.zoom - 140;
-      const nextY = (event.clientY - bounds.top - viewport.y) / viewport.zoom - 68;
+      const nextX = (event.clientX - bounds.left - viewport.x) / viewport.zoom - 150;
+      const nextY = (event.clientY - bounds.top - viewport.y) / viewport.zoom - 84;
 
       onGraphChange(
         updateNodePosition(graph, draggingNodeId, {
@@ -342,13 +490,8 @@ export function FunnelBuilderEditor({
     }));
   };
 
-  const handleConnect = (targetNode: FunnelNode) => {
-    if (!connectionStartId) {
-      onOpenPage(targetNode);
-      return;
-    }
-
-    if (connectionStartId === targetNode.id) {
+  const handleOpenNode = (targetNode: FunnelNode) => {
+    if (!connectionStartId || connectionStartId === targetNode.id) {
       onOpenPage(targetNode);
       return;
     }
@@ -357,14 +500,22 @@ export function FunnelBuilderEditor({
     setConnectionStartId(null);
   };
 
+  const updatePageSettings = (patch: Partial<FunnelPageSettings>) => {
+    if (!activeSettingsPage) {
+      return;
+    }
+
+    onGraphChange(updateFunnelPageSettings(graph, activeSettingsPage.id, patch));
+  };
+
   return (
     <BuilderEditorShell
       toolbar={
         <BuilderToolbar
           eyebrow="Funnel builder"
-          title="Canvas infinito para conectar paginas"
-          description="Pan, zoom, drag, duplicado de paginas y conexiones sin recargar el editor. Click en un nodo abre su Page Builder."
-          accentClassName="text-amber-200"
+          title="Canvas visual por acciones"
+          description="Cada tarjeta concentra flujo de pagina: editar, visitas, producto, links y acciones operativas."
+          accentClassName="text-blue-200"
           actions={
             <>
               <div className="flex items-center gap-1 rounded-2xl border border-white/10 bg-white/[0.03] p-1">
@@ -417,7 +568,7 @@ export function FunnelBuilderEditor({
                 className="border-white/10 bg-white/[0.03] text-white hover:bg-white/[0.06]"
               >
                 <Plus className="h-4 w-4" />
-                {nodeMeta[type].label}
+                {nodeMeta[type].iconBadge}
               </Button>
             ))}
           </div>
@@ -427,9 +578,9 @@ export function FunnelBuilderEditor({
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_22rem]">
         <BuilderCanvas
           eyebrow="Canvas"
-          title="Nodos, conexiones y analytics"
-          description="Sistema visual de nodos con preview, metricas y acciones por pagina."
-          accentClassName="text-amber-200"
+          title="Tarjetas operativas del funnel"
+          description="Click en bloque de cabecera para editar. Configura cada pagina desde su icono de ajustes."
+          accentClassName="text-blue-200"
           className="min-h-[720px] overflow-hidden p-0"
           bodyClassName="pt-0"
           headerBadge={
@@ -448,9 +599,10 @@ export function FunnelBuilderEditor({
             className="relative min-h-[645px] overflow-hidden"
             style={{
               backgroundImage:
-                "radial-gradient(circle at 1px 1px, rgba(148,163,184,0.18) 1px, transparent 0)",
+                "radial-gradient(circle at 1px 1px, rgba(100,116,139,0.22) 1px, transparent 0)",
               backgroundSize: `${36 * viewport.zoom}px ${36 * viewport.zoom}px`,
               backgroundPosition: `${viewport.x}px ${viewport.y}px`,
+              backgroundColor: "#eef2f7",
             }}
           >
             <div
@@ -460,7 +612,7 @@ export function FunnelBuilderEditor({
                 transformOrigin: "top left",
               }}
             >
-              <svg className="pointer-events-none absolute inset-0 h-[2400px] w-[3200px] overflow-visible">
+              <svg className="pointer-events-none absolute inset-0 h-[2400px] w-[3400px] overflow-visible">
                 {graph.connections.map((connection) => {
                   const fromNode = nodeMap.get(connection.from);
                   const toNode = nodeMap.get(connection.to);
@@ -491,41 +643,44 @@ export function FunnelBuilderEditor({
                     top: node.position.y,
                   }}
                 >
-                  <div
-                    onPointerDown={(event) => startNodeDrag(event, node.id)}
-                    className="cursor-grab active:cursor-grabbing"
-                  >
-                    <FunnelNodeCard
-                      node={node}
-                      isConnecting={connectionStartId === node.id}
-                      onOpenPage={(targetNode) => handleConnect(targetNode)}
-                      onDelete={(nodeId) => {
-                        onGraphChange(deletePage(graph, nodeId));
-                        if (connectionStartId === nodeId) {
-                          setConnectionStartId(null);
-                        }
-                      }}
-                      onDuplicate={(nodeId) => {
-                        const { graph: nextGraph, node: duplicatedNode } = duplicatePage(graph, nodeId);
-                        onGraphChange(nextGraph);
-
-                        if (duplicatedNode) {
-                          setConnectionStartId(duplicatedNode.id);
-                        }
-                      }}
-                      onStartConnection={(nodeId) =>
-                        setConnectionStartId((current) => (current === nodeId ? null : nodeId))
+                  <FunnelNodeCard
+                    node={node}
+                    products={products}
+                    outgoingConnectionsCount={outgoingCountByNode.get(node.id) || 0}
+                    hasIncomingConnections={Boolean(incomingCountByNode.get(node.id))}
+                    isConnecting={connectionStartId === node.id}
+                    onOpenPage={handleOpenNode}
+                    onDelete={(nodeId) => {
+                      onGraphChange(deletePage(graph, nodeId));
+                      if (connectionStartId === nodeId) {
+                        setConnectionStartId(null);
                       }
-                    />
-                  </div>
+                    }}
+                    onDuplicate={(nodeId) => {
+                      const { graph: nextGraph } = duplicatePage(graph, nodeId);
+                      onGraphChange(nextGraph);
+                    }}
+                    onOpenSettings={(nodeId) => {
+                      setActiveSettingsNodeId(nodeId);
+                      setSettingsTab("details");
+                    }}
+                    onPreview={(targetNode) => onPreviewPage?.(targetNode)}
+                    onToggleConnection={(nodeId) =>
+                      setConnectionStartId((current) => (current === nodeId ? null : nodeId))
+                    }
+                    onProductChange={(nodeId, productId) =>
+                      onGraphChange(updateNodeSelectedProduct(graph, nodeId, productId))
+                    }
+                    onDragStart={(event) => startNodeDrag(event, node.id)}
+                  />
                 </div>
               ))}
             </div>
 
-            <div className="pointer-events-none absolute bottom-4 left-4 rounded-2xl border border-white/10 bg-slate-950/85 px-4 py-3 text-xs text-slate-300">
+            <div className="pointer-events-none absolute bottom-4 left-4 rounded-2xl border border-white/20 bg-white/90 px-4 py-3 text-xs text-slate-700 shadow-sm">
               <div className="flex items-center gap-2">
                 <MousePointer2 className="h-4 w-4" />
-                Arrastra nodos, arrastra el fondo para pan y usa scroll para zoom.
+                Arrastra nodos con el handle, mueve el canvas y usa scroll para zoom.
               </div>
             </div>
           </div>
@@ -533,8 +688,8 @@ export function FunnelBuilderEditor({
 
         <BuilderSidebar
           eyebrow="Funnel data"
-          description="Resumen del grafo y flujo de conexiones."
-          accentClassName="text-amber-200"
+          description="Resumen operativo del flujo de conexiones."
+          accentClassName="text-blue-200"
         >
           <div className="space-y-5">
             <BuilderBlockCard className="bg-slate-950/70 p-5">
@@ -556,7 +711,7 @@ export function FunnelBuilderEditor({
             </BuilderBlockCard>
 
             <BuilderBlockCard className="bg-slate-950/70 p-5">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-amber-200">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-blue-200">
                 Connection flow
               </p>
               <div className="mt-4 space-y-3">
@@ -583,18 +738,12 @@ export function FunnelBuilderEditor({
                         className="flex w-full items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-left transition-colors hover:border-white/20"
                       >
                         <div className="min-w-0">
-                          <p className="text-sm font-semibold text-white">
-                            {nodeMeta[fromNode.type].label}
-                          </p>
-                          <p className="truncate text-xs text-slate-400">
-                            {fromNode.pageId}
-                          </p>
+                          <p className="text-sm font-semibold text-white">{getTypeLabel(fromNode.type)}</p>
+                          <p className="truncate text-xs text-slate-400">{fromNode.pageId}</p>
                         </div>
                         <ArrowRight className="h-4 w-4 shrink-0 text-slate-500" />
                         <div className="min-w-0 text-right">
-                          <p className="text-sm font-semibold text-white">
-                            {nodeMeta[toNode.type].label}
-                          </p>
+                          <p className="text-sm font-semibold text-white">{getTypeLabel(toNode.type)}</p>
                           <p className="truncate text-xs text-slate-400">{toNode.pageId}</p>
                         </div>
                       </button>
@@ -606,6 +755,151 @@ export function FunnelBuilderEditor({
           </div>
         </BuilderSidebar>
       </div>
+
+      <Dialog
+        open={Boolean(activeSettingsNodeId)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setActiveSettingsNodeId(null);
+          }
+        }}
+      >
+        <DialogContent className="max-w-[680px] border-slate-200 bg-white p-0 text-slate-900">
+          <DialogHeader className="border-b border-slate-200 px-6 py-4">
+            <DialogTitle className="text-2xl font-semibold text-slate-900">
+              Configuración de la página
+            </DialogTitle>
+          </DialogHeader>
+
+          {activeSettingsNode && activeSettings && activeSettingsPage ? (
+            <div className="px-6 py-5">
+              <Tabs
+                value={settingsTab}
+                onValueChange={(value) => setSettingsTab(value as SettingsTabId)}
+              >
+                <TabsList className="grid w-full grid-cols-3">
+                  <TabsTrigger value="details">Detalles</TabsTrigger>
+                  <TabsTrigger value="seo">SEO</TabsTrigger>
+                  <TabsTrigger value="custom-html">HTML personalizado</TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="details" className="mt-4 space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="page-path">URL de la página</Label>
+                    <div className="flex items-center rounded-lg border border-slate-300 px-3 py-2">
+                      <span className="text-slate-500">[DOMAIN NAME]/</span>
+                      <Input
+                        id="page-path"
+                        value={activeSettings.path}
+                        onChange={(event) =>
+                          updatePageSettings({
+                            path: event.target.value
+                              .trim()
+                              .toLowerCase()
+                              .replace(/[^a-z0-9-]+/g, "-")
+                              .replace(/^-+|-+$/g, ""),
+                          })
+                        }
+                        className="h-7 border-0 px-2 shadow-none focus-visible:ring-0"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="page-title">Título</Label>
+                    <Input
+                      id="page-title"
+                      value={activeSettings.title}
+                      onChange={(event) => updatePageSettings({ title: event.target.value })}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="page-type">Tipo</Label>
+                    <select
+                      id="page-type"
+                      value={activeSettingsNode.type}
+                      onChange={(event) =>
+                        onGraphChange(
+                          updateNodeType(graph, activeSettingsNode.id, event.target.value as FunnelNodeType),
+                        )
+                      }
+                      className="h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+                    >
+                      {funnelNodeTypes.map((type) => (
+                        <option key={type} value={type}>
+                          {getTypeLabel(type)}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </TabsContent>
+
+                <TabsContent value="seo" className="mt-4 space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="seo-title">Título</Label>
+                    <Input
+                      id="seo-title"
+                      value={activeSettings.seoTitle}
+                      onChange={(event) => updatePageSettings({ seoTitle: event.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="seo-description">Descripción</Label>
+                    <Textarea
+                      id="seo-description"
+                      value={activeSettings.seoDescription}
+                      onChange={(event) => updatePageSettings({ seoDescription: event.target.value })}
+                      className="min-h-[100px]"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="seo-keywords">Palabras clave</Label>
+                    <Input
+                      id="seo-keywords"
+                      placeholder="key1, key2"
+                      value={activeSettings.seoKeywords}
+                      onChange={(event) => updatePageSettings({ seoKeywords: event.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="seo-featured-image">Imagen destacada</Label>
+                    <Input
+                      id="seo-featured-image"
+                      placeholder="https://..."
+                      value={activeSettings.featuredImageUrl}
+                      onChange={(event) =>
+                        updatePageSettings({ featuredImageUrl: event.target.value })
+                      }
+                    />
+                  </div>
+                </TabsContent>
+
+                <TabsContent value="custom-html" className="mt-4 space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="html-head-scripts">Scripts del encabezado</Label>
+                    <Textarea
+                      id="html-head-scripts"
+                      value={activeSettings.headScripts}
+                      onChange={(event) => updatePageSettings({ headScripts: event.target.value })}
+                      className="min-h-[96px]"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="html-footer-scripts">Scripts del pie de página</Label>
+                    <Textarea
+                      id="html-footer-scripts"
+                      value={activeSettings.footerScripts}
+                      onChange={(event) => updatePageSettings({ footerScripts: event.target.value })}
+                      className="min-h-[96px]"
+                    />
+                  </div>
+                </TabsContent>
+              </Tabs>
+            </div>
+          ) : null}
+        </DialogContent>
+      </Dialog>
     </BuilderEditorShell>
   );
 }

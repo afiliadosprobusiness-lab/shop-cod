@@ -105,6 +105,7 @@ export interface StoreDashboardSnapshot {
 }
 
 const STORES_STORAGE_KEY = "shopcod-stores-v1";
+const LEGACY_DEFAULT_STORE_IDS = new Set(["store-201", "store-202"]);
 
 const storeTemplates: StoreTemplate[] = [
   {
@@ -162,40 +163,8 @@ const paymentMethodOptions: PaymentMethodOption[] = [
   },
 ];
 
-const seedStores: Store[] = [
-  {
-    id: "store-201",
-    name: "Glow Market",
-    slug: "glow-market",
-    currency: "USD",
-    pages: createPagesForStore(storeTemplates[1], "separateCheckout"),
-    paymentMethod: "separateCheckout",
-    templateId: "catalog",
-    createdAt: "2026-03-02T15:00:00.000Z",
-    updatedAt: "2026-03-03T18:40:00.000Z",
-  },
-  {
-    id: "store-202",
-    name: "Sprint Offers",
-    slug: "sprint-offers",
-    currency: "PEN",
-    pages: createPagesForStore(storeTemplates[2], "productPagePayment"),
-    paymentMethod: "productPagePayment",
-    templateId: "flashSale",
-    createdAt: "2026-02-28T11:30:00.000Z",
-    updatedAt: "2026-03-01T09:10:00.000Z",
-  },
-];
-
 function clonePages(pages: StorePage[]) {
   return pages.map((page) => ({ ...page }));
-}
-
-function cloneSeedStores() {
-  return seedStores.map((store) => ({
-    ...store,
-    pages: clonePages(store.pages),
-  }));
 }
 
 function createEntityId(prefix: string) {
@@ -311,6 +280,10 @@ function normalizeStore(candidate: unknown): Store | null {
 
 function templateById(templateId: StoreTemplateId) {
   return storeTemplates.find((template) => template.id === templateId) ?? storeTemplates[0];
+}
+
+function isLegacyDefaultStore(store: Store) {
+  return LEGACY_DEFAULT_STORE_IDS.has(store.id);
 }
 
 function hashValue(value: string) {
@@ -597,8 +570,13 @@ export function loadStores() {
   const normalizedStores = storedStores
     ?.map((store) => normalizeStore(store))
     .filter((store): store is Store => Boolean(store));
+  const sanitizedStores = (normalizedStores ?? []).filter((store) => !isLegacyDefaultStore(store));
 
-  return sortStores(normalizedStores?.length ? normalizedStores : cloneSeedStores());
+  if (normalizedStores && sanitizedStores.length !== normalizedStores.length) {
+    writeStoredStores(sortStores(sanitizedStores));
+  }
+
+  return sortStores(sanitizedStores);
 }
 
 export function loadStoreById(storeId: string) {

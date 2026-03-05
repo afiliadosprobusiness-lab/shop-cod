@@ -6,6 +6,8 @@ import {
   duplicatePage,
   funnelNodeTypes,
   getFunnelPage,
+  updateFunnelPageSettings,
+  updateNodeSelectedProduct,
   upsertFunnelPageContent,
 } from "@/builders/funnel-builder";
 
@@ -17,7 +19,8 @@ describe("funnel builder model", () => {
   });
 
   it("duplicates a page preserving the graph and creating a new pageId", () => {
-    const graph = createDefaultFunnelGraph();
+    const baseGraph = createDefaultFunnelGraph();
+    const graph = updateNodeSelectedProduct(baseGraph, baseGraph.nodes[0]!.id, "prod-1");
     const sourceNode = graph.nodes[0]!;
 
     const result = duplicatePage(graph, sourceNode.id);
@@ -28,6 +31,7 @@ describe("funnel builder model", () => {
     expect(result.node?.id).not.toBe(sourceNode.id);
     expect(result.node?.pageId).not.toBe(sourceNode.pageId);
     expect(result.node?.type).toBe(sourceNode.type);
+    expect(result.node?.selectedProductId).toBe("prod-1");
     expect(result.graph.pages.some((page) => page.id === result.node?.pageId)).toBe(true);
   });
 
@@ -59,5 +63,29 @@ describe("funnel builder model", () => {
     const updatedGraph = upsertFunnelPageContent(graph, page.id, nextContentJson);
 
     expect(getFunnelPage(updatedGraph, page.id)?.contentJson).toBe(nextContentJson);
+  });
+
+  it("updates page settings for details, seo and custom html", () => {
+    const graph = createDefaultFunnelGraph();
+    const page = graph.pages[0]!;
+
+    const updatedGraph = updateFunnelPageSettings(graph, page.id, {
+      title: "Product Page",
+      path: "product-page",
+      seoTitle: "SEO Product",
+      seoDescription: "Descripcion seo",
+      seoKeywords: "producto, demo",
+      featuredImageUrl: "https://cdn.test/image.png",
+      headScripts: "<script>window.head=true;</script>",
+      footerScripts: "<script>window.footer=true;</script>",
+    });
+
+    const updatedPage = getFunnelPage(updatedGraph, page.id);
+
+    expect(updatedPage?.settings.title).toBe("Product Page");
+    expect(updatedPage?.settings.path).toBe("product-page");
+    expect(updatedPage?.settings.seoTitle).toBe("SEO Product");
+    expect(updatedPage?.settings.headScripts).toContain("window.head=true");
+    expect(updatedPage?.settings.footerScripts).toContain("window.footer=true");
   });
 });

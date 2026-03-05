@@ -34,6 +34,18 @@ export interface FunnelNode {
   type: FunnelNodeType;
   position: FunnelNodePosition;
   analytics: FunnelNodeAnalytics;
+  selectedProductId: string | null;
+}
+
+export interface FunnelPageSettings {
+  path: string;
+  title: string;
+  seoTitle: string;
+  seoDescription: string;
+  seoKeywords: string;
+  featuredImageUrl: string;
+  headScripts: string;
+  footerScripts: string;
 }
 
 export interface FunnelPage {
@@ -41,6 +53,7 @@ export interface FunnelPage {
   funnelId: string;
   type: FunnelNodeType;
   contentJson: string;
+  settings: FunnelPageSettings;
 }
 
 export interface FunnelConnection {
@@ -112,6 +125,7 @@ export function createFunnelNode(
     type,
     position,
     analytics: createAnalytics(type),
+    selectedProductId: null,
   };
 }
 
@@ -143,6 +157,25 @@ export function createFunnelPage(
       id: node.pageId,
       title: getPageTitle(node.type),
     }),
+    settings: createDefaultFunnelPageSettings(node.pageId, node.type),
+  };
+}
+
+export function createDefaultFunnelPageSettings(
+  pageId: string,
+  type: FunnelNodeType,
+): FunnelPageSettings {
+  const suffix = pageId.split("-").at(-1) || "page";
+
+  return {
+    path: suffix.toLowerCase(),
+    title: getPageTitle(type),
+    seoTitle: "",
+    seoDescription: "",
+    seoKeywords: "",
+    featuredImageUrl: "",
+    headScripts: "",
+    footerScripts: "",
   };
 }
 
@@ -155,10 +188,18 @@ export function syncFunnelPagesFromNodes(graph: FunnelGraph) {
     const existingPage = graph.pages.find((page) => page.id === node.pageId);
 
     if (existingPage) {
+      const defaultSettings = createDefaultFunnelPageSettings(node.pageId, node.type);
+
       return {
         ...existingPage,
         funnelId: graph.id,
         type: node.type,
+        settings: {
+          ...defaultSettings,
+          ...existingPage.settings,
+          path: existingPage.settings?.path?.trim() || defaultSettings.path,
+          title: existingPage.settings?.title?.trim() || defaultSettings.title,
+        },
       };
     }
 
@@ -309,6 +350,7 @@ export function duplicatePage(
   offset: FunnelNodePosition = { x: 120, y: 120 },
 ) {
   const source = graph.nodes.find((node) => node.id === nodeId);
+  const sourcePage = source ? graph.pages.find((page) => page.id === source.pageId) : null;
 
   if (!source) {
     return {
@@ -321,11 +363,25 @@ export function duplicatePage(
     x: source.position.x + offset.x,
     y: source.position.y + offset.y,
   });
+  duplicate.selectedProductId = source.selectedProductId;
+
+  const duplicatedPage = sourcePage
+    ? {
+        ...sourcePage,
+        id: duplicate.pageId,
+        funnelId: graph.id,
+        type: duplicate.type,
+        settings: {
+          ...sourcePage.settings,
+          path: `${sourcePage.settings.path || "page"}-copy`,
+        },
+      }
+    : createFunnelPage(duplicate, graph.id);
 
   const nextGraph: FunnelGraph = {
     ...graph,
     nodes: [...graph.nodes, duplicate],
-    pages: [...graph.pages, createFunnelPage(duplicate, graph.id)],
+    pages: [...graph.pages, duplicatedPage],
   };
 
   return {
@@ -343,6 +399,77 @@ export function updateNodePosition(
     ...graph,
     nodes: graph.nodes.map((node) =>
       node.id === nodeId ? { ...node, position } : node,
+    ),
+  };
+}
+
+export function updateNodeType(
+  graph: FunnelGraph,
+  nodeId: string,
+  type: FunnelNodeType,
+) {
+  return syncFunnelPagesFromNodes({
+    ...graph,
+    nodes: graph.nodes.map((node) =>
+      node.id === nodeId
+        ? {
+            ...node,
+            type,
+            analytics: createAnalytics(type),
+          }
+        : node,
+    ),
+  });
+}
+
+export function updateNodeSelectedProduct(
+  graph: FunnelGraph,
+  nodeId: string,
+  selectedProductId: string | null,
+) {
+  return {
+    ...graph,
+    nodes: graph.nodes.map((node) =>
+      node.id === nodeId
+        ? {
+            ...node,
+            selectedProductId,
+          }
+        : node,
+    ),
+  };
+}
+
+export function updateFunnelPageSettings(
+  graph: FunnelGraph,
+  pageId: string,
+  patch: Partial<FunnelPageSettings>,
+) {
+  const targetPage = graph.pages.find((page) => page.id === pageId);
+
+  if (!targetPage) {
+    return graph;
+  }
+
+  const defaultSettings = createDefaultFunnelPageSettings(pageId, targetPage.type);
+
+  return {
+    ...graph,
+    pages: graph.pages.map((page) =>
+      page.id === pageId
+        ? {
+            ...page,
+            settings: {
+              ...defaultSettings,
+              ...page.settings,
+              ...patch,
+              path: (patch.path ?? page.settings?.path ?? defaultSettings.path).trim() || defaultSettings.path,
+              title:
+                (patch.title ?? page.settings?.title ?? defaultSettings.title).trim() ||
+                defaultSettings.title,
+            },
+          }
+        : page,
     ),
   };
 }
