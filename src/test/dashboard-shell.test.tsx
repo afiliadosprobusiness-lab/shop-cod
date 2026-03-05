@@ -13,26 +13,20 @@ describe("dashboard shell", () => {
     );
 
     expect(screen.getByRole("link", { name: /inicio/i })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /productos/i })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /funnels/i })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /tiendas/i })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /pedidos/i })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /analiticas/i })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /contactos/i })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /ofertas/i })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /aplicaciones/i })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /configuracion/i })).toBeInTheDocument();
   });
 
-  it("shows the two dashboard home creation cards", () => {
+  it("shows the funnel-only dashboard home flow", () => {
     render(
       <MemoryRouter>
         <DashboardHomePage />
       </MemoryRouter>,
     );
 
-    expect(screen.getByText("Crear tienda online")).toBeInTheDocument();
-    expect(screen.getByText("Crear funnel")).toBeInTheDocument();
-    expect(screen.getAllByRole("link", { name: /comenzar/i })).toHaveLength(2);
+    expect(screen.getByText("Single Product Funnel Builder")).toBeInTheDocument();
+    expect(screen.getByText(/crear funnel/i)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /ir a funnels/i })).toBeInTheDocument();
   });
 });

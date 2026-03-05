@@ -1,0 +1,108 @@
+import { beforeEach, describe, expect, it } from "vitest";
+import {
+  createFunnel,
+  createOrder,
+  getDatabaseSnapshot,
+  getFunnelProduct,
+  getLandingSections,
+  listOrders,
+  saveLandingSections,
+  upsertFunnelProduct,
+  updateOrderStatus,
+} from "@/lib/funnel-system";
+
+describe("funnel-system", () => {
+  beforeEach(() => {
+    window.localStorage.clear();
+  });
+
+  it("creates a funnel with the 3 base pages", () => {
+    const funnel = createFunnel({
+      name: "Funnel Test",
+      userId: "user-1",
+      userEmail: "demo@example.com",
+    });
+
+    const snapshot = getDatabaseSnapshot();
+    const pages = snapshot.pages.filter((page) => page.funnel_id === funnel.id);
+    const types = pages.map((page) => page.type).sort();
+
+    expect(types).toEqual(["checkout", "landing", "thankyou"]);
+  });
+
+  it("keeps only one product per funnel", () => {
+    const funnel = createFunnel({
+      name: "Producto unico",
+      userId: "user-1",
+    });
+
+    upsertFunnelProduct({
+      funnelId: funnel.id,
+      name: "Producto A",
+      price: 10,
+      type: "physical",
+      paymentType: "stripe",
+    });
+    upsertFunnelProduct({
+      funnelId: funnel.id,
+      name: "Producto B",
+      price: 20,
+      type: "digital",
+      paymentType: "paypal",
+    });
+
+    const snapshot = getDatabaseSnapshot();
+    const products = snapshot.products.filter((product) => product.funnel_id === funnel.id);
+
+    expect(products).toHaveLength(1);
+    expect(products[0].name).toBe("Producto B");
+    expect(getFunnelProduct(funnel.id)?.payment_type).toBe("paypal");
+  });
+
+  it("stores landing sections as ordered JSON", () => {
+    const funnel = createFunnel({
+      name: "Landing edit",
+      userId: "user-1",
+    });
+
+    saveLandingSections(funnel.id, [
+      { id: "1", type: "headline", content: "Amazing Product" },
+      { id: "2", type: "button", text: "Buy Now", href: "#checkout" },
+    ]);
+
+    const sections = getLandingSections(funnel.id);
+    expect(sections).toHaveLength(2);
+    expect(sections[0].type).toBe("headline");
+    expect(sections[1].type).toBe("button");
+  });
+
+  it("creates and updates order status", () => {
+    const funnel = createFunnel({
+      name: "Pedidos",
+      userId: "user-1",
+    });
+    const product = upsertFunnelProduct({
+      funnelId: funnel.id,
+      name: "Producto pedidos",
+      price: 99,
+      type: "physical",
+      paymentType: "cash_on_delivery",
+    });
+
+    const order = createOrder({
+      funnelId: funnel.id,
+      productId: product.id,
+      name: "Ken",
+      phone: "999999999",
+      address: "Av test 123",
+      city: "Lima",
+      paymentType: "cash_on_delivery",
+    });
+
+    expect(listOrders(funnel.id)[0].status).toBe("new");
+
+    const updated = updateOrderStatus(order.id, "processing");
+    const orderRow = updated.find((row) => row.id === order.id);
+    expect(orderRow?.status).toBe("processing");
+  });
+});

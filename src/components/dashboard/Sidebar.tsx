@@ -69,8 +69,8 @@ function SidebarContent({
   const promo = useMemo(() => {
     if (planId === "starter") {
       return {
-        title: "¡Activa tu tienda!",
-        description: "Obten el plan Pro y desbloquea todas las funcionalidades de la tienda.",
+        title: "Escala tu funnel",
+        description: "Obten el plan Pro y desbloquea mas capacidad para funnels y operaciones.",
         cta: "Activar ahora",
         nextPlanId: "pro" as const,
       };
@@ -79,7 +79,7 @@ function SidebarContent({
     if (planId === "pro") {
       return {
         title: "Escala sin limites",
-        description: "Sube a Scale para activar multi-usuario, tiendas ilimitadas y soporte prioritario.",
+        description: "Sube a Scale para operar mas funnels y soporte prioritario.",
         cta: "Subir a Scale",
         nextPlanId: "scale" as const,
       };
@@ -113,7 +113,7 @@ function SidebarContent({
             <span className="block truncate font-display text-lg font-semibold text-foreground">
               ShopCOD
             </span>
-            <span className="block truncate text-xs text-muted-foreground">SaaS Control Hub</span>
+            <span className="block truncate text-xs text-muted-foreground">Simple Funnel SaaS</span>
           </span>
         </Link>
 
@@ -153,10 +153,10 @@ function SidebarContent({
         ) : (
           <div className="rounded-3xl border border-border bg-secondary/70 p-4">
             <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">
-              Control comercial
+              Control funnel
             </p>
             <p className="mt-3 text-sm text-secondary-foreground">
-              Gestiona ventas, pedidos, clientes y ofertas desde un solo lugar.
+              Gestiona landing, checkout, pedidos y estados desde un solo lugar.
             </p>
           </div>
         )}
@@ -202,3 +202,4 @@ export default function Sidebar({ isMobileOpen, onCloseMobile, onLogout }: Sideb
     </>
   );
 }
+

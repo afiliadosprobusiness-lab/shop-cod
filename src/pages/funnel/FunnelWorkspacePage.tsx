@@ -1,1123 +1,443 @@
 import { useEffect, useMemo, useState } from "react";
-import {
-  ArrowLeft,
-  Calendar,
-  Eye,
-  Globe2,
-  Home,
-  Languages,
-  Plus,
-  Settings,
-  Sparkles,
-  TriangleAlert,
-  Wrench,
-} from "lucide-react";
-import { Link, useNavigate, useParams } from "react-router-dom";
-import { toast } from "sonner";
+import { ExternalLink } from "lucide-react";
+import { Link, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
-  PageBuilderEditor,
-  createDefaultPageBuilderBlocks,
-  serializePageBuilderDocument,
-  type PageBuilderBlock,
-  type PageBuilderSeed,
-} from "@/builders/page-builder";
-import {
-  FunnelBuilderEditor,
-  addPage,
-  getFunnelPage,
-  syncFunnelPagesFromNodes,
-  upsertFunnelPageContent,
-  type FunnelGraph,
-  type FunnelNode,
-  type FunnelNodeType,
-} from "@/builders/funnel-builder";
-import { loadEditorState, publishEditorState, saveEditorState } from "@/lib/editor";
-import {
-  ensureFunnelEditorDraft,
-  findFunnel,
-  slugifyFunnelName,
-  updateFunnel,
-  type FunnelCurrency,
-} from "@/lib/funnels";
-import {
-  loadFunnelWorkspaceConfig,
-  saveFunnelWorkspaceConfig,
-  type FunnelWorkspaceStatus,
-} from "@/lib/funnel-workspace";
-import { cn } from "@/lib/utils";
+  findFunnelById,
+  getFunnelProduct,
+  getLandingSections,
+  saveLandingSections,
+  setFunnelPublished,
+  upsertFunnelProduct,
+  type LandingBlock,
+  type LandingBlockType,
+  type PaymentType,
+  type ProductType,
+} from "@/lib/funnel-system";
 
-type FunnelWorkspaceTab = "summary" | "builder" | "settings" | "languages";
-type FunnelSettingsSection =
-  | "general"
-  | "gateways"
-  | "security"
-  | "tracking"
-  | "currency";
-
-const availableLanguages = [
-  { code: "es", label: "Espanol" },
-  { code: "en", label: "English" },
-  { code: "pt", label: "Portugues" },
+const blockTypeOptions: LandingBlockType[] = [
+  "headline",
+  "text",
+  "image",
+  "video",
+  "button",
+  "testimonials",
+  "faq",
 ];
 
-const pageTypeCards: Array<{
-  id: FunnelNodeType;
-  label: string;
-  accent: string;
-}> = [
-  { id: "product", label: "Product Page", accent: "bg-sky-500/10 text-sky-300" },
-  { id: "checkout", label: "Checkout Page", accent: "bg-amber-500/10 text-amber-300" },
-  { id: "upsell", label: "Upsell Page", accent: "bg-violet-500/10 text-violet-300" },
-  { id: "downsell", label: "Downsell Page", accent: "bg-rose-500/10 text-rose-300" },
-  { id: "thankyou", label: "Thank You Page", accent: "bg-emerald-500/10 text-emerald-300" },
-  { id: "leadCapture", label: "Lead Capture", accent: "bg-cyan-500/10 text-cyan-300" },
-  { id: "article", label: "Article Page", accent: "bg-indigo-500/10 text-indigo-300" },
-  { id: "blank", label: "Blank Page", accent: "bg-zinc-500/10 text-zinc-300" },
-];
+function createBlock(type: LandingBlockType): LandingBlock {
+  const id = `blk_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
 
-function emptyGraph(funnelId: string, name: string): FunnelGraph {
+  if (type === "headline") {
+    return { id, type, content: "Nuevo titular" };
+  }
+  if (type === "text") {
+    return { id, type, content: "Texto descriptivo" };
+  }
+  if (type === "image") {
+    return { id, type, src: "https://images.unsplash.com/photo-1523275335684-37898b6baf30" };
+  }
+  if (type === "video") {
+    return { id, type, src: "https://www.youtube.com/watch?v=dQw4w9WgXcQ" };
+  }
+  if (type === "button") {
+    return { id, type, text: "Comprar ahora", href: "#checkout" };
+  }
+  if (type === "testimonials") {
+    return { id, type, content: "Cliente feliz: excelente producto y envio rapido." };
+  }
   return {
-    id: funnelId,
-    name,
-    nodes: [],
-    pages: [],
-    connections: [],
-  };
-}
-
-function formatCurrency(value: number) {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    maximumFractionDigits: 2,
-  }).format(value);
-}
-
-function getNodeLabel(type: FunnelNodeType) {
-  const labels: Record<FunnelNodeType, string> = {
-    landing: "Landing",
-    product: "Product",
-    checkout: "Checkout",
-    upsell: "Upsell",
-    downsell: "Downsell",
-    thankyou: "Thank you",
-    leadCapture: "Lead capture",
-    article: "Article",
-    blank: "Blank",
-  };
-
-  return labels[type];
-}
-
-function getPageTitleByType(type?: FunnelNodeType | null) {
-  const labels: Record<FunnelNodeType, string> = {
-    landing: "Landing page",
-    product: "Product page",
-    checkout: "Checkout page",
-    upsell: "Upsell page",
-    downsell: "Downsell page",
-    thankyou: "Thank you page",
-    leadCapture: "Lead capture page",
-    article: "Article page",
-    blank: "Blank page",
-  };
-
-  if (!type) {
-    return "Nueva pagina";
-  }
-
-  return labels[type];
-}
-
-function parsePageBuilderBlocksFromContentJson(
-  contentJson: string | undefined,
-  seed?: PageBuilderSeed,
-) {
-  if (!contentJson?.trim()) {
-    return createDefaultPageBuilderBlocks(seed);
-  }
-
-  try {
-    const parsed = JSON.parse(contentJson) as unknown;
-
-    if (Array.isArray(parsed)) {
-      return parsed as PageBuilderBlock[];
-    }
-
-    if (
-      parsed &&
-      typeof parsed === "object" &&
-      "blocks" in parsed &&
-      Array.isArray((parsed as { blocks: unknown }).blocks)
-    ) {
-      return (parsed as { blocks: PageBuilderBlock[] }).blocks;
-    }
-  } catch {
-    return createDefaultPageBuilderBlocks(seed);
-  }
-
-  return createDefaultPageBuilderBlocks(seed);
-}
-
-function getNextNodePosition(graph: FunnelGraph) {
-  if (!graph.nodes.length) {
-    return { x: 160, y: 190 };
-  }
-
-  const lastNode = graph.nodes[graph.nodes.length - 1];
-  return {
-    x: lastNode.position.x + 340,
-    y: lastNode.position.y + (graph.nodes.length % 2 === 0 ? 20 : -20),
-  };
-}
-
-function readWorkspaceDraft(funnelId: string) {
-  const funnel = findFunnel(funnelId);
-  const editorState = loadEditorState(funnelId);
-  const workspaceConfig = loadFunnelWorkspaceConfig(funnelId);
-
-  if (!funnel) {
-    return null;
-  }
-
-  return {
-    funnel,
-    graph: editorState?.funnelBuilder ?? emptyGraph(funnelId, funnel.name),
-    workspaceConfig,
+    id,
+    type: "faq",
+    question: "Pregunta frecuente",
+    answer: "Respuesta breve para resolver objeciones.",
   };
 }
 
 export default function FunnelWorkspacePage() {
-  const navigate = useNavigate();
   const { funnelId = "" } = useParams();
-  const [activeTab, setActiveTab] = useState<FunnelWorkspaceTab>("builder");
-  const [settingsSection, setSettingsSection] = useState<FunnelSettingsSection>("general");
-  const [showPagePicker, setShowPagePicker] = useState(false);
-  const [funnelName, setFunnelName] = useState("");
-  const [funnelSlug, setFunnelSlug] = useState("");
-  const [currency, setCurrency] = useState<FunnelCurrency>("USD");
-  const [headerScripts, setHeaderScripts] = useState("");
-  const [faviconUrl, setFaviconUrl] = useState("");
-  const [autocompleteAddress, setAutocompleteAddress] = useState(false);
-  const [fireLeadEvent, setFireLeadEvent] = useState(false);
-  const [selectedLanguages, setSelectedLanguages] = useState<string[]>(["es"]);
-  const [status, setStatus] = useState<FunnelWorkspaceStatus>("draft");
-  const [graph, setGraph] = useState<FunnelGraph>(() => emptyGraph(funnelId, "Nuevo funnel"));
-  const [activePageId, setActivePageId] = useState<string | null>(null);
-  const [activePageBlocks, setActivePageBlocks] = useState<PageBuilderBlock[]>([]);
-  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [productName, setProductName] = useState("");
+  const [productPrice, setProductPrice] = useState("0");
+  const [productType, setProductType] = useState<ProductType>("physical");
+  const [paymentType, setPaymentType] = useState<PaymentType>("cash_on_delivery");
+  const [landingSections, setLandingSections] = useState<LandingBlock[]>([]);
+  const [newBlockType, setNewBlockType] = useState<LandingBlockType>("headline");
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  const funnel = useMemo(() => findFunnelById(funnelId), [funnelId, refreshKey]);
 
   useEffect(() => {
-    const prepared = ensureFunnelEditorDraft(funnelId);
-
-    if (!prepared) {
+    if (!funnel) {
       return;
     }
 
-    const draft = readWorkspaceDraft(funnelId);
-
-    if (!draft) {
-      return;
+    const product = getFunnelProduct(funnel.id);
+    if (product) {
+      setProductName(product.name);
+      setProductPrice(String(product.price));
+      setProductType(product.type);
+      setPaymentType(product.payment_type);
+    } else {
+      setProductName("");
+      setProductPrice("0");
+      setProductType("physical");
+      setPaymentType("cash_on_delivery");
     }
 
-    setFunnelName(draft.funnel.name);
-    setFunnelSlug(draft.funnel.slug);
-    setCurrency(draft.funnel.currency);
-    setGraph(syncFunnelPagesFromNodes(draft.graph));
-    setHeaderScripts(draft.workspaceConfig.headerScripts);
-    setFaviconUrl(draft.workspaceConfig.faviconUrl);
-    setAutocompleteAddress(draft.workspaceConfig.autocompleteAddress);
-    setFireLeadEvent(draft.workspaceConfig.fireLeadEvent);
-    setSelectedLanguages(
-      draft.workspaceConfig.languages.length ? draft.workspaceConfig.languages : ["es"],
-    );
-    setStatus(draft.workspaceConfig.status);
-    setActivePageId(null);
-    setActivePageBlocks([]);
-    setHasUnsavedChanges(false);
-  }, [funnelId]);
+    setLandingSections(getLandingSections(funnel.id));
+  }, [funnel]);
 
-  const currentFunnel = useMemo(() => findFunnel(funnelId), [funnelId]);
-
-  const summary = useMemo(() => {
-    const visitors = graph.nodes.reduce((sum, node) => sum + node.analytics.visits, 0);
-    const orders = graph.nodes
-      .filter((node) => node.type === "checkout")
-      .reduce((sum, node) => sum + node.analytics.clicks, 0);
-    const revenue = orders * 39;
-    const epc = visitors > 0 ? revenue / visitors : 0;
-    const conversion = visitors > 0 ? (orders / visitors) * 100 : 0;
-
-    return {
-      visitors,
-      orders,
-      revenue,
-      epc,
-      conversion,
-    };
-  }, [graph.nodes]);
-
-  const pageBuilderSeed = useMemo<PageBuilderSeed>(() => {
-    const priceByCurrency: Record<FunnelCurrency, string> = {
-      USD: "$49.00",
-      EUR: "EUR 45.00",
-      PEN: "S/ 179.00",
-    };
-
-    return {
-      storeName: funnelName || "ShopCOD",
-      productName: "Producto principal",
-      headline: `Oferta principal de ${funnelName || "ShopCOD"}`,
-      subheadline: "Editor visual con elementos CTA conectables en el funnel.",
-      ctaText: "Comprar ahora",
-      price: priceByCurrency[currency],
-    };
-  }, [currency, funnelName]);
-
-  const activeEditingNode = useMemo(
-    () => (activePageId ? graph.nodes.find((node) => node.pageId === activePageId) || null : null),
-    [activePageId, graph.nodes],
-  );
-  const activeEditingPage = useMemo(
-    () => (activePageId ? getFunnelPage(graph, activePageId) : null),
-    [activePageId, graph],
-  );
-
-  const persistGraph = (
-    nextGraph: FunnelGraph,
-    pageDraft?: { pageId: string; blocks: PageBuilderBlock[] },
-  ) => {
-    const baseState = loadEditorState(funnelId);
-    const nextPageBuilderPages = pageDraft
-      ? {
-          ...(baseState?.pageBuilderPages ?? {}),
-          default: pageDraft.blocks,
-          [pageDraft.pageId]: pageDraft.blocks,
-        }
-      : baseState?.pageBuilderPages ?? null;
-
-    saveEditorState(
-      funnelId,
-      baseState?.blocks ?? [],
-      baseState?.profile ?? null,
-      pageDraft?.blocks ?? baseState?.pageBuilder ?? null,
-      nextPageBuilderPages,
-      syncFunnelPagesFromNodes(nextGraph),
-      baseState?.storeBuilder ?? null,
-    );
-  };
-
-  const buildGraphWithPageBlocks = (
-    targetGraph: FunnelGraph,
-    pageId: string,
-    blocks: PageBuilderBlock[],
-  ) => {
-    const targetPage = getFunnelPage(targetGraph, pageId);
-    const contentJson = serializePageBuilderDocument(blocks, {
-      id: pageId,
-      title: getPageTitleByType(targetPage?.type),
-    });
-
-    return upsertFunnelPageContent(targetGraph, pageId, contentJson);
-  };
-
-  const handleGraphChange = (nextGraph: FunnelGraph) => {
-    const normalizedGraph = syncFunnelPagesFromNodes(nextGraph);
-    setGraph(normalizedGraph);
-    setHasUnsavedChanges(true);
-    persistGraph(normalizedGraph);
-  };
-
-  const syncPageBuilderDraft = (pageId: string, blocks: PageBuilderBlock[]) => {
-    const normalizedGraph = syncFunnelPagesFromNodes(graph);
-    const nextGraph = buildGraphWithPageBlocks(normalizedGraph, pageId, blocks);
-    setGraph(nextGraph);
-    persistGraph(nextGraph, { pageId, blocks });
-    return nextGraph;
-  };
-
-  const addFunnelPage = (type: FunnelNodeType) => {
-    const { graph: nextGraph } = addPage(graph, type, getNextNodePosition(graph));
-    handleGraphChange(nextGraph);
-    setShowPagePicker(false);
-  };
-
-  const handleToggleLanguage = (languageCode: string) => {
-    setSelectedLanguages((current) =>
-      current.includes(languageCode)
-        ? current.filter((language) => language !== languageCode)
-        : [...current, languageCode],
-    );
-    setHasUnsavedChanges(true);
-  };
-
-  const handleSaveWorkspace = () => {
-    if (!funnelName.trim()) {
-      toast.error("El nombre del funnel es obligatorio.");
-      return;
-    }
-
-    if (!funnelSlug.trim()) {
-      toast.error("El slug del funnel es obligatorio.");
-      return;
-    }
-
-    const updatedFunnel = updateFunnel(funnelId, {
-      name: funnelName,
-      slug: slugifyFunnelName(funnelSlug),
-      currency,
-    });
-
-    if (!updatedFunnel) {
-      toast.error("No se pudo guardar la configuracion del funnel.");
-      return;
-    }
-
-    saveFunnelWorkspaceConfig(funnelId, {
-      headerScripts,
-      faviconUrl,
-      autocompleteAddress,
-      fireLeadEvent,
-      languages: selectedLanguages.length ? selectedLanguages : ["es"],
-      status,
-    });
-    persistGraph(graph);
-    setHasUnsavedChanges(false);
-    toast.success("Funnel guardado.", {
-      description: `${updatedFunnel.name} quedo actualizado.`,
-    });
-  };
-
-  const handlePublishWorkspace = () => {
-    const baseState = loadEditorState(funnelId);
-    const publishedState = publishEditorState(
-      funnelId,
-      baseState?.blocks ?? [],
-      baseState?.profile ?? null,
-      baseState?.pageBuilder ?? null,
-      baseState?.pageBuilderPages ?? null,
-      graph,
-      baseState?.storeBuilder ?? null,
-    );
-
-    if (!publishedState) {
-      toast.error("No se pudo publicar el funnel.");
-      return;
-    }
-
-    setStatus("published");
-    saveFunnelWorkspaceConfig(funnelId, { status: "published" });
-    setHasUnsavedChanges(false);
-    toast.success("Funnel publicado.");
-  };
-
-  const openFunnelNodePage = (node: FunnelNode) => {
-    const page = getFunnelPage(graph, node.pageId);
-    const initialBlocks = parsePageBuilderBlocksFromContentJson(page?.contentJson, pageBuilderSeed);
-    setActivePageId(node.pageId);
-    setActivePageBlocks(initialBlocks);
-    setShowPagePicker(false);
-  };
-
-  const handlePageBuilderBlocksChange = (blocks: PageBuilderBlock[]) => {
-    if (!activePageId) {
-      return;
-    }
-
-    setActivePageBlocks(blocks);
-    setHasUnsavedChanges(true);
-    syncPageBuilderDraft(activePageId, blocks);
-  };
-
-  const handlePageBuilderSave = (blocks: PageBuilderBlock[]) => {
-    if (!activePageId) {
-      return;
-    }
-
-    setActivePageBlocks(blocks);
-    syncPageBuilderDraft(activePageId, blocks);
-    toast.success("Pagina guardada.");
-  };
-
-  const openWorkspacePreview = (nextGraph = graph) => {
-    persistGraph(nextGraph);
-    navigate(`/preview/${funnelId}`);
-  };
-
-  const handlePageBuilderPreview = (blocks: PageBuilderBlock[]) => {
-    if (!activePageId) {
-      return;
-    }
-
-    setActivePageBlocks(blocks);
-    const nextGraph = syncPageBuilderDraft(activePageId, blocks);
-    openWorkspacePreview(nextGraph);
-  };
-
-  const handlePageBuilderPublish = (blocks: PageBuilderBlock[]) => {
-    if (!activePageId) {
-      return;
-    }
-
-    const nextGraph = syncPageBuilderDraft(activePageId, blocks);
-    const baseState = loadEditorState(funnelId);
-    const pageBuilderPages = {
-      ...(baseState?.pageBuilderPages ?? {}),
-      default: blocks,
-      [activePageId]: blocks,
-    };
-    const publishedState = publishEditorState(
-      funnelId,
-      baseState?.blocks ?? [],
-      baseState?.profile ?? null,
-      blocks,
-      pageBuilderPages,
-      nextGraph,
-      baseState?.storeBuilder ?? null,
-    );
-
-    if (!publishedState) {
-      toast.error("No se pudo publicar la pagina.");
-      return;
-    }
-
-    setStatus("published");
-    saveFunnelWorkspaceConfig(funnelId, { status: "published" });
-    setHasUnsavedChanges(false);
-    toast.success("Pagina publicada.");
-  };
-
-  useEffect(() => {
-    if (!activePageId) {
-      return;
-    }
-
-    const stillExists = graph.pages.some((page) => page.id === activePageId);
-
-    if (!stillExists) {
-      setActivePageId(null);
-      setActivePageBlocks([]);
-    }
-  }, [activePageId, graph.pages]);
-
-  if (!currentFunnel) {
+  if (!funnel) {
     return (
-      <main className="min-h-screen bg-background px-6 py-10">
-        <div className="mx-auto max-w-5xl rounded-[2rem] border border-border/80 bg-card/90 p-8">
-          <p className="text-lg font-semibold text-foreground">Funnel no encontrado</p>
-          <p className="mt-2 text-sm text-muted-foreground">
-            El funnel solicitado no existe o fue eliminado.
-          </p>
-          <Button asChild className="mt-6 rounded-2xl">
-            <Link to="/funnels">
-              <ArrowLeft className="h-4 w-4" />
-              Volver a funnels
-            </Link>
+      <main className="mx-auto w-full max-w-3xl px-4 py-8">
+        <div className="rounded-2xl border border-border bg-card p-6">
+          <h1 className="text-xl font-semibold">Funnel no encontrado</h1>
+          <p className="mt-2 text-sm text-muted-foreground">El funnel fue eliminado o no existe.</p>
+          <Button asChild className="mt-4 rounded-xl">
+            <Link to="/funnels">Volver a funnels</Link>
           </Button>
         </div>
       </main>
     );
   }
 
+  const publicBase = `/f/${funnel.slug}`;
+
+  const handleSaveProduct = () => {
+    upsertFunnelProduct({
+      funnelId: funnel.id,
+      name: productName,
+      price: Number(productPrice),
+      type: productType,
+      paymentType,
+    });
+    setRefreshKey((current) => current + 1);
+  };
+
+  const handleAddBlock = () => {
+    setLandingSections((current) => [...current, createBlock(newBlockType)]);
+  };
+
+  const handleSaveLanding = () => {
+    saveLandingSections(funnel.id, landingSections);
+    setRefreshKey((current) => current + 1);
+  };
+
+  const handlePublishToggle = () => {
+    setFunnelPublished(funnel.id, !funnel.published_at);
+    setRefreshKey((current) => current + 1);
+  };
+
   return (
-    <main className="min-h-screen bg-slate-100/60">
-      <header className="sticky top-0 z-40 border-b border-border/70 bg-background/95 backdrop-blur">
-        <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 lg:px-6">
-          <div className="flex min-w-0 items-center gap-3">
-            <Button
-              type="button"
-              variant="outline"
-              size="icon"
-              className="rounded-xl"
-              onClick={() => navigate("/funnels")}
-              aria-label="Volver a funnels"
-            >
-              <ArrowLeft className="h-4 w-4" />
-            </Button>
-            <div className="min-w-0">
-              <p className="truncate text-sm font-semibold text-foreground">{funnelName}</p>
-              <p className="text-xs text-muted-foreground">/{funnelSlug}</p>
-            </div>
-            <span className="rounded-full border border-border bg-card px-2.5 py-1 text-xs font-semibold text-foreground">
-              {currency}
-            </span>
+    <main className="mx-auto w-full max-w-6xl space-y-5 px-4 py-6 sm:px-6 lg:px-8">
+      <section className="rounded-2xl border border-border bg-card p-5">
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div className="min-w-0">
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+              Funnel Editor
+            </p>
+            <h1 className="truncate text-2xl font-semibold text-foreground">{funnel.name}</h1>
+            <p className="text-sm text-muted-foreground">/{funnel.slug}</p>
           </div>
-
-          <nav className="flex flex-wrap items-center gap-1 rounded-2xl border border-border bg-card p-1">
-            <button
-              type="button"
-              onClick={() => setActiveTab("summary")}
-              className={cn(
-                "inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium transition-colors",
-                activeTab === "summary"
-                  ? "bg-primary/10 text-primary"
-                  : "text-muted-foreground hover:text-foreground",
-              )}
-            >
-              <Home className="h-4 w-4" />
-              Resumen
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveTab("builder")}
-              className={cn(
-                "inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium transition-colors",
-                activeTab === "builder"
-                  ? "bg-primary/10 text-primary"
-                  : "text-muted-foreground hover:text-foreground",
-              )}
-            >
-              <Wrench className="h-4 w-4" />
-              Construir y Disenar
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveTab("settings")}
-              className={cn(
-                "inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium transition-colors",
-                activeTab === "settings"
-                  ? "bg-primary/10 text-primary"
-                  : "text-muted-foreground hover:text-foreground",
-              )}
-            >
-              <Settings className="h-4 w-4" />
-              Configuracion
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveTab("languages")}
-              className={cn(
-                "inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium transition-colors",
-                activeTab === "languages"
-                  ? "bg-primary/10 text-primary"
-                  : "text-muted-foreground hover:text-foreground",
-              )}
-            >
-              <Languages className="h-4 w-4" />
-              Idiomas
-            </button>
-          </nav>
-
           <div className="flex flex-wrap items-center gap-2">
-            <select
-              value={status}
-              onChange={(event) => {
-                setStatus(event.target.value as FunnelWorkspaceStatus);
-                setHasUnsavedChanges(true);
-              }}
-              className="h-10 rounded-xl border border-border bg-card px-3 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            >
-              <option value="draft">No Publicado</option>
-              <option value="published">Publicado</option>
-            </select>
-            <Button type="button" variant="outline" className="rounded-xl" onClick={handleSaveWorkspace}>
-              {hasUnsavedChanges ? "Guardar cambios" : "Guardar"}
+            <Button type="button" variant="outline" className="rounded-xl" onClick={handlePublishToggle}>
+              {funnel.published_at ? "Despublicar" : "Publicar Funnel"}
             </Button>
-            <Button type="button" className="rounded-xl" onClick={handlePublishWorkspace}>
-              Publicar
+            <Button asChild variant="ghost" className="rounded-xl" disabled={!funnel.published_at}>
+              <Link to={publicBase} target="_blank">
+                Ver landing
+                <ExternalLink className="h-4 w-4" />
+              </Link>
             </Button>
           </div>
         </div>
-      </header>
+      </section>
 
-      <div className="mx-auto max-w-[1700px] px-4 py-6 lg:px-6">
-        {activeTab === "summary" ? (
-          <section className="space-y-5">
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-              <article className="rounded-3xl border border-border/80 bg-card/90 p-5">
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-                  Visitantes
-                </p>
-                <p className="mt-3 text-3xl font-semibold text-foreground">{summary.visitors}</p>
-              </article>
-              <article className="rounded-3xl border border-border/80 bg-card/90 p-5">
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-                  Pedidos
-                </p>
-                <p className="mt-3 text-3xl font-semibold text-foreground">{summary.orders}</p>
-              </article>
-              <article className="rounded-3xl border border-border/80 bg-card/90 p-5">
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-                  Ingresos
-                </p>
-                <p className="mt-3 text-3xl font-semibold text-foreground">
-                  {formatCurrency(summary.revenue)}
-                </p>
-              </article>
-              <article className="rounded-3xl border border-border/80 bg-card/90 p-5">
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-                  EPC
-                </p>
-                <p className="mt-3 text-3xl font-semibold text-foreground">
-                  {formatCurrency(summary.epc)}
-                </p>
-              </article>
-              <article className="rounded-3xl border border-border/80 bg-card/90 p-5">
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-                  Tasa de conversion
-                </p>
-                <p className="mt-3 text-3xl font-semibold text-foreground">
-                  {summary.conversion.toFixed(2)}%
-                </p>
-              </article>
+      <section className="grid gap-5 xl:grid-cols-2">
+        <article className="rounded-2xl border border-border bg-card p-5">
+          <h2 className="text-lg font-semibold">Producto (uno por funnel)</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Este producto alimenta automaticamente la pagina de checkout.
+          </p>
+          <div className="mt-4 space-y-3">
+            <div className="space-y-2">
+              <Label htmlFor="product-name">product_name</Label>
+              <Input
+                id="product-name"
+                value={productName}
+                onChange={(event) => setProductName(event.target.value)}
+                placeholder="Nombre del producto"
+                className="rounded-xl"
+              />
             </div>
-
-            <article className="rounded-3xl border border-border/80 bg-card/90 p-5">
-              <div className="flex items-center justify-between gap-3">
-                <h2 className="text-xl font-semibold text-foreground">Rendimiento de las paginas</h2>
-                <div className="inline-flex items-center gap-2 rounded-xl border border-border/80 bg-secondary/30 px-3 py-2 text-sm text-muted-foreground">
-                  <Calendar className="h-4 w-4" />
-                  {new Date().toLocaleDateString("en-US", {
-                    day: "2-digit",
-                    month: "short",
-                    year: "numeric",
-                  })}
-                </div>
-              </div>
-              <div className="mt-4 overflow-x-auto">
-                <table className="w-full min-w-[36rem] text-left text-sm">
-                  <thead className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
-                    <tr>
-                      <th className="pb-3 font-medium">Pagina</th>
-                      <th className="pb-3 font-medium">Visitas</th>
-                      <th className="pb-3 font-medium">CTR</th>
-                      <th className="pb-3 font-medium">Clics</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {graph.nodes.length ? (
-                      graph.nodes.map((node) => (
-                        <tr key={node.id} className="border-t border-border/70">
-                          <td className="py-3 font-medium text-foreground">{getNodeLabel(node.type)}</td>
-                          <td className="py-3 text-muted-foreground">{node.analytics.visits}</td>
-                          <td className="py-3 text-muted-foreground">
-                            {node.analytics.conversionRate.toFixed(1)}%
-                          </td>
-                          <td className="py-3 text-muted-foreground">{node.analytics.clicks}</td>
-                        </tr>
-                      ))
-                    ) : (
-                      <tr>
-                        <td colSpan={4} className="py-10 text-center text-muted-foreground">
-                          No hay paginas en este funnel.
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </article>
-          </section>
-        ) : null}
-
-        {activeTab === "builder" ? (
-          <section className="relative">
-            {activePageId ? (
-              <div className="space-y-5">
-                <article className="rounded-[1.8rem] border border-sky-200/80 bg-white px-5 py-4 shadow-sm">
-                  <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-                    <div>
-                      <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-sky-600">
-                        Editor visual
-                      </p>
-                      <h2 className="mt-1 text-xl font-semibold text-slate-900">
-                        {activeEditingPage?.settings.title || getPageTitleByType(activeEditingNode?.type)}
-                      </h2>
-                      <p className="mt-1 text-sm text-slate-600">
-                        Cada CTA agregado aqui aparece automaticamente en LINKS del Funnel Builder.
-                      </p>
-                    </div>
-
-                    <div className="flex flex-wrap items-center gap-2">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        className="rounded-xl"
-                        onClick={() => handlePageBuilderPreview(activePageBlocks)}
-                      >
-                        <Eye className="h-4 w-4" />
-                        Preview
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        className="rounded-xl"
-                        onClick={() => setActivePageId(null)}
-                      >
-                        <ArrowLeft className="h-4 w-4" />
-                        Volver al funnel
-                      </Button>
-                    </div>
-                  </div>
-                </article>
-
-                <PageBuilderEditor
-                  editorKey={`${funnelId}:${activePageId}`}
-                  initialBlocks={activePageBlocks}
-                  seed={pageBuilderSeed}
-                  pageTitle={activeEditingPage?.settings.title || getPageTitleByType(activeEditingNode?.type)}
-                  onBlocksChange={handlePageBuilderBlocksChange}
-                  onSave={handlePageBuilderSave}
-                  onPreview={handlePageBuilderPreview}
-                  onPublish={handlePageBuilderPublish}
-                />
-              </div>
-            ) : graph.nodes.length ? (
-              <div className="relative">
-                <FunnelBuilderEditor
-                  graph={graph}
-                  onGraphChange={handleGraphChange}
-                  onOpenPage={openFunnelNodePage}
-                  onPreviewPage={() => openWorkspacePreview()}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPagePicker((current) => !current)}
-                  className="fixed bottom-7 right-7 z-30 inline-flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-xl transition-colors hover:opacity-90"
-                  aria-label="Agregar pagina al funnel"
-                >
-                  <Plus className="h-6 w-6" />
-                </button>
-              </div>
-            ) : (
-              <div className="rounded-[2rem] border border-border/80 bg-card/90 px-6 py-16 text-center">
-                <p className="text-3xl font-semibold text-foreground">No hay paginas</p>
-                <p className="mt-3 text-lg text-muted-foreground">
-                  Usa el boton de abajo para crear la primera pagina del funnel.
-                </p>
-                <button
-                  type="button"
-                  onClick={() => setShowPagePicker(true)}
-                  className="mt-7 inline-flex h-16 w-16 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg transition-colors hover:opacity-90"
-                  aria-label="Agregar primera pagina"
-                >
-                  <Plus className="h-8 w-8" />
-                </button>
-              </div>
-            )}
-
-            {showPagePicker && !activePageId ? (
-              <div
-                className={cn(
-                  "mt-5 rounded-[2rem] border border-border/80 bg-card/95 p-4 shadow-xl",
-                  graph.nodes.length ? "fixed bottom-24 right-6 z-40 w-[20rem] lg:w-[22rem]" : "mx-auto max-w-xl",
-                )}
+            <div className="space-y-2">
+              <Label htmlFor="product-price">price</Label>
+              <Input
+                id="product-price"
+                type="number"
+                min="0"
+                step="0.01"
+                value={productPrice}
+                onChange={(event) => setProductPrice(event.target.value)}
+                className="rounded-xl"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="product-type">product_type</Label>
+              <select
+                id="product-type"
+                value={productType}
+                onChange={(event) => setProductType(event.target.value as ProductType)}
+                className="h-10 w-full rounded-xl border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
-                <div className="mb-3 flex items-center justify-between">
-                  <p className="text-sm font-semibold uppercase tracking-[0.18em] text-primary">
-                    Add new page
-                  </p>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="rounded-xl"
-                    onClick={() => setShowPagePicker(false)}
-                  >
-                    Cerrar
-                  </Button>
-                </div>
+                <option value="physical">physical</option>
+                <option value="digital">digital</option>
+              </select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="payment-type">payment_type</Label>
+              <select
+                id="payment-type"
+                value={paymentType}
+                onChange={(event) => setPaymentType(event.target.value as PaymentType)}
+                className="h-10 w-full rounded-xl border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <option value="stripe">stripe</option>
+                <option value="paypal">paypal</option>
+                <option value="cash_on_delivery">cash_on_delivery</option>
+              </select>
+            </div>
+          </div>
+          <Button type="button" className="mt-4 rounded-xl" onClick={handleSaveProduct}>
+            Guardar producto
+          </Button>
+        </article>
 
-                <div className="grid grid-cols-3 gap-2.5">
-                  {pageTypeCards.map((card) => (
-                    <button
-                      key={card.id}
+        <article className="rounded-2xl border border-border bg-card p-5">
+          <h2 className="text-lg font-semibold">Rutas del funnel</h2>
+          <div className="mt-3 space-y-2 text-sm">
+            <p>
+              Landing: <span className="font-mono">{publicBase}</span>
+            </p>
+            <p>
+              Checkout: <span className="font-mono">{publicBase}/checkout</span>
+            </p>
+            <p>
+              Thank you: <span className="font-mono">{publicBase}/thank-you</span>
+            </p>
+          </div>
+          <p className="mt-4 text-sm text-muted-foreground">
+            Si el funnel no esta publicado, las rutas publicas muestran estado no disponible.
+          </p>
+        </article>
+      </section>
+
+      <section className="rounded-2xl border border-border bg-card p-5">
+        <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+          <div>
+            <h2 className="text-lg font-semibold">Landing Page Editor</h2>
+            <p className="text-sm text-muted-foreground">
+              Editor simple por bloques verticales, sin drag and drop complejo.
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <Label htmlFor="new-block-type" className="sr-only">
+              Tipo de bloque
+            </Label>
+            <select
+              id="new-block-type"
+              value={newBlockType}
+              onChange={(event) => setNewBlockType(event.target.value as LandingBlockType)}
+              className="h-10 rounded-xl border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              {blockTypeOptions.map((type) => (
+                <option key={type} value={type}>
+                  {type}
+                </option>
+              ))}
+            </select>
+            <Button type="button" variant="outline" className="rounded-xl" onClick={handleAddBlock}>
+              Agregar bloque
+            </Button>
+          </div>
+        </div>
+
+        <div className="mt-4 space-y-3">
+          {landingSections.length ? (
+            landingSections.map((block, index) => (
+              <article key={block.id} className="rounded-xl border border-border bg-secondary/20 p-4">
+                <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                  <span className="rounded-full border border-border bg-background px-2 py-1 text-xs font-medium">
+                    {block.type}
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <Button
                       type="button"
-                      onClick={() => addFunnelPage(card.id)}
-                      className="rounded-2xl border border-border/80 bg-secondary/20 p-3 text-center transition-colors hover:border-primary/30 hover:bg-primary/5"
+                      size="sm"
+                      variant="outline"
+                      className="rounded-lg"
+                      disabled={index === 0}
+                      onClick={() =>
+                        setLandingSections((current) => {
+                          const next = [...current];
+                          [next[index - 1], next[index]] = [next[index], next[index - 1]];
+                          return next;
+                        })
+                      }
                     >
-                      <span className={cn("mx-auto inline-flex rounded-full px-2 py-1 text-[10px] font-semibold", card.accent)}>
-                        {card.label}
-                      </span>
-                    </button>
-                  ))}
-                  <div className="rounded-2xl border border-dashed border-border/80 bg-secondary/10 p-3 text-center">
-                    <span className="mx-auto inline-flex rounded-full bg-muted px-2 py-1 text-[10px] font-semibold text-muted-foreground">
-                      Split test
-                    </span>
-                    <p className="mt-2 text-xs text-muted-foreground">Proximamente</p>
-                  </div>
-                </div>
-              </div>
-            ) : null}
-          </section>
-        ) : null}
-
-        {activeTab === "settings" ? (
-          <section className="grid gap-5 lg:grid-cols-[18rem_minmax(0,1fr)]">
-            <aside className="rounded-[2rem] border border-border/80 bg-card/90 p-4">
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary">
-                Configuracion
-              </p>
-              <div className="mt-4 space-y-1.5">
-                <button
-                  type="button"
-                  onClick={() => setSettingsSection("general")}
-                  className={cn(
-                    "flex w-full items-center justify-between rounded-2xl px-3 py-2 text-sm transition-colors",
-                    settingsSection === "general"
-                      ? "bg-primary/10 text-primary"
-                      : "text-muted-foreground hover:bg-secondary/50 hover:text-foreground",
-                  )}
-                >
-                  General
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setSettingsSection("gateways")}
-                  className={cn(
-                    "flex w-full items-center justify-between rounded-2xl px-3 py-2 text-sm transition-colors",
-                    settingsSection === "gateways"
-                      ? "bg-primary/10 text-primary"
-                      : "text-muted-foreground hover:bg-secondary/50 hover:text-foreground",
-                  )}
-                >
-                  Pasarelas de pago
-                  <TriangleAlert className="h-4 w-4 text-amber-500" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setSettingsSection("security")}
-                  className={cn(
-                    "flex w-full items-center justify-between rounded-2xl px-3 py-2 text-sm transition-colors",
-                    settingsSection === "security"
-                      ? "bg-primary/10 text-primary"
-                      : "text-muted-foreground hover:bg-secondary/50 hover:text-foreground",
-                  )}
-                >
-                  Seguridad
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setSettingsSection("tracking")}
-                  className={cn(
-                    "flex w-full items-center justify-between rounded-2xl px-3 py-2 text-sm transition-colors",
-                    settingsSection === "tracking"
-                      ? "bg-primary/10 text-primary"
-                      : "text-muted-foreground hover:bg-secondary/50 hover:text-foreground",
-                  )}
-                >
-                  Seguimiento
-                  <TriangleAlert className="h-4 w-4 text-amber-500" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setSettingsSection("currency")}
-                  className={cn(
-                    "flex w-full items-center justify-between rounded-2xl px-3 py-2 text-sm transition-colors",
-                    settingsSection === "currency"
-                      ? "bg-primary/10 text-primary"
-                      : "text-muted-foreground hover:bg-secondary/50 hover:text-foreground",
-                  )}
-                >
-                  Moneda
-                </button>
-              </div>
-            </aside>
-
-            <article className="rounded-[2rem] border border-border/80 bg-card/90 p-5">
-              {settingsSection === "general" ? (
-                <div className="space-y-5">
-                  <div className="flex items-center justify-between gap-3">
-                    <h2 className="text-2xl font-semibold text-foreground">Configuracion del Funnel</h2>
-                    <Button type="button" variant="outline" className="rounded-xl">
-                      <Eye className="h-4 w-4" />
-                      Vista previa
+                      Subir
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="rounded-lg"
+                      disabled={index === landingSections.length - 1}
+                      onClick={() =>
+                        setLandingSections((current) => {
+                          const next = [...current];
+                          [next[index + 1], next[index]] = [next[index], next[index + 1]];
+                          return next;
+                        })
+                      }
+                    >
+                      Bajar
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      className="rounded-lg text-destructive hover:text-destructive"
+                      onClick={() =>
+                        setLandingSections((current) => current.filter((entry) => entry.id !== block.id))
+                      }
+                    >
+                      Eliminar
                     </Button>
                   </div>
+                </div>
 
+                {block.type === "headline" || block.type === "text" || block.type === "testimonials" ? (
                   <div className="space-y-2">
-                    <Label htmlFor="funnel-name-settings">Nombre del funnel</Label>
-                    <Input
-                      id="funnel-name-settings"
-                      className="rounded-2xl"
-                      value={funnelName}
-                      onChange={(event) => {
-                        setFunnelName(event.target.value);
-                        setHasUnsavedChanges(true);
-                      }}
+                    <Label htmlFor={`${block.id}-content`}>Contenido</Label>
+                    <Textarea
+                      id={`${block.id}-content`}
+                      className="rounded-xl"
+                      value={block.content ?? ""}
+                      onChange={(event) =>
+                        setLandingSections((current) =>
+                          current.map((entry) =>
+                            entry.id === block.id ? { ...entry, content: event.target.value } : entry,
+                          ),
+                        )
+                      }
                     />
                   </div>
+                ) : null}
 
+                {block.type === "image" || block.type === "video" ? (
                   <div className="space-y-2">
-                    <Label htmlFor="funnel-slug-settings">URL del funnel</Label>
-                    <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-border/80 bg-secondary/20 px-3 py-2.5 text-sm">
-                      <span className="text-muted-foreground">shopcod.site/</span>
+                    <Label htmlFor={`${block.id}-src`}>{block.type === "image" ? "URL de imagen" : "URL de video"}</Label>
+                    <Input
+                      id={`${block.id}-src`}
+                      className="rounded-xl"
+                      value={block.src ?? ""}
+                      onChange={(event) =>
+                        setLandingSections((current) =>
+                          current.map((entry) =>
+                            entry.id === block.id ? { ...entry, src: event.target.value } : entry,
+                          ),
+                        )
+                      }
+                    />
+                  </div>
+                ) : null}
+
+                {block.type === "button" ? (
+                  <div className="grid gap-3 md:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label htmlFor={`${block.id}-text`}>Texto</Label>
                       <Input
-                        id="funnel-slug-settings"
-                        value={funnelSlug}
-                        onChange={(event) => {
-                          setFunnelSlug(slugifyFunnelName(event.target.value));
-                          setHasUnsavedChanges(true);
-                        }}
-                        className="h-8 min-w-[12rem] border-0 bg-transparent px-0 py-0 shadow-none focus-visible:ring-0"
+                        id={`${block.id}-text`}
+                        className="rounded-xl"
+                        value={block.text ?? ""}
+                        onChange={(event) =>
+                          setLandingSections((current) =>
+                            current.map((entry) =>
+                              entry.id === block.id ? { ...entry, text: event.target.value } : entry,
+                            ),
+                          )
+                        }
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor={`${block.id}-href`}>Enlace</Label>
+                      <Input
+                        id={`${block.id}-href`}
+                        className="rounded-xl"
+                        value={block.href ?? ""}
+                        onChange={(event) =>
+                          setLandingSections((current) =>
+                            current.map((entry) =>
+                              entry.id === block.id ? { ...entry, href: event.target.value } : entry,
+                            ),
+                          )
+                        }
                       />
                     </div>
                   </div>
+                ) : null}
 
-                  <div className="space-y-2">
-                    <Label htmlFor="funnel-header-scripts">Scripts personalizados</Label>
-                    <Textarea
-                      id="funnel-header-scripts"
-                      className="min-h-[8rem] rounded-2xl"
-                      placeholder="Funnel header scripts"
-                      value={headerScripts}
-                      onChange={(event) => {
-                        setHeaderScripts(event.target.value);
-                        setHasUnsavedChanges(true);
-                      }}
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="funnel-favicon">Favicon URL</Label>
-                    <Input
-                      id="funnel-favicon"
-                      className="rounded-2xl"
-                      placeholder="https://..."
-                      value={faviconUrl}
-                      onChange={(event) => {
-                        setFaviconUrl(event.target.value);
-                        setHasUnsavedChanges(true);
-                      }}
-                    />
-                  </div>
-
-                  <label className="flex items-center gap-3 rounded-2xl border border-border/80 bg-secondary/20 px-3 py-3 text-sm text-foreground">
-                    <input
-                      type="checkbox"
-                      checked={autocompleteAddress}
-                      onChange={(event) => {
-                        setAutocompleteAddress(event.target.checked);
-                        setHasUnsavedChanges(true);
-                      }}
-                      className="h-4 w-4 rounded border-border"
-                    />
-                    Habilitar autocompletado de direccion
-                  </label>
-
-                  <label className="flex items-center gap-3 rounded-2xl border border-border/80 bg-secondary/20 px-3 py-3 text-sm text-foreground">
-                    <input
-                      type="checkbox"
-                      checked={fireLeadEvent}
-                      onChange={(event) => {
-                        setFireLeadEvent(event.target.checked);
-                        setHasUnsavedChanges(true);
-                      }}
-                      className="h-4 w-4 rounded border-border"
-                    />
-                    Disparar evento Lead en lugar de Purchase
-                  </label>
-                </div>
-              ) : null}
-
-              {settingsSection === "currency" ? (
-                <div className="space-y-5">
-                  <h2 className="text-2xl font-semibold text-foreground">Moneda de operacion</h2>
-                  <div className="space-y-2">
-                    <Label htmlFor="funnel-currency-settings">Moneda principal</Label>
-                    <select
-                      id="funnel-currency-settings"
-                      value={currency}
-                      onChange={(event) => {
-                        setCurrency(event.target.value as FunnelCurrency);
-                        setHasUnsavedChanges(true);
-                      }}
-                      className="h-11 w-full rounded-2xl border border-border bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                    >
-                      <option value="USD">USD</option>
-                      <option value="EUR">EUR</option>
-                      <option value="PEN">PEN</option>
-                    </select>
-                  </div>
-                </div>
-              ) : null}
-
-              {settingsSection === "gateways" ? (
-                <div className="space-y-4">
-                  <h2 className="text-2xl font-semibold text-foreground">Pasarelas de pago</h2>
-                  <div className="rounded-2xl border border-dashed border-border/80 bg-secondary/20 p-4 text-sm text-muted-foreground">
-                    Configura Stripe, PayPal o Mercado Pago desde Configuracion global del workspace.
-                  </div>
-                </div>
-              ) : null}
-
-              {settingsSection === "security" ? (
-                <div className="space-y-4">
-                  <h2 className="text-2xl font-semibold text-foreground">Seguridad</h2>
-                  <div className="rounded-2xl border border-border/80 bg-secondary/20 p-4">
-                    <div className="flex items-start gap-3">
-                      <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                        <Sparkles className="h-4 w-4" />
-                      </span>
-                      <p className="text-sm text-muted-foreground">
-                        Usa este panel para reforzar reglas de anti-fraude y restricciones por pais.
-                      </p>
+                {block.type === "faq" ? (
+                  <div className="grid gap-3 md:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label htmlFor={`${block.id}-question`}>Pregunta</Label>
+                      <Input
+                        id={`${block.id}-question`}
+                        className="rounded-xl"
+                        value={block.question ?? ""}
+                        onChange={(event) =>
+                          setLandingSections((current) =>
+                            current.map((entry) =>
+                              entry.id === block.id ? { ...entry, question: event.target.value } : entry,
+                            ),
+                          )
+                        }
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor={`${block.id}-answer`}>Respuesta</Label>
+                      <Input
+                        id={`${block.id}-answer`}
+                        className="rounded-xl"
+                        value={block.answer ?? ""}
+                        onChange={(event) =>
+                          setLandingSections((current) =>
+                            current.map((entry) =>
+                              entry.id === block.id ? { ...entry, answer: event.target.value } : entry,
+                            ),
+                          )
+                        }
+                      />
                     </div>
                   </div>
-                </div>
-              ) : null}
+                ) : null}
+              </article>
+            ))
+          ) : (
+            <p className="rounded-xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
+              Todavia no hay bloques en la landing.
+            </p>
+          )}
+        </div>
 
-              {settingsSection === "tracking" ? (
-                <div className="space-y-4">
-                  <h2 className="text-2xl font-semibold text-foreground">Seguimiento</h2>
-                  <div className="rounded-2xl border border-dashed border-border/80 bg-secondary/20 p-4 text-sm text-muted-foreground">
-                    Pega pixeles y scripts en "Scripts personalizados" para activar tracking.
-                  </div>
-                </div>
-              ) : null}
-            </article>
-          </section>
-        ) : null}
-
-        {activeTab === "languages" ? (
-          <section className="space-y-5">
-            <article className="rounded-[2rem] border border-border/80 bg-card/90 p-5">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div>
-                  <h2 className="text-2xl font-semibold text-foreground">Idiomas del funnel</h2>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    Activa idiomas para duplicar contenido y manejar traducciones por pagina.
-                  </p>
-                </div>
-                <span className="inline-flex items-center gap-2 rounded-full border border-border/80 bg-secondary/20 px-3 py-1.5 text-xs font-semibold text-foreground">
-                  <Globe2 className="h-4 w-4 text-primary" />
-                  {selectedLanguages.length} activos
-                </span>
-              </div>
-
-              <div className="mt-5 grid gap-3 md:grid-cols-3">
-                {availableLanguages.map((language) => {
-                  const isEnabled = selectedLanguages.includes(language.code);
-
-                  return (
-                    <button
-                      key={language.code}
-                      type="button"
-                      onClick={() => handleToggleLanguage(language.code)}
-                      className={cn(
-                        "rounded-2xl border p-4 text-left transition-colors",
-                        isEnabled
-                          ? "border-primary/30 bg-primary/10"
-                          : "border-border/80 bg-secondary/10 hover:border-primary/20",
-                      )}
-                    >
-                      <p className="text-lg font-semibold text-foreground">{language.label}</p>
-                      <p className="mt-1 text-xs uppercase tracking-[0.18em] text-muted-foreground">
-                        {language.code}
-                      </p>
-                    </button>
-                  );
-                })}
-              </div>
-            </article>
-          </section>
-        ) : null}
-      </div>
+        <Button type="button" className="mt-4 rounded-xl" onClick={handleSaveLanding}>
+          Guardar landing
+        </Button>
+      </section>
     </main>
   );
 }

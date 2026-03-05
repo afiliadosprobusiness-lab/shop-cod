@@ -8,7 +8,7 @@ import { AuthProvider } from "@/lib/auth";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import DashboardLayout from "./layouts/DashboardLayout";
-import SaaSLandingPage from "./pages/SaaSLandingPage";
+import Index from "./pages/Index";
 import EditorPage from "./pages/EditorPage";
 import PreviewPage from "./pages/PreviewPage";
 import SuperAdminPage from "./pages/SuperAdminPage";
@@ -30,6 +30,9 @@ import SettingsPage from "./pages/dashboard/SettingsPage";
 import StoreDashboardPage from "./pages/dashboard/StoreDashboardPage";
 import StoresPage from "./pages/dashboard/StoresPage";
 import FunnelWorkspacePage from "./pages/funnel/FunnelWorkspacePage";
+import PublicCheckoutPage from "./pages/funnel/PublicCheckoutPage";
+import PublicLandingPage from "./pages/funnel/PublicLandingPage";
+import PublicThankYouPage from "./pages/funnel/PublicThankYouPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -43,7 +46,7 @@ const App = () => (
         <BrowserRouter>
           <PlatformTelemetry />
           <Routes>
-            <Route path="/" element={<SaaSLandingPage />} />
+            <Route path="/" element={<Index />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<LoginPage />} />
             <Route
@@ -57,6 +60,9 @@ const App = () => (
             <Route path="/store/demo" element={<LandingPage />} />
             <Route path="/checkout" element={<CheckoutPage />} />
             <Route path="/order-confirmed" element={<OrderConfirmedPage />} />
+            <Route path="/f/:slug" element={<PublicLandingPage />} />
+            <Route path="/f/:slug/checkout" element={<PublicCheckoutPage />} />
+            <Route path="/f/:slug/thank-you" element={<PublicThankYouPage />} />
             <Route
               element={
                 <ProtectedRoute>

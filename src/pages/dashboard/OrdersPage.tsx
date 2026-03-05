@@ -1,194 +1,143 @@
 import { useEffect, useMemo, useState } from "react";
-import { CheckCircle2, Clock3, Package, Truck, XCircle } from "lucide-react";
 import MainContent from "@/components/dashboard/MainContent";
-import { subscribeToShopcodData } from "@/lib/live-sync";
+import { useAuth } from "@/lib/auth";
 import {
-  loadOrders,
+  getFunnelProduct,
+  listFunnelsByUser,
+  listOrders,
   updateOrderStatus,
-  type PlatformOrder,
-  type PlatformOrderStatus,
-} from "@/lib/platform-data";
+  type FunnelRow,
+  type OrderRow,
+  type OrderStatus,
+} from "@/lib/funnel-system";
+import { subscribeToShopcodData } from "@/lib/live-sync";
 
-const orderStatusLabels: Record<PlatformOrderStatus, string> = {
-  new: "Nuevo",
-  confirmed: "Confirmado",
-  fulfilled: "Entregado",
-  cancelled: "Cancelado",
-};
-
-const orderStatusIcons = {
-  new: Clock3,
-  confirmed: CheckCircle2,
-  fulfilled: Truck,
-  cancelled: XCircle,
-} satisfies Record<PlatformOrderStatus, typeof Clock3>;
-
-function formatCurrency(value: number, currency: "USD" | "PEN") {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency,
-    maximumFractionDigits: 2,
-  }).format(value);
-}
+const statusOptions: OrderStatus[] = ["new", "processing", "shipped", "completed"];
 
 export default function OrdersPage() {
-  const [orders, setOrders] = useState<PlatformOrder[]>(() => loadOrders());
+  const { user } = useAuth();
+  const [funnels, setFunnels] = useState<FunnelRow[]>([]);
+  const [selectedFunnelId, setSelectedFunnelId] = useState<string>("all");
+  const [orders, setOrders] = useState<OrderRow[]>([]);
 
   useEffect(() => {
-    return subscribeToShopcodData(() => {
-      setOrders(loadOrders());
-    });
-  }, []);
+    if (!user) {
+      return;
+    }
 
-  const metrics = useMemo(() => {
-    const activeOrders = orders.filter((order) => order.status !== "cancelled");
-    const sales = activeOrders.reduce((sum, order) => sum + order.total, 0);
-
-    return {
-      total: orders.length,
-      confirmed: orders.filter((order) => order.status === "confirmed").length,
-      delivered: orders.filter((order) => order.status === "fulfilled").length,
-      sales,
-      avgTicket: activeOrders.length > 0 ? sales / activeOrders.length : 0,
+    const sync = () => {
+      const nextFunnels = listFunnelsByUser(user.uid);
+      setFunnels(nextFunnels);
+      setOrders(selectedFunnelId === "all" ? listOrders() : listOrders(selectedFunnelId));
     };
-  }, [orders]);
 
-  const handleStatusChange = (orderId: string, status: PlatformOrderStatus) => {
-    setOrders(updateOrderStatus(orderId, status));
-  };
+    sync();
+    return subscribeToShopcodData(sync);
+  }, [selectedFunnelId, user]);
+
+  const visibleOrders = useMemo(() => {
+    const allowedFunnels = new Set(funnels.map((funnel) => funnel.id));
+
+    if (selectedFunnelId === "all") {
+      return orders.filter((order) => allowedFunnels.has(order.funnel_id));
+    }
+    return orders.filter((order) => allowedFunnels.has(order.funnel_id));
+  }, [funnels, orders, selectedFunnelId]);
 
   return (
     <MainContent
-      eyebrow="Operacion"
+      eyebrow="Orders Dashboard"
       title="Pedidos"
-      description="Sigue los pedidos reales que entran por el checkout COD y actualiza su estado desde el panel."
+      description="Tabla por funnel con estados operativos del proceso de venta."
     >
-      <section className="grid gap-4 lg:grid-cols-4">
-        <div className="rounded-[1.75rem] border border-border/80 bg-card/90 p-5">
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-            Pedidos
-          </p>
-          <p className="mt-3 text-3xl font-semibold text-foreground">{metrics.total}</p>
-        </div>
-        <div className="rounded-[1.75rem] border border-border/80 bg-card/90 p-5">
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-            Confirmados
-          </p>
-          <p className="mt-3 text-3xl font-semibold text-foreground">{metrics.confirmed}</p>
-        </div>
-        <div className="rounded-[1.75rem] border border-border/80 bg-card/90 p-5">
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-            Entregados
-          </p>
-          <p className="mt-3 text-3xl font-semibold text-foreground">{metrics.delivered}</p>
-        </div>
-        <div className="rounded-[1.75rem] border border-border/80 bg-card/90 p-5">
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-            Ticket promedio
-          </p>
-          <p className="mt-3 text-3xl font-semibold text-foreground">
-            {formatCurrency(metrics.avgTicket, "PEN")}
-          </p>
-        </div>
+      <section className="rounded-[1.75rem] border border-border/80 bg-card/90 p-5">
+        <label htmlFor="orders-funnel-filter" className="mb-2 block text-sm font-medium">
+          Filtrar por funnel
+        </label>
+        <select
+          id="orders-funnel-filter"
+          value={selectedFunnelId}
+          onChange={(event) => setSelectedFunnelId(event.target.value)}
+          className="h-11 w-full max-w-sm rounded-xl border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          <option value="all">Todos</option>
+          {funnels.map((funnel) => (
+            <option key={funnel.id} value={funnel.id}>
+              {funnel.name}
+            </option>
+          ))}
+        </select>
       </section>
 
-      <section className="rounded-[2rem] border border-border/80 bg-card/90 p-5">
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary">
-              Flujo en tiempo real
-            </p>
-            <p className="mt-1 text-lg font-semibold text-foreground">
-              {formatCurrency(metrics.sales, "PEN")} en ventas registradas
-            </p>
-          </div>
-          <span className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
-            <Package className="h-4 w-4" />
-            Checkout COD conectado
-          </span>
-        </div>
+      <section className="overflow-hidden rounded-[1.75rem] border border-border/80 bg-card/90">
+        <div className="overflow-x-auto">
+          <table className="min-w-full text-left text-sm">
+            <thead className="bg-secondary/40 text-muted-foreground">
+              <tr>
+                <th className="px-4 py-3 font-medium">customer_name</th>
+                <th className="px-4 py-3 font-medium">phone</th>
+                <th className="px-4 py-3 font-medium">product</th>
+                <th className="px-4 py-3 font-medium">payment_type</th>
+                <th className="px-4 py-3 font-medium">order_status</th>
+                <th className="px-4 py-3 font-medium">created_at</th>
+              </tr>
+            </thead>
+            <tbody>
+              {visibleOrders.length ? (
+                visibleOrders.map((order) => {
+                  const productName = getFunnelProduct(order.funnel_id)?.name ?? "Producto";
 
-        <div className="mt-5 overflow-hidden rounded-[1.5rem] border border-border/80">
-          <div className="overflow-x-auto">
-            <table className="min-w-full text-left text-sm">
-              <thead className="bg-secondary/40 text-muted-foreground">
+                  return (
+                    <tr key={order.id} className="border-t border-border/70">
+                      <td className="px-4 py-3 font-medium text-foreground">{order.name}</td>
+                      <td className="px-4 py-3 text-muted-foreground">{order.phone}</td>
+                      <td className="px-4 py-3 text-muted-foreground">{productName}</td>
+                      <td className="px-4 py-3">
+                        <span className="rounded-full border border-border bg-secondary/30 px-2 py-1 text-xs">
+                          {order.payment_type}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <label className="sr-only" htmlFor={`status-${order.id}`}>
+                          Estado del pedido
+                        </label>
+                        <select
+                          id={`status-${order.id}`}
+                          value={order.status}
+                          onChange={(event) =>
+                            setOrders(
+                              updateOrderStatus(order.id, event.target.value as OrderStatus).filter(
+                                (candidate) =>
+                                  selectedFunnelId === "all"
+                                    ? Boolean(findFunnelById(candidate.funnel_id))
+                                    : candidate.funnel_id === selectedFunnelId,
+                              ),
+                            )
+                          }
+                          className="h-9 rounded-lg border border-input bg-background px-2 text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        >
+                          {statusOptions.map((status) => (
+                            <option key={status} value={status}>
+                              {status}
+                            </option>
+                          ))}
+                        </select>
+                      </td>
+                      <td className="px-4 py-3 text-muted-foreground">
+                        {new Date(order.created_at).toLocaleString("es-PE")}
+                      </td>
+                    </tr>
+                  );
+                })
+              ) : (
                 <tr>
-                  <th className="px-4 py-3 font-medium">Pedido</th>
-                  <th className="px-4 py-3 font-medium">Cliente</th>
-                  <th className="px-4 py-3 font-medium">Total</th>
-                  <th className="px-4 py-3 font-medium">Estado</th>
-                  <th className="px-4 py-3 font-medium">Fecha</th>
+                  <td colSpan={6} className="px-4 py-10 text-center text-muted-foreground">
+                    Aun no hay pedidos para este filtro.
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                {orders.length ? (
-                  orders.map((order) => {
-                    const StatusIcon = orderStatusIcons[order.status];
-
-                    return (
-                      <tr
-                        key={order.id}
-                        className="border-t border-border/70 bg-card/70 transition-colors hover:bg-secondary/20"
-                      >
-                        <td className="px-4 py-4 align-top">
-                          <p className="font-semibold text-foreground">{order.id}</p>
-                          <p className="mt-1 text-xs text-muted-foreground">
-                            {order.items[0]?.productName || "Producto ShopCOD"}
-                          </p>
-                        </td>
-                        <td className="px-4 py-4 align-top">
-                          <p className="font-semibold text-foreground">{order.customerName}</p>
-                          <p className="mt-1 text-xs text-muted-foreground">{order.phone}</p>
-                          <p className="mt-1 text-xs text-muted-foreground">
-                            {order.city}, {order.department}
-                          </p>
-                        </td>
-                        <td className="px-4 py-4 align-top font-semibold text-foreground">
-                          {formatCurrency(order.total, order.currency)}
-                        </td>
-                        <td className="px-4 py-4 align-top">
-                          <label className="sr-only" htmlFor={`order-status-${order.id}`}>
-                            Estado
-                          </label>
-                          <div className="flex items-center gap-2">
-                            <StatusIcon className="h-4 w-4 text-primary" />
-                            <select
-                              id={`order-status-${order.id}`}
-                              value={order.status}
-                              onChange={(event) =>
-                                handleStatusChange(
-                                  order.id,
-                                  event.target.value as PlatformOrderStatus,
-                                )
-                              }
-                              className="h-10 rounded-xl border border-border bg-secondary/40 px-3 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                            >
-                              <option value="new">Nuevo</option>
-                              <option value="confirmed">Confirmado</option>
-                              <option value="fulfilled">Entregado</option>
-                              <option value="cancelled">Cancelado</option>
-                            </select>
-                          </div>
-                        </td>
-                        <td className="px-4 py-4 align-top text-muted-foreground">
-                          {new Date(order.createdAt).toLocaleString("en-US")}
-                        </td>
-                      </tr>
-                    );
-                  })
-                ) : (
-                  <tr>
-                    <td colSpan={5} className="px-4 py-14 text-center">
-                      <p className="font-semibold text-foreground">Todavia no hay pedidos</p>
-                      <p className="mt-2 text-sm text-muted-foreground">
-                        Los pedidos apareceran aqui cuando entren desde el checkout de la plataforma.
-                      </p>
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+              )}
+            </tbody>
+          </table>
         </div>
       </section>
     </MainContent>

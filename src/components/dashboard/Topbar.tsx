@@ -49,7 +49,7 @@ export default function Topbar({
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 type="search"
-                placeholder="Buscar modulos, tiendas o tareas"
+                placeholder="Buscar funnels o pedidos"
                 className="h-11 rounded-2xl border-border bg-card pl-10"
               />
             </label>

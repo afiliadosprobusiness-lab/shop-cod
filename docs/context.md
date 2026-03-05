@@ -2,7 +2,16 @@
 
 ## Resumen
 
-ShopCOD is a frontend SPA for COD-focused funnel selling. It uses Firebase Authentication for access control, runs on Vercel with SPA rewrites, and now exposes a protected SaaS dashboard shell with shared sidebar, topbar, and module navigation while keeping the legacy editor and preview routes available by direct path.
+ShopCOD ahora opera como un **SIMPLE funnel builder** de producto unico.  
+El flujo principal es:
+
+1. Crear funnel (nombre).
+2. Crear producto unico del funnel.
+3. Editar landing page con bloques verticales simples.
+4. Publicar funnel.
+5. Recibir y gestionar pedidos por funnel.
+
+No se agregan ni amplian funcionalidades de ecommerce multi-producto.
 
 ## Stack Tecnologico
 
@@ -12,469 +21,142 @@ ShopCOD is a frontend SPA for COD-focused funnel selling. It uses Firebase Authe
 - React Router DOM 6
 - Tailwind CSS 3
 - shadcn-ui / Radix UI
-- Framer Motion
-- dnd-kit
-- Zustand
-- TanStack Query
-- Firebase Web SDK (Auth + Firestore sync for superadmin registry)
-- Vitest + Testing Library
+- Firebase Auth (sesion/autenticacion)
+- Vitest
 
 ## Integraciones Activas
 
 ### Firebase
 
-- Firebase project for auth: `shopcod-auth-20260304`
-- Web app: `shopcod-web`
-- Usage scope:
-  - Firebase Authentication
-  - Firestore synchronization for shared superadmin client registry
-- Firestore rules are versioned in-repo via `firestore.rules` and deployed through `firebase.json`.
-- Current auth methods wired in the frontend:
-  - Email/password
-  - Google popup
+- Proyecto: `shopcod-auth-20260304`
+- Uso activo:
+  - Firebase Authentication (login/register/protected routes)
 
 ### Vercel
 
-- Local directory is linked to Vercel project: `shop-cod`
-- Public Firebase config was added to Vercel `Production` and `Preview` envs
-- `vercel.json` rewrites all routes to `index.html` for BrowserRouter compatibility
+- Proyecto: `shop-cod`
+- `vercel.json` mantiene rewrite SPA a `index.html`
 
 ## Punto De Entrada
 
-- `src/main.tsx` mounts the React app into `#root`.
-- `src/App.tsx` wraps the app with:
-  - `QueryClientProvider`
-  - `AuthProvider`
-  - `TooltipProvider`
-  - shadcn `Toaster`
-  - Sonner toaster
-  - `BrowserRouter`
+- `src/main.tsx` monta React en `#root`
+- `src/App.tsx` configura providers y rutas
 
 ## Rutas Principales
 
-- `/`
-  - SaaS landing page
-  - Component: `SaaSLandingPage`
-  - Includes a product-led marketing flow for ShopCOD tools plus public pricing tiers (`Starter`, `Pro`, `Scale`)
-- `/login`
-  - Login screen backed by Firebase Auth
-  - Component: `LoginPage`
-- `/register`
-  - Registration screen backed by Firebase Auth
-  - Component: `LoginPage`
-- `/superadmin`
-  - Protected superadmin control panel
-  - Components: `SuperAdminRoute` + `SuperAdminPage`
-- `/store/demo`
-  - Product demo landing
-  - Component: `LandingPage`
-- `/checkout`
-  - Public checkout
-  - Component: `CheckoutPage`
-- `/order-confirmed`
-  - Post-checkout confirmation
-  - Component: `OrderConfirmedPage`
-- `/dashboard`
-  - Protected dashboard home
-  - Components: `DashboardLayout` + `DashboardHomePage`
-- `/products`
-  - Protected products list
-  - Components: `DashboardLayout` + `ProductsPage`
-- `/products/new`
-  - Protected product creation form
-  - Components: `DashboardLayout` + `ProductCreatePage`
-- `/funnels`
-  - Protected funnels list and creation wizard
-  - Components: `DashboardLayout` + `FunnelsPage`
-- `/funnels/:funnelId/editor`
-  - Protected funnel workspace (summary, builder, settings, languages, page editor by node)
-  - Component: `FunnelWorkspacePage`
-- `/stores`
-  - Protected stores list and creation wizard
-  - Components: `DashboardLayout` + `StoresPage`
-- `/stores/:storeId`
-  - Protected internal store dashboard
-  - Components: `DashboardLayout` + `StoreDashboardPage`
-- `/orders`
-  - Protected orders module
-  - Components: `DashboardLayout` + `OrdersPage`
-- `/analytics`
-  - Protected analytics module
-  - Components: `DashboardLayout` + `AnalyticsPage`
-- `/contacts`
-  - Protected contacts module
-  - Components: `DashboardLayout` + `ContactsPage`
-- `/offers`
-  - Protected offers module
-  - Components: `DashboardLayout` + `OffersPage`
-- `/apps`
-  - Protected apps module
-  - Components: `DashboardLayout` + `AppsPage`
-- `/settings`
-  - Protected settings module
-  - Components: `DashboardLayout` + `SettingsPage`
-- `/editor/:storeId`
-  - Protected visual editor
-  - Component: `EditorPage`
-- `/preview/:storeId`
-  - Protected store preview
-  - Component: `PreviewPage`
-- `*`
-  - 404 fallback
-  - Component: `NotFound`
+### Publicas
+
+- `/` -> landing simple del SaaS funnel-only (`Index`)
+- `/login` -> login Firebase (`LoginPage`)
+- `/register` -> registro Firebase (`LoginPage`)
+- `/f/:slug` -> landing publicada de funnel (`PublicLandingPage`)
+- `/f/:slug/checkout` -> checkout autogenerado por producto (`PublicCheckoutPage`)
+- `/f/:slug/thank-you` -> confirmacion (`PublicThankYouPage`)
+
+### Privadas
+
+- `/dashboard` -> home funnel workflow (`DashboardHomePage`)
+- `/funnels` -> listado + creacion de funnels (`FunnelsPage`)
+- `/funnels/:funnelId/editor` -> editor simple de funnel (`FunnelWorkspacePage`)
+- `/orders` -> dashboard de pedidos por funnel (`OrdersPage`)
+- `/settings` -> ajustes de workspace (`SettingsPage`, legado activo)
+
+### Legacy (compatibilidad)
+
+Se mantienen rutas legacy del repo para compatibilidad tecnica, pero no forman parte del flujo funnel-only principal.
 
 ## Flujos Principales
 
-### Auth Flow
+### Funnel Creation Flow
 
-1. User clicks `Iniciar sesion` or `Crear cuenta`.
-2. App opens `/login` or `/register`.
-3. Existing users sign in from `/login`; new users create an account from `/register`.
-4. Google sign-in remains available in both screens.
-5. If the email is `afiliadosprobusiness@gmail.com`, the app redirects to `/superadmin`.
-6. All other authenticated users continue into the regular dashboard routes.
+1. Usuario entra a `/funnels`.
+2. Ingresa nombre y crea funnel.
+3. El sistema genera automaticamente 3 paginas:
+  - `landing`
+  - `checkout`
+  - `thankyou`
 
-### Superadmin Flow
+### Product Flow (one product per funnel)
 
-1. Root opens `/superadmin`.
-2. The panel always keeps the protected root account visible.
-3. The client list only renders real accounts; legacy demo seed rows are filtered out and no new demo rows are generated.
-4. Non-root sessions auto-register and refresh their workspace client record after authentication, and refresh it again when workspace settings are saved.
-5. The panel hydrates from Firestore when available, while preserving immediate local fallback.
-6. Each non-root account can be activated, deactivated, deleted, or switched between `Starter`, `Pro`, and `Scale` in one click.
-7. When the visible account maps to the local workspace client id, changing its plan also syncs `PlatformSettings.billing`.
+1. Usuario abre `/funnels/:funnelId/editor`.
+2. Configura:
+  - `product_name`
+  - `price`
+  - `product_type` (`physical` | `digital`)
+  - `payment_type` (`stripe` | `paypal` | `cash_on_delivery`)
+3. Si ya existe producto, se actualiza el mismo registro (unicidad por funnel).
 
-### Landing Flow
+### Landing Editor Flow
 
-1. User opens `/`.
-2. The landing presents ShopCOD as a unified COD operating system.
-3. The hero highlights real platform tools such as Page Builder, Funnel Builder, store management, checkout COD, analytics, and operations.
-4. The pricing section exposes:
-  - `Starter`: free, 1 active store, 100 orders/month, COD checkout, basic editor
-  - `Pro`: $9.9/month, 2 active stores, unlimited orders, full editor, advanced analytics
-  - `Scale`: $50/month, unlimited stores, everything in Pro, multi-user, priority support
-5. Primary CTAs route to `/register`, while returning users can go to `/login`.
+1. En el editor del funnel, usuario agrega bloques por orden vertical.
+2. Bloques permitidos:
+  - `headline`
+  - `text`
+  - `image`
+  - `video`
+  - `button`
+  - `testimonials`
+  - `faq`
+3. Se guarda JSON en `pages.content_json`.
 
-### Plan Gating Flow
+### Checkout Flow
 
-1. ShopCOD reads the active plan from `PlatformSettings.billing.planName`.
-2. Restricted actions validate the plan before continuing.
-3. Current gated flows:
-  - creating a new store when the active-store limit is reached
-  - opening advanced analytics while on `Starter`
-  - adding members when the workspace is below `Scale`
-4. When blocked, the UI opens an upgrade modal and can upgrade the local workspace plan in-place.
+1. Checkout se genera desde el producto del funnel.
+2. Muestra nombre, precio y formulario.
+3. Reglas de pago:
+  - `stripe`/`paypal`: boton de pago y registro de orden.
+  - `cash_on_delivery`: campos `name`, `phone`, `address`, `city` + boton `Confirm Order`.
+4. Tras enviar, navega a thank you y persiste orden.
 
-### Dashboard Shell Flow
+### Orders Flow
 
-1. User opens any protected dashboard route such as `/dashboard`.
-2. `ProtectedRoute` validates the Firebase session.
-3. `DashboardLayout` renders the shared shell:
-  - left sidebar
-  - topbar with global search, workspace selector (bound to current `accountName`), notifications, and avatar
-  - contextual plan-upgrade promo card in sidebar for `Starter` and `Pro`
-  - central dynamic content area via `Outlet`
-4. Sidebar links switch between `/dashboard`, `/products`, `/funnels`, `/stores`, `/orders`, `/analytics`, `/contacts`, `/offers`, `/apps`, and `/settings`.
-5. The home screen at `/dashboard` shows two primary cards:
-  - `Crear tienda online`
-  - `Crear funnel`
-
-### Products Flow
-
-1. User opens `/products`.
-2. The products module renders a searchable table with:
-  - product
-  - inventory
-  - created
-  - price
-  - actions
-3. The table includes:
-  - global search
-  - inventory filter
-  - product type filter
-  - `Nuevo Producto` CTA
-4. User opens `/products/new`.
-5. The creation screen renders a structured form with:
-  - product information
-  - inventory and variants
-  - custom CMS fields
-  - right-side pricing and configuration summary
-6. On save, the product is normalized and stored in browser `localStorage`.
-7. The app navigates back to `/products` and the new row appears in the listing.
-
-### Offers Flow
-
-1. User opens `/offers`.
-2. The offers module now renders four creation blocks:
-  - bundles
-  - discounts
-  - upsells
-  - order bumps
-3. Upsell creation requires selecting an existing catalog product and optionally overriding the offer price.
-4. If the catalog is empty, the upsell/order-bump forms render a CTA button to create a product first.
-5. Order bump creation is quantity-based:
-  - select base product
-  - define quantity (`>=2`)
-  - define discount percentage (`0-100`)
-  - preview computed final price
-6. Saved offers are persisted in browser `localStorage` and listed in the offers catalog.
-
-### Funnels Flow
-
-1. User opens `/funnels`.
-2. The funnels module renders a list with:
-  - preview image area
-  - name
-  - conversion
-  - visits
-  - without preloaded demo funnels by default
-3. The user clicks `Crear funnel` to open a full-screen creation wizard.
-4. Step 1 lets the user select one of the available templates:
-  - `Blank`
-  - `IA`
-  - `Plantillas predisenadas`
-5. If templates are unavailable, the wizard falls back to `Plantilla en blanco`.
-6. Step 2 collects:
-  - `name`
-  - `slug`
-  - `currency`
-7. Step 3 confirms settings and creates the funnel in browser `localStorage`.
-8. The app initializes a compatible draft and redirects to `/funnels/:funnelId/editor`.
-
-### Funnel Workspace Flow
-
-1. User opens `/funnels/:funnelId/editor`.
-2. The page ensures the funnel draft exists and hydrates graph plus workspace settings.
-3. The header exposes tab navigation:
-  - `Resumen`
-  - `Construir y Disenar`
-  - `Configuracion`
-  - `Idiomas`
-4. `Construir y Disenar` supports an empty-state plus button and page-type picker to add funnel pages.
-5. Clicking the node edit area (or the edit icon) opens an embedded visual `PageBuilderEditor` for that node page id.
-6. While editing, every CTA-like block added in page builder (`button`, `form`, `product`) syncs immediately into funnel `LINKS` rows by updating that page `contentJson`.
-7. The node preview icon opens real workspace preview via `/preview/:funnelId` (after persisting the draft graph/page payload).
-8. `Configuracion` persists slug, scripts, favicon, tracking toggles, and currency metadata.
-9. `Idiomas` toggles active funnel languages.
-
-### Stores Flow
-
-1. User opens `/stores`.
-2. The stores module renders a local list of created stores with:
-  - template preview
-  - payment method
-  - page count
-  - without preloaded demo stores by default
-3. The user clicks `Crear tienda` to open a fullscreen 3-step creation wizard.
-4. Step 1 lets the user select one of the available templates:
-  - `One Product`
-  - `Catalog`
-  - `Flash Sale`
-5. Step 2 lets the user select the payment method:
-  - `Checkout separado`
-  - `Pago en pagina de producto`
-6. Step 3 collects:
-  - `name`
-  - `slug`
-  - `currency`
-7. On save, the app stores the new store in browser `localStorage`, initializes a compatible editor draft, and redirects directly to `/stores/:storeId`.
-8. The stores list keeps the created item visible when returning to `/stores`.
-9. `Ver panel` opens `/stores/:storeId` from any existing store card.
-
-### Store Dashboard Flow
-
-1. User opens `/stores/:storeId`.
-2. The route loads the local store and ensures a compatible local draft exists.
-3. The page renders an ecommerce-style internal header with breadcrumb, store URL, preview/template actions, publish status, and section tabs:
-  - `Resumen`
-  - `Productos`
-  - `Colecciones`
-  - `Pedidos`
-  - `Pages`
-  - `Idiomas`
-  - `Configuracion`
-4. `Resumen` shows operational analytics:
-  - visitors
-  - orders
-  - sales
-  - conversion rate
-5. The summary also renders conversion and offers tables, plus top products and traffic source blocks.
-6. The remaining sections expose operational views derived from the local draft and store model.
-
-### Editor Flow
-
-1. User opens `/editor/:storeId`.
-2. The editor starts with builder modes inside the same route:
-  - `Store builder` for product, catalog, bundle, checkout, and collection setup
-  - `Funnel builder` for drag-and-drop sequencing and node-based page flow editing
-  - `Page builder` for page-level refinement of the currently selected funnel page
-3. User edits the store commercial profile in the store builder panel.
-4. The editor behaves as a visual funnel workspace with:
-  - drag-and-drop ordering
-  - block library grouped by funnel stage
-  - funnel map navigation
-  - contextual insertion suggestions
-  - heuristic conversion score and quick-win guidance
-5. `Page builder` mounts a dedicated module at `src/builders/page-builder` with:
-  - Lightfunnels/Clickfunnels-inspired light UI shell (thin topbar, quick-tools vertical rail, and x-ray-like canvas workspace)
-  - `left panel` tabs: Elements, Layers, Settings
-  - `right panel` dedicated style editor (margin, padding, width, height, typography, background, borders, shadow)
-  - DOM-like page canvas rendering (not card-like block previews), with hover outline, selected toolbar, preview mode, and drop indicators
-  - `topbar` controls: undo, redo, responsive desktop/tablet/mobile, save, preview, publish
-  - `canvas` tree: drag, drop, reorder, duplicate, resize, nested containers, inline editing, hover controls
-  - `renderer/renderBlock(block)` for block-by-block rendering
-  - `block-engine` for schema, catalog, tree ops, and page JSON serialization
-  - `state-manager` with Zustand store for history, selection, device mode, drag state, and granular node updates
-6. The visual page layout is stored as nested JSON blocks alongside the funnel draft and serialized into each funnel page record.
-7. `Funnel builder` mounts a dedicated module at `src/builders/funnel-builder` with:
-  - infinite-feel canvas with pan and zoom
-  - draggable page nodes with dedicated drag handles
-  - duplicate and delete node actions from per-card icon controls
-  - SVG node connections with disconnect controls
-  - per-node action cards with: page-open block, visits block, product selector, links state block, and icon action row (`settings`, `edit`, `preview`, `duplicate`, `delete`)
-  - `LINKS` rows are generated from CTA-like elements in each page `contentJson` (button/form/product) and can connect independently by row
-  - node cards are draggable from the card header area and stale CTA connections are auto-pruned when a CTA is removed in page editor
-  - tabbed page settings modal (`Detalles`, `SEO`, `HTML personalizado`) persisted per page
-  - per-node analytics badges (visits, clicks, conversion rate)
-  - supported node types for product, checkout, upsell, downsell, thank you, lead capture, article, and blank page
-  - click-on-node transition into the `Page builder`
-8. Page builder layouts are also stored by `pageId` so each funnel node can own a distinct page draft and reopen the correct visual editor state.
-9. `Store builder` mounts a dedicated module at `src/builders/store-builder` with:
-  - product creation and catalog management
-  - bundle configuration
-  - checkout setup with order bumps
-  - multi-currency and multi-domain inputs
-  - collection grouping for catalog organization
-10. `Aplicar al funnel` syncs the profile into hero, CTA, FAQ, benefits, and checkout copy.
-11. The page, funnel, and store builders share a common engine in `src/builders/shared` for canonical models, block rendering, and editor shell components (`canvas`, `toolbar`, `sidebar`, `blocks`, `editor`).
-12. `Guardar` stores blocks, page-builder JSON, page layouts by `pageId`, funnel graph page records (`contentJson` per funnel page), store builder state, and profile in browser storage.
-
-### Preview Flow
-
-1. User opens `/preview/:storeId`.
-2. Preview reads the saved draft profile when present.
-3. The hero, CTA, and checkout copy reflect the saved store data.
-4. El checkout demo tambien registra pedidos y contactos reales en browser storage, y esos datos alimentan `/orders`, `/analytics` y `/contacts`.
-5. `Publicar` marks the local draft as active.
+1. Usuario abre `/orders`.
+2. Tabla por funnel con columnas:
+  - `customer_name` (mapeado desde `orders.name`)
+  - `phone`
+  - `product`
+  - `payment_type`
+  - `order_status`
+  - `created_at`
+3. Estados permitidos:
+  - `new`
+  - `processing`
+  - `shipped`
+  - `completed`
 
 ## Arquitectura
 
-### Auth Layer
+### Data Layer (frontend local database)
 
-- `src/lib/firebase.ts` initializes Firebase app and auth.
-- `src/lib/auth.tsx` exposes auth context, Firebase-backed session methods, and workspace registration into the superadmin registry for non-root users using stable Firebase `uid`.
-- `src/components/auth/ProtectedRoute.tsx` gates private routes.
-- `src/components/auth/SuperAdminRoute.tsx` gates the root-only superadmin route.
-- `src/lib/superadmin.ts` defines the frontend-only superadmin client registry, filters legacy demo rows, registers authenticated workspaces, hydrates/synchronizes with Firestore when available, enforces the protected root account rule, retries cloud sync after temporary failures, and syncs one-click plan changes.
-- `src/lib/plans.ts` defines plan tiers, feature gates, and local upgrade helpers for Starter / Pro / Scale.
+- `src/lib/funnel-system.ts` centraliza el modelo tipo tablas:
+  - `users`
+  - `funnels`
+  - `products`
+  - `pages`
+  - `orders`
+- Persistencia en `localStorage` (`shopcod-funnel-system-db-v1`)
+- Emite `shopcod:data-updated` para refrescar UI
 
-### Dashboard Shell Layer
+### Dashboard Layer
 
-- `src/layouts/DashboardLayout.tsx` provides the shared protected shell for dashboard modules.
-- `src/components/dashboard/navigation.ts` defines the internal module map and metadata.
-- `src/components/dashboard/Sidebar.tsx` renders the left navigation and mobile drawer behavior.
-- `Sidebar` now shows dynamic upgrade promotion copy by active plan (`Starter` -> `Pro`, `Pro` -> `Scale`) with one-click local upgrade CTA.
-- `src/components/dashboard/Topbar.tsx` renders global search, workspace switching, notifications, and the user avatar.
-- `src/components/dashboard/MainContent.tsx` standardizes the content header and responsive inner container.
-- `src/pages/dashboard/DashboardHomePage.tsx` renders the dashboard landing view.
-- `src/pages/dashboard/ProductsPage.tsx` renders the products management table, search, filters, and row actions.
-- `src/pages/dashboard/ProductCreatePage.tsx` renders the multi-section product creation workflow.
-- `src/pages/dashboard/FunnelsPage.tsx` renders the funnels list and full-screen multi-step funnel creation wizard.
-- `src/pages/funnel/FunnelWorkspacePage.tsx` renders the dedicated funnel workspace with summary, builder, settings, and languages tabs.
-- `FunnelWorkspacePage` now opens `PageBuilderEditor` inline when a node action triggers edit, and persists page-level `contentJson` changes in real time so CTA rows remain connectable in the funnel canvas.
-- `src/pages/dashboard/StoresPage.tsx` renders the stores list and a fullscreen 3-step store creation wizard aligned with the funnels flow, then redirects to the new store dashboard.
-- `src/pages/dashboard/StoreDashboardPage.tsx` renders the per-store internal dashboard with ecommerce-style header, section tabs, and summary analytics blocks.
-- `src/pages/dashboard/OrdersPage.tsx` renders real COD orders and operational status updates.
-- `src/pages/dashboard/AnalyticsPage.tsx` renders real-time KPI snapshots from persisted platform data.
-- `src/pages/dashboard/ContactsPage.tsx` renders the persisted buyers/leads base from COD submissions.
-- `src/pages/dashboard/OffersPage.tsx` renders bundle, discount, upsell, and quantity-based order bump creation.
-- `src/pages/dashboard/AppsPage.tsx` renders the "coming soon" integrations state.
-- `src/pages/dashboard/SettingsPage.tsx` renders a multi-section settings hub for general account data, shipping, members, billing, domains, digital files, legal copy, abandoned-cart email recovery, security, payment gateways, tracking, webhooks, and the temporary store password payment modal.
-- In `SettingsPage -> General`, the subdomain suffix reference is aligned to `.shop-cod.vercel.app` (production Vercel host).
-- `src/pages/SuperAdminPage.tsx` renders the root control panel for managing real client accounts, statuses, one-click plan changes, and deletions while keeping the root account protected.
-- `src/components/plans/PlanUpgradeDialog.tsx` renders the reusable upgrade modal when a feature is blocked by plan.
-- `src/lib/products.ts` defines the frontend product model and browser persistence helpers.
-- `src/lib/funnels.ts` defines the frontend funnel model, template selector data, local persistence, and editor bootstrapping.
-- `src/lib/funnel-workspace.ts` defines persisted workspace-level funnel settings (status, scripts, favicon, languages, toggles).
-- `src/lib/stores.ts` defines the frontend store model, template selector data, payment selector, local persistence, editor bootstrapping, and derived store analytics snapshots.
-- `src/lib/platform-data.ts` defines real orders, contacts, offers, settings, and shared analytics snapshots for the dashboard.
-- `src/lib/live-sync.ts` dispatches browser events so local modules refresh when persisted data changes.
-- `src/components/analytics/PlatformTelemetry.tsx` tracks real page views / checkout starts and bootstraps optional Firestore synchronization.
+- `src/layouts/DashboardLayout.tsx`
+- `src/components/dashboard/navigation.ts` (menu simplificado: Inicio, Funnels, Pedidos, Configuracion)
+- `src/pages/dashboard/FunnelsPage.tsx`
+- `src/pages/funnel/FunnelWorkspacePage.tsx`
+- `src/pages/dashboard/OrdersPage.tsx`
 
-### Store Builder Layer
+### Public Funnel Layer
 
-- `src/lib/editor.ts` centralizes:
-  - block types
-  - store profile model
-  - local draft persistence
-  - local store catalog persistence
-- `src/components/editor/BlockPreview.tsx` renders editor block previews and default templates.
-
-### Page Layer
-
-- `src/pages/EditorPage.tsx` manages the guided builder, store/funnel/page modes, drag-and-drop composition, per-funnel-page visual editing, and conversion guidance UI.
-- `src/pages/PreviewPage.tsx` renders the saved commercial profile into the storefront preview.
-
-### Page Builder Module
-
-- `src/builders/page-builder/sidebar/*` renders the left inspector and draggable element library.
-- `src/builders/page-builder/style-panel/*` renders the dedicated right-side style editor.
-- `src/builders/page-builder/topbar/*` renders history, preview/publish, and responsive controls.
-- `src/builders/page-builder/canvas/*` renders the nested visual canvas and drop zones.
-- `src/builders/page-builder/block-engine/*` contains the page schema, element catalog, immutable tree helpers, and `page_json` serialization helpers.
-- `src/builders/page-builder/state-manager/*` contains the Zustand-backed editor store hook for history, selection, device mode, and drag-drop mutations.
-- `src/builders/page-builder/blocks/*` remains as compatibility re-exports for the current internal import surface.
-- `src/builders/page-builder/renderer/renderBlock.tsx` delegates to the shared block renderer.
-
-### Funnel Builder Module
-
-- `src/builders/funnel-builder/schema.ts` re-exports the shared funnel model and helpers.
-- `src/builders/funnel-builder/FunnelBuilderEditor.tsx` renders the interactive light-canvas builder, action-based node cards, CTA-link wiring by source handle, page settings modal, pan/zoom, duplicate/delete actions, preview actions, and connection UX.
-
-### Store Builder Module
-
-- `src/builders/store-builder/schema.ts` re-exports the shared product/store model and helper factories.
-- `src/builders/store-builder/StoreBuilderEditor.tsx` renders the store configuration workspace for catalog, order bumps, currencies, domains, and collections.
-
-### Shared Builder Engine
-
-- `src/builders/shared/models/page.ts` is the canonical page-builder schema and factories.
-- `src/builders/shared/models/funnel.ts` is the canonical funnel graph schema and helpers, including per-page `contentJson` persistence.
-- `src/builders/shared/models/product.ts` is the canonical product/store schema and helpers.
-- `src/builders/shared/components/*` provides shared editor shells for `canvas`, `toolbar`, `sidebar`, `blocks`, `editor`, plus the shared `renderBlock(block)` renderer.
-
-### UI Layer
-
-- `src/components/ui/*` contains shared shadcn-style primitives.
+- `src/pages/funnel/PublicLandingPage.tsx`
+- `src/pages/funnel/PublicCheckoutPage.tsx`
+- `src/pages/funnel/PublicThankYouPage.tsx`
 
 ## Datos Y Persistencia
 
-- Auth session persistence is handled by Firebase browser local persistence.
-- Store drafts are stored in browser `localStorage`.
-- Product catalog data for `/products` is stored in browser `localStorage`.
-- Funnel catalog data for `/funnels` is stored in browser `localStorage`.
-- Store catalog data for `/stores` is stored in browser `localStorage`.
-- Each draft stores:
-  - funnel blocks
-  - store commercial profile
-  - page builder nested layout JSON
-  - page builder layouts keyed by `pageId`
-  - funnel graph nodes (`selectedProductId` per node), per-page records (`contentJson` + `settings`), and connections (`sourceHandleId` + `sourceLabel`) for CTA-level wiring
-  - store builder products, bundles, collections, and checkout settings
-  - timestamps
-- Additional browser storage also persists:
-  - COD orders
-  - contacts captured from COD submissions
-  - bundle and discount offers
-  - workspace settings
-  - superadmin local client registry fallback
-- The superadmin client registry may also hydrate/sync from Firestore when Firebase configuration and rules allow it.
-- When Firebase config is available, platform operational data is also mirrored to Firestore and merged back into local state on app bootstrap.
-- A browser-side store catalog is also stored in `localStorage` for dashboard and editor-adjacent flows.
-- A browser-side product catalog is also stored in `localStorage` with seeded fallback data for the products module.
-- A browser-side funnel catalog is stored in `localStorage` and starts empty until the user creates funnels.
-- A browser-side store catalog for `/stores` is stored in `localStorage`, starts empty by default, and auto-cleans legacy demo rows (`store-201`, `store-202`) when detected.
-- No custom backend or database persistence exists yet.
+- Auth session: Firebase local persistence
+- Funnel database: `localStorage`
+- No backend API ni base de datos de servidor activa en runtime
+- SQL de referencia de tablas: `docs/funnel_schema.sql`
 
 ## Variables De Entorno
 
@@ -489,14 +171,12 @@ Required:
 
 ## Restricciones Y Riesgos
 
-- Browser storage powers the creator; drafts are local to the current browser/session context.
-- Google popup on deployed domains still depends on the Firebase authorized domain configuration.
-- The build currently produces a large JS chunk and may benefit from later code-splitting.
-- Most dashboard operations are still browser-local and do not yet map to a shared backend source of truth.
-- Superadmin shared visibility depends on Firestore availability/rules; when denied, the panel falls back to local data.
-- There is still no backend API for stores, orders, or publishing.
+- Persistencia local (no multi-dispositivo real para funnels/pedidos)
+- Sin backend de pagos real (checkout es flujo demo operativo local)
+- La compatibilidad legacy permanece en rutas no principales
 
 ## Convenciones Para Cambios Futuros
 
-- Treat this file as the architectural source of truth.
-- If routes, auth flow, integrations, dependencies, hosting, or persistence behavior change, update this file in the same commit.
+- Mantener enfoque single-product funnel
+- Evitar features de store/catalogo/carrito/inventario multi-producto
+- Si cambian rutas/flujos/modelos/env vars, actualizar este archivo y `docs/PROJECT_CONTEXT.md` en el mismo commit
