@@ -79,6 +79,7 @@ Todas las rutas privadas pasan por auth y `DashboardLayout`.
   - `Save`, `Volver` y `Continuar` ejecutan flush de guardado pendiente
   - paso 3: configuracion de upsell, bundle y descuento
   - accion publicar/despublicar
+  - `Publicar funnel` expone feedback de estado (`publishing/published/error`) y marca de tiempo
   - enlaces publicos de landing/checkout/thank-you
   - guardado automatico de cambios en pasos de edicion
   - en mobile: modo solo metricas (sin edicion)
@@ -270,3 +271,4 @@ Cambios breaking que requieren versionado/coordinacion:
 - 2026-03-05 | Paso 5 mejora historial con merge inteligente para escritura en propiedades y shortcuts de undo/redo | non-breaking | Hace el editor mas usable sin cambiar rutas ni contratos de datos
 - 2026-03-05 | Paso 6 mueve autosave al builder con debounce + flush en acciones de salida/guardado | non-breaking | Reduce condiciones de carrera y mejora confiabilidad del guardado de landing
 - 2026-03-05 | Paso 1 del wizard permite omitir configuracion de producto para casos landing-only | non-breaking | Mantiene compatibilidad del modelo y habilita uso sin checkout de producto
+- 2026-03-05 | Se refuerza publicacion del funnel con feedback visual de estado y timestamp en paso 3 | non-breaking | Hace observable el resultado de publicar y reduce confusion de UX

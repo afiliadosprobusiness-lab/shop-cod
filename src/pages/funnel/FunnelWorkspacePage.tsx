@@ -47,6 +47,7 @@ import { BuilderLandingEditorStep1 } from "@/features/funnel-builder/BuilderLand
 type WizardStep = 1 | 2 | 3;
 type DeviceMode = "desktop" | "tablet" | "mobile";
 type SaveState = "idle" | "saving" | "saved" | "error";
+type PublishState = "idle" | "publishing" | "published" | "error";
 type LibraryTab = "elements" | "sections";
 
 interface LibraryElement {
@@ -448,6 +449,8 @@ export default function FunnelWorkspacePage() {
   const [refreshKey, setRefreshKey] = useState(0);
   const [offersSaveState, setOffersSaveState] = useState<SaveState>("idle");
   const [lastOffersSavedAt, setLastOffersSavedAt] = useState<string | null>(null);
+  const [publishState, setPublishState] = useState<PublishState>("idle");
+  const [publishedAt, setPublishedAt] = useState<string | null>(null);
 
   const funnel = useMemo(() => findFunnelById(funnelId), [funnelId, refreshKey]);
   const userProducts = useMemo(() => (user ? listUserProducts(user.uid) : []), [user, refreshKey]);
@@ -489,6 +492,8 @@ export default function FunnelWorkspacePage() {
     setLandingSections(sections);
     setSelectedBlockId(sections[0]?.id ?? null);
     setOffers(getFunnelOffers(funnel.id));
+    setPublishedAt(funnel.published_at);
+    setPublishState(funnel.published_at ? "published" : "idle");
   }, [funnel]);
 
   useEffect(() => {
@@ -634,6 +639,23 @@ export default function FunnelWorkspacePage() {
     }
   };
 
+  const handlePublishFunnel = () => {
+    try {
+      setPublishState("publishing");
+      saveNowLanding();
+      saveNowOffers();
+      const published = setFunnelPublished(funnel.id, true);
+      if (!published?.published_at) {
+        throw new Error("publish_failed");
+      }
+      setPublishedAt(published.published_at);
+      setPublishState("published");
+      setRefreshKey((current) => current + 1);
+    } catch {
+      setPublishState("error");
+    }
+  };
+
   return (
     <main className="mx-auto w-full max-w-[1500px] space-y-5 px-4 py-6 sm:px-6 lg:px-8">
       <section className="rounded-2xl border border-border bg-card p-5">
@@ -769,15 +791,22 @@ export default function FunnelWorkspacePage() {
             <Button
               type="button"
               className="rounded-xl"
-              onClick={() => {
-                saveNowLanding();
-                saveNowOffers();
-                setFunnelPublished(funnel.id, true);
-              }}
+              onClick={handlePublishFunnel}
+              disabled={publishState === "publishing"}
             >
-              Publicar funnel
+              {publishState === "publishing" ? "Publicando..." : "Publicar funnel"}
             </Button>
           </div>
+          {publishState === "published" && publishedAt ? (
+            <p className="mt-3 text-sm text-emerald-400">
+              Funnel publicado: {new Date(publishedAt).toLocaleString("es-PE")}
+            </p>
+          ) : null}
+          {publishState === "error" ? (
+            <p className="mt-3 text-sm text-destructive">
+              No se pudo publicar el funnel. Intenta nuevamente.
+            </p>
+          ) : null}
         </section>
       ) : null}
     </main>

@@ -73,6 +73,7 @@ Legacy:
   - bundle
   - descuento
 6. Publicar funnel desde el editor.
+  - el paso 3 muestra feedback de publicacion (`publishing/published/error`) y fecha de publicacion
 7. Checkout autogenerado desde producto en `/f/:slug/checkout`.
 8. Registrar pedido y ver tabla en `/orders`.
 9. Desde `/funnels` se puede borrar funnel completo (con producto, paginas y pedidos).

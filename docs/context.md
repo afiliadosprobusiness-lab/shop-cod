@@ -139,6 +139,7 @@ Se mantienen rutas legacy del repo para compatibilidad tecnica, pero no forman p
   - `bundle`
   - `discount`
 2. Configuracion se persiste por funnel en almacenamiento local.
+3. Accion `Publicar funnel` ahora muestra estado explicito (`Publicando...`, `Publicado`, `Error`) y timestamp al publicar.
 
 ### Checkout Flow
 
