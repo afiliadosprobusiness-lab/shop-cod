@@ -66,8 +66,10 @@ Todas las rutas privadas pasan por auth y `DashboardLayout`.
 - Editor simple de funnel.
 - Componente: `FunnelWorkspacePage`.
 - Incluye:
-  - producto unico por funnel
-  - editor de landing por bloques verticales
+  - wizard guiado por pasos
+  - paso 1: seleccionar/crear producto unico + divisa
+  - paso 2: editor de landing con drag&drop vertical
+  - paso 3: configuracion de upsell, bundle y descuento
   - accion publicar/despublicar
   - enlaces publicos de landing/checkout/thank-you
 
@@ -113,6 +115,7 @@ interface FunnelRow {
   name: string;
   slug: string;
   user_id: string;
+  currency: "USD" | "EUR" | "PEN";
   created_at: string;
   published_at: string | null;
 }
@@ -134,6 +137,7 @@ interface ProductRow {
 Rule:
 
 - `products` es 1:1 con `funnels` (solo un producto por funnel).
+- el wizard puede reutilizar productos existentes del usuario para rellenar el paso 1.
 
 ### `pages`
 
@@ -189,6 +193,25 @@ interface OrderRow {
 }
 ```
 
+### `offers` (wizard paso 3)
+
+```ts
+interface FunnelOfferRow {
+  id: string;
+  funnel_id: string;
+  upsell_enabled: boolean;
+  upsell_name: string;
+  upsell_price: number;
+  bundle_enabled: boolean;
+  bundle_name: string;
+  bundle_quantity: number;
+  bundle_discount_percentage: number;
+  discount_enabled: boolean;
+  discount_percentage: number;
+  discount_code: string;
+}
+```
+
 ## Checkout Rules Contract
 
 - Siempre muestra producto y precio.
@@ -226,3 +249,4 @@ Cambios breaking que requieren versionado/coordinacion:
 
 - 2026-03-05 | Se redefine el contrato operativo a sistema funnel-only de producto unico con rutas publicas `/f/:slug*`, editor simple por bloques y dashboard de pedidos por funnel | non-breaking | Alinea contrato al nuevo flujo principal sin eliminar rutas legacy de compatibilidad
 - 2026-03-05 | Se expande el editor basico con bloques `hero/section/footer/cod_form`, se agrega borrado de funnel y creacion con apertura directa del editor | non-breaking | Mejora UX operativa sin cambiar rutas ni romper modelos base
+- 2026-03-05 | `/funnels/:funnelId/editor` evoluciona a wizard guiado con paso de producto/divisa, landing drag&drop y paso de ofertas (upsell/bundle/descuento) | non-breaking | Mantiene rutas y persistencia local, mejora la experiencia paso a paso

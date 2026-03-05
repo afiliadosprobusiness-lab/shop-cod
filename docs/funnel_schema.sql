@@ -10,6 +10,7 @@ CREATE TABLE funnels (
   id TEXT PRIMARY KEY,
   name TEXT NOT NULL,
   user_id TEXT NOT NULL,
+  currency TEXT NOT NULL DEFAULT 'USD' CHECK (currency IN ('USD', 'EUR', 'PEN')),
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (user_id) REFERENCES users(id)
 );
@@ -45,4 +46,20 @@ CREATE TABLE orders (
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (funnel_id) REFERENCES funnels(id),
   FOREIGN KEY (product_id) REFERENCES products(id)
+);
+
+CREATE TABLE offers (
+  id TEXT PRIMARY KEY,
+  funnel_id TEXT NOT NULL UNIQUE,
+  upsell_enabled BOOLEAN NOT NULL DEFAULT FALSE,
+  upsell_name TEXT NOT NULL DEFAULT '',
+  upsell_price NUMERIC(10,2) NOT NULL DEFAULT 0,
+  bundle_enabled BOOLEAN NOT NULL DEFAULT FALSE,
+  bundle_name TEXT NOT NULL DEFAULT '',
+  bundle_quantity INTEGER NOT NULL DEFAULT 2,
+  bundle_discount_percentage NUMERIC(5,2) NOT NULL DEFAULT 0,
+  discount_enabled BOOLEAN NOT NULL DEFAULT FALSE,
+  discount_percentage NUMERIC(5,2) NOT NULL DEFAULT 0,
+  discount_code TEXT NOT NULL DEFAULT '',
+  FOREIGN KEY (funnel_id) REFERENCES funnels(id)
 );

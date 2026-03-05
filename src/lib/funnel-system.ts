@@ -4,6 +4,7 @@ export type ProductType = "physical" | "digital";
 export type PaymentType = "stripe" | "paypal" | "cash_on_delivery";
 export type PageType = "landing" | "checkout" | "thankyou";
 export type OrderStatus = "new" | "processing" | "shipped" | "completed";
+export type FunnelCurrency = "USD" | "EUR" | "PEN";
 export type LandingBlockType =
   | "hero"
   | "section"
@@ -28,6 +29,7 @@ export interface FunnelRow {
   name: string;
   slug: string;
   user_id: string;
+  currency: FunnelCurrency;
   created_at: string;
   published_at: string | null;
 }
@@ -61,6 +63,21 @@ export interface OrderRow {
   created_at: string;
 }
 
+export interface FunnelOfferRow {
+  id: string;
+  funnel_id: string;
+  upsell_enabled: boolean;
+  upsell_name: string;
+  upsell_price: number;
+  bundle_enabled: boolean;
+  bundle_name: string;
+  bundle_quantity: number;
+  bundle_discount_percentage: number;
+  discount_enabled: boolean;
+  discount_percentage: number;
+  discount_code: string;
+}
+
 export interface LandingBlock {
   id: string;
   type: LandingBlockType;
@@ -84,12 +101,14 @@ interface FunnelDatabase {
   products: ProductRow[];
   pages: PageRow[];
   orders: OrderRow[];
+  offers: FunnelOfferRow[];
 }
 
 interface CreateFunnelInput {
   name: string;
   userId: string;
   userEmail?: string;
+  currency?: FunnelCurrency;
 }
 
 interface UpsertProductInput {
@@ -133,6 +152,7 @@ function emptyDatabase(): FunnelDatabase {
     products: [],
     pages: [],
     orders: [],
+    offers: [],
   };
 }
 
@@ -162,6 +182,7 @@ function readDatabase(): FunnelDatabase {
       products: Array.isArray(parsed.products) ? parsed.products : [],
       pages: Array.isArray(parsed.pages) ? parsed.pages : [],
       orders: Array.isArray(parsed.orders) ? parsed.orders : [],
+      offers: Array.isArray(parsed.offers) ? parsed.offers : [],
     };
   } catch {
     return emptyDatabase();
@@ -309,7 +330,7 @@ export function ensureUserRow(userId: string, email: string, password = "") {
   writeDatabase({ ...database, users: nextUsers });
 }
 
-export function createFunnel({ name, userId, userEmail }: CreateFunnelInput) {
+export function createFunnel({ name, userId, userEmail, currency = "USD" }: CreateFunnelInput) {
   const database = readDatabase();
   const trimmedName = name.trim() || "New Funnel";
   const now = new Date().toISOString();
@@ -321,6 +342,7 @@ export function createFunnel({ name, userId, userEmail }: CreateFunnelInput) {
     name: trimmedName,
     slug,
     user_id: userId,
+    currency,
     created_at: now,
     published_at: null,
   };
@@ -380,6 +402,20 @@ export function listFunnelsByUser(userId: string) {
 export function findFunnelById(funnelId: string) {
   const database = readDatabase();
   return database.funnels.find((funnel) => funnel.id === funnelId) ?? null;
+}
+
+export function updateFunnelCurrency(funnelId: string, currency: FunnelCurrency) {
+  const database = readDatabase();
+  const nextFunnels = database.funnels.map((funnel) =>
+    funnel.id === funnelId
+      ? {
+          ...funnel,
+          currency,
+        }
+      : funnel,
+  );
+  writeDatabase({ ...database, funnels: nextFunnels });
+  return nextFunnels.find((funnel) => funnel.id === funnelId) ?? null;
 }
 
 export function findFunnelBySlug(slug: string) {
@@ -477,6 +513,20 @@ export function upsertFunnelProduct({
   return product;
 }
 
+export function listUserProducts(userId: string) {
+  const database = readDatabase();
+  const userFunnels = database.funnels.filter((funnel) => funnel.user_id === userId);
+  const funnelById = new Map(userFunnels.map((funnel) => [funnel.id, funnel]));
+
+  return database.products
+    .filter((product) => funnelById.has(product.funnel_id))
+    .map((product) => ({
+      ...product,
+      funnel_name: funnelById.get(product.funnel_id)?.name ?? "Funnel",
+    }))
+    .sort((left, right) => left.name.localeCompare(right.name));
+}
+
 export function setFunnelPublished(funnelId: string, published: boolean) {
   const database = readDatabase();
   const nextFunnels = database.funnels.map((funnel) =>
@@ -489,6 +539,54 @@ export function setFunnelPublished(funnelId: string, published: boolean) {
   );
   writeDatabase({ ...database, funnels: nextFunnels });
   return nextFunnels.find((funnel) => funnel.id === funnelId) ?? null;
+}
+
+function buildDefaultOffer(funnelId: string): FunnelOfferRow {
+  return {
+    id: createId("offer"),
+    funnel_id: funnelId,
+    upsell_enabled: false,
+    upsell_name: "",
+    upsell_price: 0,
+    bundle_enabled: false,
+    bundle_name: "",
+    bundle_quantity: 2,
+    bundle_discount_percentage: 10,
+    discount_enabled: false,
+    discount_percentage: 10,
+    discount_code: "DESCUENTO10",
+  };
+}
+
+export function getFunnelOffers(funnelId: string) {
+  const database = readDatabase();
+  return database.offers.find((offer) => offer.funnel_id === funnelId) ?? buildDefaultOffer(funnelId);
+}
+
+export function saveFunnelOffers(funnelId: string, input: Partial<FunnelOfferRow>) {
+  const database = readDatabase();
+  const base = database.offers.find((offer) => offer.funnel_id === funnelId) ?? buildDefaultOffer(funnelId);
+  const nextOffer: FunnelOfferRow = {
+    ...base,
+    ...input,
+    funnel_id: funnelId,
+    upsell_price: Number.isFinite(input.upsell_price) ? Number(input.upsell_price) : base.upsell_price,
+    bundle_quantity: Number.isFinite(input.bundle_quantity)
+      ? Math.max(2, Number(input.bundle_quantity))
+      : base.bundle_quantity,
+    bundle_discount_percentage: Number.isFinite(input.bundle_discount_percentage)
+      ? Math.max(0, Math.min(100, Number(input.bundle_discount_percentage)))
+      : base.bundle_discount_percentage,
+    discount_percentage: Number.isFinite(input.discount_percentage)
+      ? Math.max(0, Math.min(100, Number(input.discount_percentage)))
+      : base.discount_percentage,
+  };
+
+  const nextOffers = database.offers
+    .filter((offer) => offer.funnel_id !== funnelId)
+    .concat(nextOffer);
+  writeDatabase({ ...database, offers: nextOffers });
+  return nextOffer;
 }
 
 export function deleteFunnel(funnelId: string) {
@@ -505,6 +603,7 @@ export function deleteFunnel(funnelId: string) {
     products: database.products.filter((product) => product.funnel_id !== funnelId),
     pages: database.pages.filter((page) => page.funnel_id !== funnelId),
     orders: database.orders.filter((order) => order.funnel_id !== funnelId),
+    offers: database.offers.filter((offer) => offer.funnel_id !== funnelId),
   };
 
   writeDatabase(nextDatabase);

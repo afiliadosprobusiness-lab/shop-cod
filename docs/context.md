@@ -81,17 +81,21 @@ Se mantienen rutas legacy del repo para compatibilidad tecnica, pero no forman p
 ### Product Flow (one product per funnel)
 
 1. Usuario abre `/funnels/:funnelId/editor`.
-2. Configura:
+2. Paso 1 del wizard:
+  - puede seleccionar producto existente o crear uno nuevo
+3. Configura:
   - `product_name`
   - `price`
   - `product_type` (`physical` | `digital`)
   - `payment_type` (`stripe` | `paypal` | `cash_on_delivery`)
-3. Si ya existe producto, se actualiza el mismo registro (unicidad por funnel).
+  - `currency` (`USD` | `EUR` | `PEN`)
+4. Si ya existe producto, se actualiza el mismo registro (unicidad por funnel).
 
 ### Landing Editor Flow
 
-1. En el editor del funnel, usuario agrega bloques por orden vertical.
-2. Bloques permitidos:
+1. Paso 2 del wizard abre el editor de landing.
+2. El editor soporta drag&drop vertical para reordenar bloques.
+3. Bloques permitidos:
   - `hero`
   - `section`
   - `headline`
@@ -103,7 +107,15 @@ Se mantienen rutas legacy del repo para compatibilidad tecnica, pero no forman p
   - `faq`
   - `cod_form`
   - `footer`
-3. Se guarda JSON en `pages.content_json`.
+4. Se guarda JSON en `pages.content_json`.
+
+### Offers Flow
+
+1. Paso 3 del wizard permite configurar:
+  - `upsell`
+  - `bundle`
+  - `discount`
+2. Configuracion se persiste por funnel en almacenamiento local.
 
 ### Checkout Flow
 

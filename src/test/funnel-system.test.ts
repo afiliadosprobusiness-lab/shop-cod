@@ -3,11 +3,14 @@ import {
   createFunnel,
   createOrder,
   deleteFunnel,
+  getFunnelOffers,
   getDatabaseSnapshot,
   getFunnelProduct,
   getLandingSections,
   listOrders,
+  saveFunnelOffers,
   saveLandingSections,
+  updateFunnelCurrency,
   upsertFunnelProduct,
   updateOrderStatus,
 } from "@/lib/funnel-system";
@@ -137,5 +140,26 @@ describe("funnel-system", () => {
     expect(snapshot.products.find((item) => item.funnel_id === funnel.id)).toBeUndefined();
     expect(snapshot.pages.find((item) => item.funnel_id === funnel.id)).toBeUndefined();
     expect(snapshot.orders.find((item) => item.funnel_id === funnel.id)).toBeUndefined();
+  });
+
+  it("updates funnel currency and saves offers", () => {
+    const funnel = createFunnel({
+      name: "Moneda y ofertas",
+      userId: "user-1",
+    });
+
+    const updated = updateFunnelCurrency(funnel.id, "PEN");
+    expect(updated?.currency).toBe("PEN");
+
+    const savedOffers = saveFunnelOffers(funnel.id, {
+      upsell_enabled: true,
+      upsell_name: "Upsell Pro",
+      upsell_price: 29,
+      discount_enabled: true,
+      discount_percentage: 20,
+    });
+    expect(savedOffers.upsell_enabled).toBe(true);
+    expect(savedOffers.discount_percentage).toBe(20);
+    expect(getFunnelOffers(funnel.id).upsell_name).toBe("Upsell Pro");
   });
 });
