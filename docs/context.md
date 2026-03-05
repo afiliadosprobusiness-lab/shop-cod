@@ -81,29 +81,38 @@ Se mantienen rutas legacy del repo para compatibilidad tecnica, pero no forman p
 ### Product Flow (one product per funnel)
 
 1. Usuario abre `/funnels/:funnelId/editor`.
-2. Paso 1 del wizard:
-  - puede seleccionar producto existente o crear uno nuevo
+2. Paso 1 del wizard (opcional):
+  - puede seleccionar producto existente, crear uno nuevo o omitir el paso
 3. Configura:
   - `product_name`
   - `price`
   - `product_type` (`physical` | `digital`)
   - `payment_type` (`stripe` | `paypal` | `cash_on_delivery`)
   - `currency` (`USD` | `EUR` | `PEN`)
-4. Si ya existe producto, se actualiza el mismo registro (unicidad por funnel).
+4. Si ya existe producto, se actualiza el mismo registro (maximo 1 producto por funnel).
 
 ### Landing Editor Flow
 
 1. Paso 2 del wizard abre el editor de landing.
-2. El editor se muestra dentro del layout actual con:
-  - panel izquierdo con tabs `Elements` y `Sections`
-  - buscador de bloques/secciones
-  - `Elements`: bloques con drag&drop al canvas y click para agregar rapido
-  - `Sections`: presets basicos listos para insertar
-  - canvas central visual (drop/reorder + vista de diseno del bloque)
-  - panel derecho (propiedades del bloque seleccionado)
-  - guardado automatico con estado visible
-3. El editor soporta drag&drop vertical para reordenar bloques y overlay visual al arrastrar.
-4. Bloques permitidos:
+2. El editor ahora usa arquitectura modular `Builder` (Paso 1-2 de refactor) con:
+  - `EditorShell` de 3 paneles + topbar
+  - `LeftSidebar` con tabs `Elements/Sections` + buscador
+  - `Canvas` con modelo JSON `Page -> Sections -> Columns -> Elements`
+  - `PropertiesPanel` contextual por nodo seleccionado (editable en nodos clave)
+  - `TopBar` con Undo/Redo, Save, Preview, selector desktop/tablet/mobile
+3. En la fase actual:
+  - insercion por click desde `Elements` y presets desde `Sections`
+  - drag&drop desde `Elements` al canvas (drop zones en secciones/columnas)
+  - reordenamiento drag&drop de secciones y elementos dentro del canvas
+  - seleccion de nodo + hover + outlines + handles contextuales (mover, duplicar, borrar)
+  - panel de propiedades editable para `Text`, `Image`, `Button`, elemento `Section`, layout `Section` y `Columns`
+  - indicadores visuales de drop (linea/placeholder)
+  - historial avanzado (undo/redo) para estructura y propiedades
+  - merge inteligente de cambios de escritura en propiedades para evitar un paso por cada tecla
+  - shortcuts de historial en desktop: `Ctrl/Cmd+Z`, `Ctrl/Cmd+Y`, `Ctrl/Cmd+Shift+Z`
+  - autosave debounced en el propio builder con estado visible (`Guardando...`, `Guardado`, `Error`)
+  - guardado forzado antes de salir del paso (Volver/Continuar) y en `Save`
+5. Bloques permitidos:
   - `hero`
   - `section`
   - `headline`
@@ -115,8 +124,7 @@ Se mantienen rutas legacy del repo para compatibilidad tecnica, pero no forman p
   - `faq`
   - `cod_form`
   - `footer`
-5. Se guarda JSON en `pages.content_json`.
-6. El canvas permite duplicar y eliminar bloques; el panel derecho permite mover arriba/abajo.
+6. Se guarda JSON en `pages.content_json`.
 
 ### Mobile Policy
 

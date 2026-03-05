@@ -47,21 +47,25 @@ Legacy:
 
 1. Crear funnel por nombre (`/funnels`) -> se crean 3 paginas (`landing`, `checkout`, `thankyou`) y se abre editor automaticamente.
 2. Configurar producto unico (`/funnels/:funnelId/editor`) con wizard guiado:
-  - seleccionar producto existente o crear producto nuevo
+  - seleccionar producto existente, crear producto nuevo o omitir el paso
   - `product_name`
   - `price`
   - `product_type`
   - `payment_type`
   - `currency`
 3. Editar landing en paso 2 con editor visual dentro del layout actual:
+  - arquitectura modular `EditorShell` + `TopBar` + `LeftSidebar` + `Canvas` + `PropertiesPanel`
+  - modelo JSON: `Page -> Sections -> Columns -> Elements`
   - sidebar izquierda con tabs `Elements`/`Sections` y buscador
-  - `Elements`: bloques arrastrables al canvas (y click para agregar rapido)
-  - `Sections`: presets basicos para insertar rapido
-  - canvas central visual (drop/reorder + preview de diseno)
-  - panel derecho (propiedades del bloque seleccionado)
-  - acciones por bloque: duplicar/eliminar
-  - reorden manual: subir/bajar desde propiedades
-  - guardado automatico
+  - insercion por click (bloques y presets) y por drag&drop desde sidebar
+  - canvas con seleccion + hover + outlines, estado vacio guiado y drop indicators
+  - panel derecho contextual editable para nodos clave (Text, Image, Button, Section, Columns)
+  - handles contextuales sobre seleccion (mover/duplicar/borrar segun nodo)
+  - drag&drop para reordenar secciones y mover/reordenar elementos
+  - undo/redo para estructura y propiedades con merge inteligente de escritura
+  - shortcuts de historial: `Ctrl/Cmd+Z`, `Ctrl/Cmd+Y`, `Ctrl/Cmd+Shift+Z`
+  - autosave debounced gestionado dentro del builder (indicador de estado)
+  - flush de guardado al usar `Save`, `Volver` o `Continuar`
   - selector de preview desktop/tablet/mobile
 4. En mobile no se permite editar; solo se muestran metricas/analisis.
 5. Configurar ofertas en paso 3:

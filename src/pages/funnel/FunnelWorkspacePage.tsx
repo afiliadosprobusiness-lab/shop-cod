@@ -42,6 +42,7 @@ import {
   type ProductType,
 } from "@/lib/funnel-system";
 import { cn } from "@/lib/utils";
+import { BuilderLandingEditorStep1 } from "@/features/funnel-builder/BuilderLandingEditorStep1";
 
 type WizardStep = 1 | 2 | 3;
 type DeviceMode = "desktop" | "tablet" | "mobile";
@@ -445,9 +446,7 @@ export default function FunnelWorkspacePage() {
   const [selectedBlockId, setSelectedBlockId] = useState<string | null>(null);
   const [offers, setOffers] = useState<FunnelOfferRow | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
-  const [landingSaveState, setLandingSaveState] = useState<SaveState>("idle");
   const [offersSaveState, setOffersSaveState] = useState<SaveState>("idle");
-  const [lastLandingSavedAt, setLastLandingSavedAt] = useState<string | null>(null);
   const [lastOffersSavedAt, setLastOffersSavedAt] = useState<string | null>(null);
 
   const funnel = useMemo(() => findFunnelById(funnelId), [funnelId, refreshKey]);
@@ -497,21 +496,6 @@ export default function FunnelWorkspacePage() {
     if (landingSections.some((item) => item.id === selectedBlockId)) return;
     setSelectedBlockId(landingSections[0]?.id ?? null);
   }, [landingSections, selectedBlockId]);
-
-  useEffect(() => {
-    if (!funnel || isMobile || step !== 2) return;
-    setLandingSaveState("saving");
-    const timer = window.setTimeout(() => {
-      try {
-        saveLandingSections(funnel.id, landingSections);
-        setLandingSaveState("saved");
-        setLastLandingSavedAt(new Date().toISOString());
-      } catch {
-        setLandingSaveState("error");
-      }
-    }, 450);
-    return () => window.clearTimeout(timer);
-  }, [funnel, isMobile, landingSections, step]);
 
   useEffect(() => {
     if (!funnel || !offers || isMobile || step !== 3) return;
@@ -635,14 +619,8 @@ export default function FunnelWorkspacePage() {
     setLandingSections((current) => current.map((item) => (item.id === selectedBlock.id ? { ...item, ...patch } : item)));
   };
 
-  const saveNowLanding = () => {
-    try {
-      saveLandingSections(funnel.id, landingSections);
-      setLandingSaveState("saved");
-      setLastLandingSavedAt(new Date().toISOString());
-    } catch {
-      setLandingSaveState("error");
-    }
+  const saveNowLanding = (sections = landingSections) => {
+    saveLandingSections(funnel.id, sections);
   };
 
   const saveNowOffers = () => {
@@ -671,7 +649,10 @@ export default function FunnelWorkspacePage() {
 
       {step === 1 ? (
         <section className="mx-auto w-full max-w-3xl rounded-2xl border border-border bg-card p-6">
-          <h2 className="text-xl font-semibold">1) Primero crea o selecciona producto</h2>
+          <h2 className="text-xl font-semibold">1) Producto (opcional)</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Puedes configurarlo ahora o omitir este paso si solo quieres crear una landing.
+          </p>
           <div className="mt-4 space-y-3">
             <div className="space-y-2">
               <Label htmlFor="existing-product">Seleccionar producto existente (opcional)</Label>
@@ -731,236 +712,27 @@ export default function FunnelWorkspacePage() {
           >
             Guardar producto y continuar
           </Button>
+          <Button
+            type="button"
+            variant="outline"
+            className="mt-3 rounded-xl"
+            onClick={() => setStep(2)}
+          >
+            Omitir por ahora
+          </Button>
         </section>
       ) : null}
 
       {step === 2 ? (
-        <section className="rounded-2xl border border-border bg-card p-3 lg:p-4">
-          <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border bg-secondary/20 px-3 py-2">
-            <div>
-              <p className="text-sm font-semibold">Editor visual de landing</p>
-              <SaveStatus state={landingSaveState} at={lastLandingSavedAt} />
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <div className="inline-flex rounded-lg border border-border bg-background p-1">
-                <button type="button" className={cn("rounded-md px-2 py-1", deviceMode === "desktop" ? "bg-primary/15 text-primary" : "")} onClick={() => setDeviceMode("desktop")} aria-label="Vista desktop"><Monitor className="h-4 w-4" /></button>
-                <button type="button" className={cn("rounded-md px-2 py-1", deviceMode === "tablet" ? "bg-primary/15 text-primary" : "")} onClick={() => setDeviceMode("tablet")} aria-label="Vista tablet"><Tablet className="h-4 w-4" /></button>
-                <button type="button" className={cn("rounded-md px-2 py-1", deviceMode === "mobile" ? "bg-primary/15 text-primary" : "")} onClick={() => setDeviceMode("mobile")} aria-label="Vista mobile"><Smartphone className="h-4 w-4" /></button>
-              </div>
-              <Button type="button" variant="outline" size="sm" className="rounded-lg" onClick={saveNowLanding}>Guardar ahora</Button>
-              <Button type="button" variant="outline" size="sm" className="rounded-lg" onClick={() => setStep(1)}>Volver</Button>
-              <Button type="button" size="sm" className="rounded-lg" onClick={() => setStep(3)}>Continuar</Button>
-            </div>
-          </div>
-
-          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
-            <div className="grid gap-3 lg:grid-cols-[280px_minmax(0,1fr)_320px]">
-              <aside className="rounded-xl border border-border bg-secondary/15 p-3">
-                <p className="text-sm font-semibold">Build Your Page</p>
-                <p className="mt-1 text-xs text-muted-foreground">Arrastra elementos o agrega presets.</p>
-                <div className="mt-3 inline-flex w-full rounded-lg border border-border bg-background p-1">
-                  <button
-                    type="button"
-                    className={cn(
-                      "flex-1 rounded-md px-2 py-1 text-sm",
-                      libraryTab === "elements" ? "bg-primary/15 text-primary" : "text-muted-foreground",
-                    )}
-                    onClick={() => setLibraryTab("elements")}
-                  >
-                    Elements
-                  </button>
-                  <button
-                    type="button"
-                    className={cn(
-                      "flex-1 rounded-md px-2 py-1 text-sm",
-                      libraryTab === "sections" ? "bg-primary/15 text-primary" : "text-muted-foreground",
-                    )}
-                    onClick={() => setLibraryTab("sections")}
-                  >
-                    Sections
-                  </button>
-                </div>
-                <div className="relative mt-3">
-                  <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                  <Input
-                    value={libraryQuery}
-                    onChange={(event) => setLibraryQuery(event.target.value)}
-                    className="pl-9"
-                    placeholder="Buscar bloque o seccion"
-                  />
-                </div>
-                {libraryTab === "elements" ? (
-                  <div className="mt-3 space-y-2">
-                    {filteredElements.map((element) => (
-                      <LibraryItem
-                        key={element.type}
-                        element={element}
-                        onAdd={addBlockToCanvas}
-                        onNativeDragStart={(type) => setNativeDragType(type)}
-                        onNativeDragEnd={() => {
-                          setNativeDragType(null);
-                          setIsNativeCanvasOver(false);
-                        }}
-                      />
-                    ))}
-                    {!filteredElements.length ? (
-                      <p className="rounded-lg border border-border bg-card px-3 py-4 text-xs text-muted-foreground">
-                        No hay elementos para esta busqueda.
-                      </p>
-                    ) : null}
-                  </div>
-                ) : (
-                  <div className="mt-3 space-y-2">
-                    {filteredPresets.map((preset) => <SectionPresetCard key={preset.id} preset={preset} onAdd={addPreset} />)}
-                    {!filteredPresets.length ? (
-                      <p className="rounded-lg border border-border bg-card px-3 py-4 text-xs text-muted-foreground">
-                        No hay secciones para esta busqueda.
-                      </p>
-                    ) : null}
-                  </div>
-                )}
-              </aside>
-
-              <section className="rounded-xl border border-border bg-background p-3">
-                <div className="mb-2 flex items-center justify-between">
-                  <p className="text-sm font-semibold">Canvas</p>
-                  <p className="text-xs text-muted-foreground">Reordena con drag & drop</p>
-                </div>
-                <div
-                  className={cn(
-                    "min-h-[620px] rounded-xl border border-dashed p-3 transition-colors",
-                    isNativeCanvasOver ? "border-primary/65 bg-primary/5" : "border-border bg-secondary/5",
-                  )}
-                  onDragOver={(event) => {
-                    if (!nativeDragType) return;
-                    event.preventDefault();
-                    event.dataTransfer.dropEffect = "copy";
-                    setIsNativeCanvasOver(true);
-                  }}
-                  onDragEnter={(event) => {
-                    if (!nativeDragType) return;
-                    event.preventDefault();
-                    setIsNativeCanvasOver(true);
-                  }}
-                  onDragLeave={(event) => {
-                    if (!nativeDragType) return;
-                    const nextTarget = event.relatedTarget as Node | null;
-                    if (nextTarget && event.currentTarget.contains(nextTarget)) return;
-                    setIsNativeCanvasOver(false);
-                  }}
-                  onDrop={(event) => {
-                    if (!nativeDragType) return;
-                    event.preventDefault();
-                    const rawType = event.dataTransfer.getData("text/plain");
-                    const nextType = isLandingBlockType(rawType) ? rawType : nativeDragType;
-                    addBlockToCanvas(nextType);
-                    setNativeDragType(null);
-                    setIsNativeCanvasOver(false);
-                  }}
-                >
-                  <div className={cn("min-h-[595px]", canvasWidthClass)}>
-                    {landingSections.length ? (
-                      <SortableContext items={landingSections.map((s) => s.id)} strategy={verticalListSortingStrategy}>
-                        <div className="space-y-3">
-                          {landingSections.map((block) => (
-                            <CanvasCard
-                              key={block.id}
-                              block={block}
-                              selected={selectedBlockId === block.id}
-                              onSelect={() => setSelectedBlockId(block.id)}
-                              onDelete={() => removeBlock(block.id)}
-                              onDuplicate={() => duplicateBlock(block)}
-                            />
-                          ))}
-                        </div>
-                      </SortableContext>
-                    ) : (
-                      <div className="flex min-h-[580px] flex-col items-center justify-center rounded-lg border border-dashed border-border text-center">
-                        <p className="text-sm font-medium">Tu canvas esta vacio</p>
-                        <p className="mt-1 text-sm text-muted-foreground">
-                          Arrastra un bloque desde la izquierda o agrega una seccion base.
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </section>
-
-              <aside className="rounded-xl border border-border bg-secondary/15 p-3">
-                <p className="text-sm font-semibold">Properties</p>
-                {!selectedBlock ? (
-                  <p className="mt-2 text-xs text-muted-foreground">Selecciona un bloque del canvas.</p>
-                ) : (
-                  <div className="mt-3 space-y-3">
-                    <div className="rounded-lg border border-border bg-card px-2 py-1 text-xs">
-                      {blockLabel[selectedBlock.type]} ({selectedBlockIndex + 1}/{landingSections.length})
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-2">
-                      <Button type="button" variant="outline" size="sm" className="rounded-lg" disabled={selectedBlockIndex <= 0} onClick={() => moveSelected("up")}>
-                        Subir
-                      </Button>
-                      <Button type="button" variant="outline" size="sm" className="rounded-lg" disabled={selectedBlockIndex < 0 || selectedBlockIndex >= landingSections.length - 1} onClick={() => moveSelected("down")}>
-                        Bajar
-                      </Button>
-                    </div>
-
-                    {(selectedBlock.type === "hero" || selectedBlock.type === "section" || selectedBlock.type === "cod_form") && (
-                      <>
-                        <Label htmlFor="prop-title">Titulo</Label>
-                        <Input id="prop-title" value={selectedBlock.title ?? ""} onChange={(e) => updateSelected({ title: e.target.value })} />
-                      </>
-                    )}
-                    {selectedBlock.type === "hero" && (
-                      <>
-                        <Label htmlFor="prop-sub">Subtitulo</Label>
-                        <Textarea id="prop-sub" value={selectedBlock.subtitle ?? ""} onChange={(e) => updateSelected({ subtitle: e.target.value })} />
-                        <Label htmlFor="prop-htxt">Texto boton</Label>
-                        <Input id="prop-htxt" value={selectedBlock.text ?? ""} onChange={(e) => updateSelected({ text: e.target.value })} />
-                        <Label htmlFor="prop-hlnk">Enlace boton</Label>
-                        <Input id="prop-hlnk" value={selectedBlock.href ?? ""} onChange={(e) => updateSelected({ href: e.target.value })} />
-                      </>
-                    )}
-                    {(selectedBlock.type === "section" || selectedBlock.type === "headline" || selectedBlock.type === "text" || selectedBlock.type === "testimonials" || selectedBlock.type === "footer") && (
-                      <>
-                        <Label htmlFor="prop-content">Contenido</Label>
-                        <Textarea id="prop-content" value={selectedBlock.content ?? ""} onChange={(e) => updateSelected({ content: e.target.value })} />
-                      </>
-                    )}
-                    {(selectedBlock.type === "image" || selectedBlock.type === "video") && (
-                      <>
-                        <Label htmlFor="prop-src">URL</Label>
-                        <Input id="prop-src" value={selectedBlock.src ?? ""} onChange={(e) => updateSelected({ src: e.target.value })} />
-                      </>
-                    )}
-                    {selectedBlock.type === "button" && (
-                      <>
-                        <Label htmlFor="prop-btxt">Texto</Label>
-                        <Input id="prop-btxt" value={selectedBlock.text ?? ""} onChange={(e) => updateSelected({ text: e.target.value })} />
-                        <Label htmlFor="prop-blnk">Enlace</Label>
-                        <Input id="prop-blnk" value={selectedBlock.href ?? ""} onChange={(e) => updateSelected({ href: e.target.value })} />
-                      </>
-                    )}
-                    {selectedBlock.type === "faq" && (
-                      <>
-                        <Label htmlFor="prop-q">Pregunta</Label>
-                        <Input id="prop-q" value={selectedBlock.question ?? ""} onChange={(e) => updateSelected({ question: e.target.value })} />
-                        <Label htmlFor="prop-a">Respuesta</Label>
-                        <Textarea id="prop-a" value={selectedBlock.answer ?? ""} onChange={(e) => updateSelected({ answer: e.target.value })} />
-                      </>
-                    )}
-                    {selectedBlock.type === "cod_form" && (
-                      <>
-                        <Label htmlFor="prop-codtxt">Texto boton</Label>
-                        <Input id="prop-codtxt" value={selectedBlock.text ?? ""} onChange={(e) => updateSelected({ text: e.target.value })} />
-                      </>
-                    )}
-                  </div>
-                )}
-              </aside>
-            </div>
-          </DndContext>
-        </section>
+        <BuilderLandingEditorStep1
+          funnelName={funnel.name}
+          funnelSlug={funnel.slug}
+          initialSections={landingSections}
+          onSectionsChange={setLandingSections}
+          onPersist={saveNowLanding}
+          onBack={() => setStep(1)}
+          onContinue={() => setStep(3)}
+        />
       ) : null}
 
       {step === 3 && offers ? (

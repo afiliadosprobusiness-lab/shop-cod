@@ -67,9 +67,16 @@ Todas las rutas privadas pasan por auth y `DashboardLayout`.
 - Componente: `FunnelWorkspacePage`.
 - Incluye:
   - wizard guiado por pasos
-  - paso 1: seleccionar/crear producto unico + divisa
-  - paso 2: editor visual con tabs `Elements/Sections`, buscador, presets basicos, canvas central + propiedades derecha y drag&drop vertical
-  - `Elements` permite insertar por arrastre al canvas o click directo
+  - paso 1: seleccionar/crear producto + divisa (opcional, con accion de omitir)
+  - paso 2: editor visual modular (`EditorShell`, `TopBar`, `LeftSidebar`, `Canvas`, `PropertiesPanel`)
+  - modelo de pagina: `Page -> Sections -> Columns -> Elements`
+  - `Elements/Sections` con insercion por click y drag&drop al canvas
+  - seleccion + hover + outlines + handles contextuales + historial (undo/redo) de estructura/propiedades
+  - drag&drop interno para reordenar secciones y mover/reordenar elementos con drop indicators
+  - `PropertiesPanel` contextual editable para `Text`, `Image`, `Button`, `Section` y `Columns`
+  - shortcuts desktop de historial: `Ctrl/Cmd+Z`, `Ctrl/Cmd+Y`, `Ctrl/Cmd+Shift+Z`
+  - autosave debounced en el editor de paso 2 con indicador `saving/saved/error`
+  - `Save`, `Volver` y `Continuar` ejecutan flush de guardado pendiente
   - paso 3: configuracion de upsell, bundle y descuento
   - accion publicar/despublicar
   - enlaces publicos de landing/checkout/thank-you
@@ -139,7 +146,7 @@ interface ProductRow {
 
 Rule:
 
-- `products` es 1:1 con `funnels` (solo un producto por funnel).
+- `products` es 0..1 por funnel (si existe, sigue siendo un solo producto por funnel).
 - el wizard puede reutilizar productos existentes del usuario para rellenar el paso 1.
 
 ### `pages`
@@ -256,3 +263,10 @@ Cambios breaking que requieren versionado/coordinacion:
 - 2026-03-05 | Paso 2 adopta editor visual de 3 paneles dentro del layout actual y se bloquea edicion en mobile (solo metricas) | non-breaking | Refuerza UX de escritorio sin romper rutas ni contratos de datos
 - 2026-03-05 | Paso 2 mejora UX con tabs `Elements/Sections`, buscador, presets basicos de diseno, duplicado de bloque y overlay visual en drag | non-breaking | Mantiene modelo de datos y rutas, mejora velocidad de edicion en escritorio
 - 2026-03-05 | Se corrige insercion de bloques con drag&drop al canvas y se agrega fallback por click en `Elements` | non-breaking | Evita perdida de insercion por deteccion de drop y mejora confiabilidad del editor
+- 2026-03-05 | Refactor inicial del editor a arquitectura modular con modelo `Page -> Sections -> Columns -> Elements`, seleccion/hover/outlines e historial base | non-breaking | Prepara base mantenible para drag&drop avanzado y panel de propiedades editable
+- 2026-03-05 | Paso 2 agrega handles contextuales en canvas para mover/duplicar/borrar nodos seleccionados | non-breaking | Mejora sensacion de builder profesional manteniendo compatibilidad de datos
+- 2026-03-05 | Paso 2 activa drag&drop real en arquitectura modular (insertar desde sidebar, mover/reordenar en canvas con drop indicators) | non-breaking | Completa MVP de interaccion builder sin cambiar rutas ni modelos de datos
+- 2026-03-05 | Paso 4 habilita edicion de propiedades contextual en el panel derecho para nodos clave del builder | non-breaking | Permite ajustar contenido y layout sin romper el modelo ni el flujo de autosave
+- 2026-03-05 | Paso 5 mejora historial con merge inteligente para escritura en propiedades y shortcuts de undo/redo | non-breaking | Hace el editor mas usable sin cambiar rutas ni contratos de datos
+- 2026-03-05 | Paso 6 mueve autosave al builder con debounce + flush en acciones de salida/guardado | non-breaking | Reduce condiciones de carrera y mejora confiabilidad del guardado de landing
+- 2026-03-05 | Paso 1 del wizard permite omitir configuracion de producto para casos landing-only | non-breaking | Mantiene compatibilidad del modelo y habilita uso sin checkout de producto
