@@ -6,7 +6,7 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { Copy, GripVertical, Layers3, StretchHorizontal, Trash2 } from "lucide-react";
+import { Copy, GripVertical, Plus, StretchHorizontal, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import {
@@ -14,7 +14,6 @@ import {
   type PageBuilderBlock,
   type PageBuilderDevice,
 } from "../block-engine/schema";
-import { renderBlock } from "../renderer/renderBlock";
 
 interface PageBuilderCanvasProps {
   blocks: PageBuilderBlock[];
@@ -61,13 +60,62 @@ function DropSlot({
     <div
       ref={setNodeRef}
       className={cn(
-        "rounded-lg border border-dashed px-3 py-2 text-center text-[10px] font-semibold uppercase tracking-[0.18em] transition-all",
+        "flex h-12 items-center justify-center rounded-lg border border-dashed text-[11px] font-semibold uppercase tracking-[0.18em] transition-colors",
         isOver
-          ? "border-cyan-400 bg-cyan-400/10 text-cyan-300"
-          : "border-slate-300/80 bg-white text-slate-400",
+          ? "border-blue-400 bg-blue-50 text-blue-600"
+          : "border-slate-300 bg-white text-slate-400",
       )}
     >
       {label}
+    </div>
+  );
+}
+
+function MinimalBlockPreview({ block }: { block: PageBuilderBlock }) {
+  const title = block.content.title || block.content.label || block.content.name || block.type;
+  const subtitle =
+    block.content.subtitle ||
+    block.content.body ||
+    block.content.description ||
+    block.content.summary ||
+    "";
+
+  if (block.type === "image" || block.type === "video") {
+    return (
+      <div className="rounded-lg border border-slate-300 bg-slate-100 p-3">
+        <div className="flex aspect-[16/6] items-center justify-center rounded-md border border-dashed border-slate-300 bg-slate-50 text-sm text-slate-400">
+          {block.type === "video" ? "Video" : "Image"}
+        </div>
+      </div>
+    );
+  }
+
+  if (block.type === "button") {
+    return (
+      <div className="rounded-lg border border-slate-300 bg-white p-3">
+        <button type="button" className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white">
+          {block.content.label || "Button"}
+        </button>
+      </div>
+    );
+  }
+
+  if (block.type === "divider") {
+    return (
+      <div className="rounded-lg border border-slate-300 bg-white p-3">
+        <div className="flex items-center gap-2">
+          <div className="h-px flex-1 bg-slate-300" />
+          <span className="text-xs uppercase tracking-[0.14em] text-slate-400">{block.content.label || "Divider"}</span>
+          <div className="h-px flex-1 bg-slate-300" />
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-lg border border-slate-300 bg-white p-3">
+      <p className="text-sm font-semibold text-slate-800">{title}</p>
+      {subtitle ? <p className="mt-1 text-xs text-slate-500">{subtitle}</p> : null}
     </div>
   );
 }
@@ -81,7 +129,6 @@ function SortablePageBuilderBlock({
   onDelete,
   onDuplicate,
   onResize,
-  onInlineChange,
   onHover,
 }: {
   block: PageBuilderBlock;
@@ -92,7 +139,6 @@ function SortablePageBuilderBlock({
   onDelete: (id: string) => void;
   onDuplicate: (id: string) => void;
   onResize: (id: string) => void;
-  onInlineChange: (id: string, field: string, value: string) => void;
   onHover: (id: string | null) => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
@@ -106,7 +152,7 @@ function SortablePageBuilderBlock({
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
-    opacity: isDragging ? 0.45 : 1,
+    opacity: isDragging ? 0.5 : 1,
   };
 
   const isSelected = selectedId === block.id;
@@ -122,21 +168,21 @@ function SortablePageBuilderBlock({
     >
       <article
         className={cn(
-          "group rounded-xl border bg-[#0a1020] p-3 shadow-[0_18px_36px_rgba(2,6,23,0.25)] transition-colors",
+          "rounded-lg border bg-white p-3 shadow-sm",
           isSelected
-            ? "border-cyan-400/80"
+            ? "border-amber-400"
             : isHovered
-              ? "border-cyan-400/40"
-              : "border-slate-700/70 hover:border-slate-500",
+              ? "border-blue-300"
+              : "border-slate-300",
         )}
       >
-        <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+        <div className="mb-2 flex items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             <button
               type="button"
               {...attributes}
               {...listeners}
-              className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-700 bg-slate-950 text-slate-300 transition-colors hover:text-white"
+              className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-slate-300 bg-slate-50 text-slate-600"
               aria-label="Mover bloque"
             >
               <GripVertical className="h-4 w-4" />
@@ -144,57 +190,50 @@ function SortablePageBuilderBlock({
             <button
               type="button"
               onClick={() => onSelect(block.id)}
-              className="inline-flex items-center gap-2 rounded-full border border-slate-700 bg-slate-950 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-200 transition-colors hover:border-slate-500"
+              className="inline-flex items-center rounded-full border border-slate-300 bg-slate-50 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-600"
             >
-              <Layers3 className="h-3.5 w-3.5" />
               {block.type}
             </button>
           </div>
 
-          <div className="flex flex-wrap gap-1 opacity-100 transition-opacity xl:opacity-0 xl:group-hover:opacity-100">
+          <div className="flex gap-1">
             <Button
               type="button"
               variant="ghost"
               size="sm"
               onClick={() => onResize(block.id)}
-              className="h-8 rounded-lg px-2 text-slate-300 hover:bg-slate-800 hover:text-white"
+              className="h-7 rounded-md border border-slate-300 bg-white px-2 text-slate-600 hover:bg-slate-50"
             >
-              <StretchHorizontal className="h-4 w-4" />
+              <StretchHorizontal className="h-3.5 w-3.5" />
             </Button>
             <Button
               type="button"
               variant="ghost"
               size="sm"
               onClick={() => onDuplicate(block.id)}
-              className="h-8 rounded-lg px-2 text-slate-300 hover:bg-slate-800 hover:text-white"
+              className="h-7 rounded-md border border-slate-300 bg-white px-2 text-slate-600 hover:bg-slate-50"
             >
-              <Copy className="h-4 w-4" />
+              <Copy className="h-3.5 w-3.5" />
             </Button>
             <Button
               type="button"
               variant="ghost"
               size="sm"
               onClick={() => onDelete(block.id)}
-              className="h-8 rounded-lg px-2 text-slate-300 hover:bg-slate-800 hover:text-white"
+              className="h-7 rounded-md border border-slate-300 bg-white px-2 text-slate-600 hover:bg-slate-50"
             >
-              <Trash2 className="h-4 w-4" />
+              <Trash2 className="h-3.5 w-3.5" />
             </Button>
           </div>
         </div>
 
         <button type="button" onClick={() => onSelect(block.id)} className="block w-full text-left">
-          {renderBlock(block, {
-            isSelected,
-            device,
-            onInlineChange,
-          })}
+          <MinimalBlockPreview block={block} />
         </button>
 
         {canAcceptChildren(block.type) ? (
-          <div className="mt-3 space-y-2">
-            <div className="rounded-lg border border-slate-700 bg-slate-950/80 px-3 py-2">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">Nested canvas</p>
-            </div>
+          <div className="mt-3 space-y-2 rounded-lg border border-slate-200 bg-slate-50 p-2">
+            <p className="px-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">Nested canvas</p>
             <PageBuilderBlockList
               blocks={block.children}
               parentId={block.id}
@@ -205,7 +244,6 @@ function SortablePageBuilderBlock({
               onDelete={onDelete}
               onDuplicate={onDuplicate}
               onResize={onResize}
-              onInlineChange={onInlineChange}
               onHover={onHover}
               nested
             />
@@ -228,7 +266,6 @@ function PageBuilderBlockList({
   onDelete,
   onDuplicate,
   onResize,
-  onInlineChange,
   onHover,
   nested = false,
 }: {
@@ -241,22 +278,16 @@ function PageBuilderBlockList({
   onDelete: (id: string) => void;
   onDuplicate: (id: string) => void;
   onResize: (id: string) => void;
-  onInlineChange: (id: string, field: string, value: string) => void;
   onHover: (id: string | null) => void;
   nested?: boolean;
 }) {
   return (
     <SortableContext items={blocks.map((block) => block.id)} strategy={verticalListSortingStrategy}>
-      <div
-        className={cn(
-          "space-y-2",
-          nested ? "rounded-xl border border-slate-700 bg-slate-950/60 p-2" : "",
-        )}
-      >
+      <div className={cn("space-y-2", nested ? "rounded-lg border border-slate-200 bg-white p-2" : "")}>
         <DropSlot
           parentId={parentId}
           index={0}
-          label={blocks.length ? "Insertar al inicio" : "Suelta aqui para crear el primer bloque"}
+          label={blocks.length ? "Add Element" : "Drop Here"}
         />
         {blocks.map((block, index) => (
           <div key={block.id} className="space-y-2">
@@ -269,10 +300,9 @@ function PageBuilderBlockList({
               onDelete={onDelete}
               onDuplicate={onDuplicate}
               onResize={onResize}
-              onInlineChange={onInlineChange}
               onHover={onHover}
             />
-            <DropSlot parentId={parentId} index={index + 1} label="Insertar aqui" />
+            <DropSlot parentId={parentId} index={index + 1} label="Add Element" />
           </div>
         ))}
       </div>
@@ -288,40 +318,46 @@ export function PageBuilderCanvas({
   onDelete,
   onDuplicate,
   onResize,
-  onInlineChange,
 }: PageBuilderCanvasProps) {
   const [hoveredId, setHoveredId] = useState<string | null>(null);
 
   return (
-    <section className="min-w-0 rounded-2xl border border-slate-700/80 bg-[#0a1020] p-3 shadow-[0_24px_80px_rgba(2,6,23,0.35)]">
-      <header className="mb-3 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-700 bg-slate-950/70 px-3 py-2.5">
-        <div>
-          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-cyan-300">Canvas</p>
-          <h2 className="text-sm font-semibold text-slate-100">Drag, drop, nested blocks y controles por elemento</h2>
-          <p className="text-[11px] text-slate-400">El arbol JSON se actualiza en tiempo real sin reconstruccion completa.</p>
+    <section className="min-w-0 rounded-xl border border-slate-300 bg-[#eaedf1] p-3">
+      <div className="mb-3 grid grid-cols-2 gap-2">
+        <div className="flex h-12 items-center justify-center rounded-lg border border-dashed border-slate-400 bg-[#f2f4f7]">
+          <button
+            type="button"
+            className="inline-flex items-center gap-1 rounded-full border border-slate-300 bg-white px-3 py-1 text-xs font-medium text-slate-500"
+          >
+            <Plus className="h-3.5 w-3.5" />
+            Add Element
+          </button>
         </div>
-        <div className="rounded-lg border border-slate-700 bg-slate-900 px-2.5 py-1 text-xs font-semibold text-slate-200">
-          {blocks.length} bloques raiz
+        <div className="flex h-12 items-center justify-center rounded-lg border border-dashed border-slate-400 bg-[#f2f4f7]">
+          <button
+            type="button"
+            className="inline-flex items-center gap-1 rounded-full border border-slate-300 bg-white px-3 py-1 text-xs font-medium text-slate-500"
+          >
+            <Plus className="h-3.5 w-3.5" />
+            Add Element
+          </button>
         </div>
-      </header>
+      </div>
 
-      <div className="overflow-x-hidden rounded-xl border border-slate-300 bg-[radial-gradient(circle_at_1px_1px,#e2e8f0_1px,transparent_1px)] [background-size:24px_24px] p-3">
-        <div className="rounded-xl border border-slate-200 bg-white/90 p-3 shadow-inner">
-          <div className={cn("mx-auto transition-all duration-300", getFrameWidth(device))}>
-            <PageBuilderBlockList
-              blocks={blocks}
-              parentId={null}
-              selectedId={selectedId}
-              hoveredId={hoveredId}
-              device={device}
-              onSelect={onSelect}
-              onDelete={onDelete}
-              onDuplicate={onDuplicate}
-              onResize={onResize}
-              onInlineChange={onInlineChange}
-              onHover={setHoveredId}
-            />
-          </div>
+      <div className="overflow-x-hidden rounded-lg border border-slate-300 bg-[#dfe2e7] p-4">
+        <div className={cn("mx-auto", getFrameWidth(device))}>
+          <PageBuilderBlockList
+            blocks={blocks}
+            parentId={null}
+            selectedId={selectedId}
+            hoveredId={hoveredId}
+            device={device}
+            onSelect={onSelect}
+            onDelete={onDelete}
+            onDuplicate={onDuplicate}
+            onResize={onResize}
+            onHover={setHoveredId}
+          />
         </div>
       </div>
     </section>
